@@ -52,4 +52,14 @@ variable "os_type" {
     sensitive   = true
     default     = null
   }
+
+  variable "linux_configuration" {
+    type = optional(object({
+      admin_ssh_keys = optional(map(object({
+        public_key = string
+        username   = string
+      })), {})
+      disable_password_authentication = optional(bool, true)
+    }), {})
+  }
 }
