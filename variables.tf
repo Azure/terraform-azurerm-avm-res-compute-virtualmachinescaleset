@@ -119,7 +119,7 @@ variable "os_profile" {
           url                  = optional(string, null)
           store                = optional(string, null)
         }), {})
-      }), {})
+      }), null)
     }), null)
   })
   description = "The OS profile configuration for the Virtual Machine Scale Set."

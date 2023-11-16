@@ -1,3 +1,7 @@
+output "os_profile_windows_configuration_secret" {
+  value = var.os_profile.windows_configuration.secret == null ? "null" : "not null"
+}
+
 resource "azurerm_orchestrated_virtual_machine_scale_set" "virtual_machine_scale_set" {
  # count = var.os_profile.linux_configuration != null && var.os_profile.windows_configuration == null ? 1 : 0  
 
@@ -18,16 +22,22 @@ resource "azurerm_orchestrated_virtual_machine_scale_set" "virtual_machine_scale
         disable_password_authentication = var.os_profile.linux_configuration.disable_password_authentication
         admin_username                  = var.os_profile.linux_configuration.admin_username
         admin_password                  = var.os_profile.linux_configuration.admin_password
-        #user_data_base64                = var.os_profile.linux_configuration.user_data_base64
-        admin_ssh_key {
-          username                      = var.os_profile.linux_configuration.admin_ssh_key.username
-          public_key                    = var.os_profile.linux_configuration.admin_ssh_key.public_key
+        #TODO: user_data_base64                = var.os_profile.linux_configuration.user_data_base64
+        dynamic "admin_ssh_key" {
+          for_each = var.os_profile.linux_configuration.admin_ssh_key == null ? [] : ["admin_ssh_key"]
+          content {
+            username                      = var.os_profile.linux_configuration.admin_ssh_key.username
+            public_key                    = var.os_profile.linux_configuration.admin_ssh_key.public_key
+          }
         }
-        secret {
-          key_vault_id                  = var.os_profile.linux_configuration.secret.key_vault_id
-          certificate { 
-            url                         = var.os_profile.linux_configuration.secret.certificate.url
-          }          
+        dynamic "secret" {
+          for_each = var.os_profile.linux_configuration.secret == null ? [] : ["secret"]
+          content {
+            key_vault_id                  = var.os_profile.linux_configuration.secret.key_vault_id
+            certificate { 
+              url                         = var.os_profile.linux_configuration.secret.certificate.url
+            }   
+          }
         }
       }
     }
@@ -42,11 +52,14 @@ resource "azurerm_orchestrated_virtual_machine_scale_set" "virtual_machine_scale
         patch_assessment_mode           = var.os_profile.windows_configuration.patch_assessment_mode
         patch_mode                      = var.os_profile.windows_configuration.patch_mode
         provision_vm_agent              = var.os_profile.windows_configuration.provision_vm_agent
-        secret {
-          key_vault_id = var.os_profile.windows_configuration.secret.key_vault_id
-          certificate { 
-            url                         = var.os_profile.windows_configuration.secret.certificate.url
-            store                       = var.os_profile.windows_configuration.secret.certificate.store
+        dynamic "secret" {
+          for_each = var.os_profile.windows_configuration.secret == null ? [] : ["secret"]
+          content {
+            key_vault_id                  = var.os_profile.windows_configuration.secret.key_vault_id
+            certificate { 
+              url                         = var.os_profile.windows_configuration.secret.certificate.url
+              store                       = var.os_profile.windows_configuration.secret.certificate.store
+            }
           }
         }
       }
