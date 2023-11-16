@@ -1,12 +1,8 @@
-#TODO: Uncomment
-
 output "resource" {
-  #value = azurerm_orchestrated_virtual_machine_scale_set.virtual_machine_scale_set.id
-  value = "abc"
+  value = azurerm_orchestrated_virtual_machine_scale_set.virtual_machine_scale_set.id
 }
 
 output "unique_id" {
-  #value = azurerm_orchestrated_virtual_machine_scale_set.virtual_machine_scale_set.unique_id
-  value = "abc"
+  value = azurerm_orchestrated_virtual_machine_scale_set.virtual_machine_scale_set.unique_id
 }
 

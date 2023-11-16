@@ -1,7 +1,3 @@
-output "os_profile_windows_configuration_secret" {
-  value = var.os_profile.windows_configuration.secret == null ? "null" : "not null"
-}
-
 resource "azurerm_orchestrated_virtual_machine_scale_set" "virtual_machine_scale_set" {
  # count = var.os_profile.linux_configuration != null && var.os_profile.windows_configuration == null ? 1 : 0  
 

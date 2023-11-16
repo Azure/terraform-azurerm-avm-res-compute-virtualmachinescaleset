@@ -140,8 +140,3 @@ output "virtual_machine_scale_set_id" {
 output "virtual_machine_scale_set_unique_id" {
   value = module.terraform-azurerm-avm-res-compute-virtualmachinescaleset.unique_id
 }
-
-#TODO: Delete this
-output "os_profile_windows_configuration_secret" {
-  value = module.terraform-azurerm-avm-res-compute-virtualmachinescaleset.os_profile_windows_configuration_secret
-}
