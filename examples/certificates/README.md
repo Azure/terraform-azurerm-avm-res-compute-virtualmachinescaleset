@@ -1,7 +1,7 @@
 <!-- BEGIN_TF_DOCS -->
-# Default example
+# Certificates example
 
-This deploys the module in its simplest form.
+This sample shows how to deploy certificates to your VMSS.
 
 ```hcl
 terraform {
