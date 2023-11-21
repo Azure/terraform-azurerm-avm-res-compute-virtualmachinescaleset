@@ -115,8 +115,7 @@ module "terraform-azurerm-avm-res-compute-virtualmachinescaleset" {
       admin_ssh_key = toset([{
         username   = "azureuser"
         public_key = tls_private_key.example_ssh.public_key_openssh
-        # Replace if you have a public key file
-        #public_key = file("<filename>")
+        #public_key = file("<filename>")  # Replace if you have a public key file
       }])
     }
   }

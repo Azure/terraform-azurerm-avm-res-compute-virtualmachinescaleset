@@ -1,7 +1,7 @@
 <!-- BEGIN_TF_DOCS -->
-# Default example
+# Windows example
 
-This deploys the module in its simplest form.
+This uses the module to deploy Windows VMs.
 
 ```hcl
 terraform {

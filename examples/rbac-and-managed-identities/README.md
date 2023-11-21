@@ -1,7 +1,7 @@
 <!-- BEGIN_TF_DOCS -->
-# Default example
+# RBAC and Managed Identities example
 
-This deploys the module in its simplest form.
+This sample shows how to use the module to set VMSS RBAC and Managed Identities.
 
 ```hcl
 terraform {
