@@ -14,6 +14,7 @@ Best practices:
 - License type
 - prefixes
 - vm agent
+- health
 
 
 ```hcl
