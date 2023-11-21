@@ -3,6 +3,19 @@
 
 This uses the module to deploy Windows VMs.
 
+Best practices:
+- certificates
+- winrm (https, certificate)
+- password authentication
+- patching
+  - hot patching
+  - Assessment mode (e.g. "ImageDefault")
+  - Mode (e.g. "AutomaticByOS")
+- License type
+- prefixes
+- vm agent
+
+
 ```hcl
 terraform {
   required_version = ">= 1.0.0"

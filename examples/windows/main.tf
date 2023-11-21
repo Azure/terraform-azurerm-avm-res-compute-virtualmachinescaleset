@@ -111,10 +111,13 @@ module "terraform-azurerm-avm-res-compute-virtualmachinescaleset" {
       disable_password_authentication = false
       admin_username                  = "azureuser"
       admin_password                  = "P@ssw0rd1234!"
-      admin_ssh_key = {
-        username   = "azureuser"
-        public_key = tls_private_key.example_ssh.public_key_openssh
-      }
+      license_type                    = "None"
+      hotpatching_enabled             = true
+      patch_assessment_mode           = "ImageDefault"
+      patch_mode                      = "AutomaticByOS"
+      winrm_listener = [{
+        protocol = "Http"
+      }]
     }
   }
   source_image_reference = {
