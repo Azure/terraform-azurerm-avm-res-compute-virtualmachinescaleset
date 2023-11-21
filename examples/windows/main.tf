@@ -99,7 +99,13 @@ module "terraform-azurerm-avm-res-compute-virtualmachinescaleset" {
   resource_group_name = azurerm_resource_group.this.name
   enable_telemetry    = var.enable_telemetry
   location            = azurerm_resource_group.this.location
-  subnet_id           = azurerm_subnet.subnet.id
+  network_interface = [{
+    name = "VMSS-NIC"
+    ip_configuration = [{
+      name                          = "VMSS-IPConfig"
+      subnet_id                     = azurerm_subnet.subnet.id
+    }]
+  }]
   os_profile = {
     windows_configuration = {
       disable_password_authentication = false
@@ -108,8 +114,6 @@ module "terraform-azurerm-avm-res-compute-virtualmachinescaleset" {
       admin_ssh_key = {
         username   = "azureuser"
         public_key = tls_private_key.example_ssh.public_key_openssh
-        # Replace if you have a public key file
-        #public_key = file("c:/tmp/key.txt")
       }
     }
   }

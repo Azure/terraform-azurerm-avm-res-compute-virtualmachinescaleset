@@ -1,111 +1,270 @@
 resource "azurerm_orchestrated_virtual_machine_scale_set" "virtual_machine_scale_set" {
- # count = var.os_profile.linux_configuration != null && var.os_profile.windows_configuration == null ? 1 : 0  
+  location                      = var.location
+  name                          = var.name
+  platform_fault_domain_count   = 1       # For zonal deployments, this must be set to 1
+  resource_group_name           = var.resource_group_name
+  capacity_reservation_group_id = var.capacity_reservation_group_id
+  encryption_at_host_enabled    = var.encryption_at_host_enabled
+  eviction_policy               = var.eviction_policy
+  extension_operations_enabled  = var.extension_operations_enabled
+  extensions_time_budget        = var.extensions_time_budget
+  instances                     = var.instances
+  license_type                  = var.license_type
+  max_bid_price                 = var.max_bid_price
+  priority                      = var.priority
+  proximity_placement_group_id  = var.proximity_placement_group_id
+  single_placement_group        = var.single_placement_group
+  sku_name                      = var.sku_name
+  source_image_id               = var.source_image_id
+  tags                          = var.tags
+  user_data_base64              = var.user_data_base64
+  zone_balance                  = var.zone_balance
+  zones                         = var.zones
 
-  name                        = var.name
-  tags                        = var.tags 
-  resource_group_name         = var.resource_group_name
-  location                    = var.location
-  sku_name                    = var.sku_name
-  instances                   = var.instances
-  
-  platform_fault_domain_count = 1               # For zonal deployments, this must be set to 1
-  zones                       = var.zones # ["1", "2", "3"] # Zones required to lookup zone in the startup script
+  dynamic "additional_capabilities" {
+    for_each = var.additional_capabilities == null ? [] : [var.additional_capabilities]
+    content {
+      ultra_ssd_enabled = additional_capabilities.value.ultra_ssd_enabled
+    }
+  }
+  dynamic "automatic_instance_repair" {
+    for_each = var.automatic_instance_repair == null ? [] : [var.automatic_instance_repair]
+    content {
+      enabled      = automatic_instance_repair.value.enabled
+      grace_period = automatic_instance_repair.value.grace_period
+    }
+  }
+  dynamic "boot_diagnostics" {
+    for_each = var.boot_diagnostics == null ? [] : [var.boot_diagnostics]
+    content {
+      storage_account_uri = boot_diagnostics.value.storage_account_uri
+    }
+  }
+  dynamic "data_disk" {
+    for_each = var.data_disk == null ? [] : var.data_disk
+    content {
+      caching                        = data_disk.value.caching
+      disk_size_gb                   = data_disk.value.disk_size_gb
+      lun                            = data_disk.value.lun
+      storage_account_type           = data_disk.value.storage_account_type
+      create_option                  = data_disk.value.create_option
+      disk_encryption_set_id         = data_disk.value.disk_encryption_set_id
+      ultra_ssd_disk_iops_read_write = data_disk.value.ultra_ssd_disk_iops_read_write
+      ultra_ssd_disk_mbps_read_write = data_disk.value.ultra_ssd_disk_mbps_read_write
+      write_accelerator_enabled      = data_disk.value.write_accelerator_enabled
+    }
+  }
+  dynamic "extension" {
+    for_each = var.extension == null ? [] : var.extension
+    content {
+      name                                      = extension.value.name
+      publisher                                 = extension.value.publisher
+      type                                      = extension.value.type
+      type_handler_version                      = extension.value.type_handler_version
+      auto_upgrade_minor_version_enabled        = extension.value.auto_upgrade_minor_version_enabled
+      extensions_to_provision_after_vm_creation = extension.value.extensions_to_provision_after_vm_creation
+      failure_suppression_enabled               = extension.value.failure_suppression_enabled
+      force_extension_execution_on_change       = extension.value.force_extension_execution_on_change
+      protected_settings                        = extension.value.protected_settings
+      settings                                  = extension.value.settings
 
-  os_profile {
-    dynamic "linux_configuration" {
-      for_each = var.os_profile.linux_configuration == null ? [] : ["linux_configuration"]
-      content {      
-        disable_password_authentication = var.os_profile.linux_configuration.disable_password_authentication
-        admin_username                  = var.os_profile.linux_configuration.admin_username
-        admin_password                  = var.os_profile.linux_configuration.admin_password
-        #TODO: user_data_base64                = var.os_profile.linux_configuration.user_data_base64
-        dynamic "admin_ssh_key" {
-          for_each = var.os_profile.linux_configuration.admin_ssh_key == null ? [] : ["admin_ssh_key"]
-          content {
-            username                      = var.os_profile.linux_configuration.admin_ssh_key.username
-            public_key                    = var.os_profile.linux_configuration.admin_ssh_key.public_key
-          }
-        }
-        dynamic "secret" {
-          for_each = var.os_profile.linux_configuration.secret == null ? [] : ["secret"]
-          content {
-            key_vault_id                  = var.os_profile.linux_configuration.secret.key_vault_id
-            certificate { 
-              url                         = var.os_profile.linux_configuration.secret.certificate.url
-            }   
-          }
+      dynamic "protected_settings_from_key_vault" {
+        for_each = extension.value.protected_settings_from_key_vault == null ? [] : [extension.value.protected_settings_from_key_vault]
+        content {
+          secret_url      = protected_settings_from_key_vault.value.secret_url
+          source_vault_id = protected_settings_from_key_vault.value.source_vault_id
         }
       }
     }
-    dynamic "windows_configuration" {
-      for_each = var.os_profile.windows_configuration == null ? [] : ["windows_configuration"]
-      content {
-        admin_username                  = var.os_profile.windows_configuration.admin_username
-        admin_password                  = var.os_profile.windows_configuration.admin_password
-        computer_name_prefix            = var.os_profile.windows_configuration.computer_name_prefix
-        enable_automatic_updates        = var.os_profile.windows_configuration.enable_automatic_updates
-        hotpatching_enabled             = var.os_profile.windows_configuration.hotpatching_enabled
-        patch_assessment_mode           = var.os_profile.windows_configuration.patch_assessment_mode
-        patch_mode                      = var.os_profile.windows_configuration.patch_mode
-        provision_vm_agent              = var.os_profile.windows_configuration.provision_vm_agent
-        dynamic "secret" {
-          for_each = var.os_profile.windows_configuration.secret == null ? [] : ["secret"]
-          content {
-            key_vault_id                  = var.os_profile.windows_configuration.secret.key_vault_id
-            certificate { 
-              url                         = var.os_profile.windows_configuration.secret.certificate.url
-              store                       = var.os_profile.windows_configuration.secret.certificate.store
+  }
+  dynamic "identity" {
+    for_each = var.identity == null ? [] : [var.identity]
+    content {
+      identity_ids = identity.value.identity_ids
+      type         = identity.value.type
+    }
+  }
+  dynamic "network_interface" {
+    for_each = var.network_interface == null ? [] : var.network_interface
+    content {
+      name                          = network_interface.value.name
+      dns_servers                   = network_interface.value.dns_servers
+      enable_accelerated_networking = network_interface.value.enable_accelerated_networking
+      enable_ip_forwarding          = network_interface.value.enable_ip_forwarding
+      network_security_group_id     = network_interface.value.network_security_group_id
+      primary                       = network_interface.value.primary
+
+      dynamic "ip_configuration" {
+        for_each = network_interface.value.ip_configuration
+        content {
+          name                                         = ip_configuration.value.name
+          application_gateway_backend_address_pool_ids = ip_configuration.value.application_gateway_backend_address_pool_ids
+          application_security_group_ids               = ip_configuration.value.application_security_group_ids
+          load_balancer_backend_address_pool_ids       = ip_configuration.value.load_balancer_backend_address_pool_ids
+          primary                                      = ip_configuration.value.primary
+          subnet_id                                    = ip_configuration.value.subnet_id
+          version                                      = ip_configuration.value.version
+
+          dynamic "public_ip_address" {
+            for_each = ip_configuration.value.public_ip_address == null ? [] : ip_configuration.value.public_ip_address
+            content {
+              name                    = public_ip_address.value.name
+              domain_name_label       = public_ip_address.value.domain_name_label
+              idle_timeout_in_minutes = public_ip_address.value.idle_timeout_in_minutes
+              public_ip_prefix_id     = public_ip_address.value.public_ip_prefix_id
+              sku_name                = public_ip_address.value.sku_name
+              version                 = public_ip_address.value.version
+
+              dynamic "ip_tag" {
+                for_each = public_ip_address.value.ip_tag == null ? [] : public_ip_address.value.ip_tag
+                content {
+                  tag  = ip_tag.value.tag
+                  type = ip_tag.value.type
+                }
+              }
             }
           }
         }
       }
-    } 
-  }
-
-  source_image_reference {
-    publisher = var.source_image_reference.publisher
-    offer     = var.source_image_reference.offer
-    sku       = var.source_image_reference.sku
-    version   = var.source_image_reference.version
-  }
-
-  os_disk {
-    storage_account_type = var.os_disk.storage_account_type
-    caching              = var.os_disk.caching
-  }
-
-  network_interface {
-    name                          = "nic"
-    primary                       = true
-    enable_accelerated_networking = false
-    ip_configuration {
-      name                                   = "ipconfig"
-      primary                                = true
-      subnet_id                              = var.subnet_id
-      load_balancer_backend_address_pool_ids = var.load_balancer_backend_address_pool_ids
     }
   }
-
-  boot_diagnostics {
-    storage_account_uri = ""
-  }
-
-  # Ignore changes to the instances property, so that the VMSS is not recreated when the number of instances is changed
-  lifecycle {
-    ignore_changes = [
-      instances
-    ]
-  }
-
-  dynamic "identity" {
-    for_each = var.managed_identities == null ? [] : ["identity"]
+  dynamic "os_disk" {
+    for_each = var.os_disk == null ? [] : [var.os_disk]
     content {
-      # VMSS Flex only supports User Assigned Managed Identities
-      type = "UserAssigned"  
-      identity_ids = var.managed_identities.user_assigned_resource_ids
+      caching                   = os_disk.value.caching
+      storage_account_type      = os_disk.value.storage_account_type
+      disk_encryption_set_id    = os_disk.value.disk_encryption_set_id
+      disk_size_gb              = os_disk.value.disk_size_gb
+      write_accelerator_enabled = os_disk.value.write_accelerator_enabled
+
+      dynamic "diff_disk_settings" {
+        for_each = os_disk.value.diff_disk_settings == null ? [] : [os_disk.value.diff_disk_settings]
+        content {
+          option    = diff_disk_settings.value.option
+          placement = diff_disk_settings.value.placement
+        }
+      }
+    }
+  }
+  dynamic "os_profile" {
+    for_each = var.os_profile == null ? [] : [var.os_profile]
+    content {
+      custom_data = os_profile.value.custom_data
+
+      dynamic "linux_configuration" {
+        for_each = os_profile.value.linux_configuration == null ? [] : [os_profile.value.linux_configuration]
+        content {
+          admin_username                  = linux_configuration.value.admin_username
+          admin_password                  = linux_configuration.value.admin_password
+          computer_name_prefix            = linux_configuration.value.computer_name_prefix
+          disable_password_authentication = linux_configuration.value.disable_password_authentication
+          patch_assessment_mode           = linux_configuration.value.patch_assessment_mode
+          patch_mode                      = linux_configuration.value.patch_mode
+          provision_vm_agent              = linux_configuration.value.provision_vm_agent
+
+          dynamic "admin_ssh_key" {
+            for_each = linux_configuration.value.admin_ssh_key == null ? [] : linux_configuration.value.admin_ssh_key
+            content {
+              public_key = admin_ssh_key.value.public_key
+              username   = admin_ssh_key.value.username
+            }
+          }
+          dynamic "secret" {
+            for_each = linux_configuration.value.secret == null ? [] : linux_configuration.value.secret
+            content {
+              key_vault_id = secret.value.key_vault_id
+
+              dynamic "certificate" {
+                for_each = secret.value.certificate == null ? [] : secret.value.certificate
+                content {
+                  url = certificate.value.url
+                }
+              }
+            }
+          }
+        }
+      }
+      dynamic "windows_configuration" {
+        for_each = os_profile.value.windows_configuration == null ? [] : [os_profile.value.windows_configuration]
+        content {
+          admin_password           = windows_configuration.value.admin_password
+          admin_username           = windows_configuration.value.admin_username
+          computer_name_prefix     = windows_configuration.value.computer_name_prefix
+          enable_automatic_updates = windows_configuration.value.enable_automatic_updates
+          hotpatching_enabled      = windows_configuration.value.hotpatching_enabled
+          patch_assessment_mode    = windows_configuration.value.patch_assessment_mode
+          patch_mode               = windows_configuration.value.patch_mode
+          provision_vm_agent       = windows_configuration.value.provision_vm_agent
+          timezone                 = windows_configuration.value.timezone
+
+          dynamic "secret" {
+            for_each = windows_configuration.value.secret == null ? [] : windows_configuration.value.secret
+            content {
+              key_vault_id = secret.value.key_vault_id
+
+              dynamic "certificate" {
+                for_each = secret.value.certificate == null ? [] : secret.value.certificate
+                content {
+                  store = certificate.value.store
+                  url   = certificate.value.url
+                }
+              }
+            }
+          }
+          dynamic "winrm_listener" {
+            for_each = windows_configuration.value.winrm_listener == null ? [] : windows_configuration.value.winrm_listener
+            content {
+              protocol        = winrm_listener.value.protocol
+              certificate_url = winrm_listener.value.certificate_url
+            }
+          }
+        }
+      }
+    }
+  }
+  dynamic "plan" {
+    for_each = var.plan == null ? [] : [var.plan]
+    content {
+      name      = plan.value.name
+      product   = plan.value.product
+      publisher = plan.value.publisher
+    }
+  }
+  dynamic "priority_mix" {
+    for_each = var.priority_mix == null ? [] : [var.priority_mix]
+    content {
+      base_regular_count            = priority_mix.value.base_regular_count
+      regular_percentage_above_base = priority_mix.value.regular_percentage_above_base
+    }
+  }
+  dynamic "source_image_reference" {
+    for_each = var.source_image_reference == null ? [] : [var.source_image_reference]
+    content {
+      offer     = source_image_reference.value.offer
+      publisher = source_image_reference.value.publisher
+      sku       = source_image_reference.value.sku
+      version   = source_image_reference.value.version
+    }
+  }
+  dynamic "termination_notification" {
+    for_each = var.termination_notification == null ? [] : [var.termination_notification]
+    content {
+      enabled = termination_notification.value.enabled
+      timeout = termination_notification.value.timeout
+    }
+  }
+  dynamic "timeouts" {
+    for_each = var.timeouts == null ? [] : [var.timeouts]
+    content {
+      create = timeouts.value.create
+      delete = timeouts.value.delete
+      read   = timeouts.value.read
+      update = timeouts.value.update
     }
   }
 }
+
+# AVM Required Code
 
 resource "azurerm_management_lock" "this" {
   count      = var.lock.kind != "None" ? 1 : 0
@@ -113,7 +272,6 @@ resource "azurerm_management_lock" "this" {
   scope      = azurerm_orchestrated_virtual_machine_scale_set.virtual_machine_scale_set.id
   lock_level = var.lock.kind
 }
-
 resource "azurerm_role_assignment" "this" {
   for_each                               = var.role_assignments
   scope                                  = azurerm_orchestrated_virtual_machine_scale_set.virtual_machine_scale_set.id
@@ -125,4 +283,3 @@ resource "azurerm_role_assignment" "this" {
   skip_service_principal_aad_check       = each.value.skip_service_principal_aad_check
   delegated_managed_identity_resource_id = each.value.delegated_managed_identity_resource_id
 }
-

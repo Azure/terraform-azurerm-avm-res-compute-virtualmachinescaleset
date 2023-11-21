@@ -1,3 +1,9 @@
+# AVM interface variables
+variable "tags" {
+  type        = map(any)
+  description = "Map of tags to assign to the resources."
+  default     = null
+}
 variable "enable_telemetry" {
   type        = bool
   default     = true
@@ -7,24 +13,6 @@ For more information see https://aka.ms/avm/telemetryinfo.
 If it is set to false, then no telemetry will be collected.
 DESCRIPTION
 }
-
-# Required variables
-variable "resource_group_name" {
-  type        = string
-  description = "The resource group where the resources will be deployed."
-}
-
-variable "location" {
-  type        = string
-  description = "The region where the resources will be deployed."
-}
-
-variable "tags" {
-  type        = map(any)
-  description = "Map of tags to assign to the resources."
-  default     = null
-}
-
 variable "lock" {
   type = object({
     name = optional(string, null)
@@ -37,119 +25,6 @@ variable "lock" {
     condition     = contains(["CanNotDelete", "ReadOnly", "None"], var.lock.kind)
     error_message = "The lock level must be one of: 'None', 'CanNotDelete', or 'ReadOnly'."
   }
-}
-
-variable "name" {
-  type        = string
-  description = "The name of the Virtual Machine Scale Set."
-  validation {
-    condition = can(regex("^[a-zA-Z0-9_-]{1,64}$", var.name))
-    error_message = "The name must be between 1 and 64 characters long and cannot contain special characters \\/\"[]:|<>+=;,?*@&, whitespace, or begin with '_' or end with '.' or '-'"
-  }
-}
-
-variable "subnet_id" {
-  type        = string
-  description = "The ID of the subnet where the Virtual Machine Scale Set will be deployed."
-}
-
-variable "sku_name" {
-  type        = string
-  description = "The sku of the Virtual Machine Scale Set."
-  default     = "Standard_DS1_v2"
-}
-
-variable "instances" {
-  type        = number
-  description = "The number of instances in the Virtual Machine Scale Set."
-  default     = 1
-}
-  
-variable "capacity_reservation_group_id" {
-  type        = string
-  description = "The ID of the Capacity Reservation Group to associate with the Virtual Machine Scale Set."
-  default     = null
-}
-
-variable "zones" {
-  type        = list(string)
-  description = "A list of Availability Zones which instances in the Virtual Machine Scale Set can be placed in."
-  default     = ["1", "2", "3"]
-}
-
-variable "automatic_instance_repair" {
-  type        = object({
-    enabled      = optional(bool, false)
-    grace_period = optional(number, 30)
-  })
-  description = "The automatic instance repair configuration for the Virtual Machine Scale Set."
-  default     = {}
-}
-
-variable "os_profile" {
-  type        = object({
-    linux_configuration = optional(object({
-      disable_password_authentication = optional(bool, false)
-      admin_username                  = optional(string, null)
-      admin_password                  = optional(string, null) # When an admin_ssh_key is specified admin_password must be set to null
-      user_data_base64                = optional(string, null)
-      admin_ssh_key                   = optional(object({   # This is not optional in the underlying module
-        username                      = optional(string, null)
-        public_key                    = optional(string, null)
-      }), {}) # When an admin_password is specified disable_password_authentication must be set to false
-      secret = optional(object({
-        key_vault_id                  = optional(string, null)
-        certificate                   = optional(object({
-          url                         = optional(string, null)
-        }), {})
-      }), {})
-    }), null)
-    windows_configuration = optional(object({
-      admin_username           = optional(string, null) # underlying module will default to name if null
-      admin_password           = optional(string, null) # underlying module will default to name if null
-      computer_name_prefix     = optional(string, null) # underlying module will default to name if null
-      enable_automatic_updates = optional(bool, true)
-      hotpatching_enabled      = optional(bool, false)             # Requires detailed validation
-      patch_assessment_mode    = optional(string, "ImageDefault")  # How to set options "AutomaticByPlatform" or "ImageDefault"
-      patch_mode               = optional(string, "AutomaticByOS") # How to set options Manual, AutomaticByOS and AutomaticByPlatform
-      provision_vm_agent       = optional(bool, true)
-      secret = optional(object({
-        key_vault_id           = optional(string, null)
-        certificate            = optional(object({
-          url                  = optional(string, null)
-          store                = optional(string, null)
-        }), {})
-      }), null)
-    }), null)
-  })
-  description = "The OS profile configuration for the Virtual Machine Scale Set."
-  default     = {}
-}
-
-variable "source_image_reference" {
-  type        = object({
-    publisher = string
-    offer     = string
-    sku       = string
-    version   = string
-  })
-  description = "The source image reference for the Virtual Machine Scale Set."
-  default     = null
-}
-
-variable "os_disk" {
-  type        = object({
-    storage_account_type = optional(string, "Premium_LRS")
-    caching              = optional(string, "ReadWrite")
-  })
-  description = "The OS disk configuration for the Virtual Machine Scale Set."
-  default     = {}
-}
-
-variable "load_balancer_backend_address_pool_ids" {
-  type        = list(string)
-  description = "A list of IDs of the backend address pools to associate with the load balancer."
-  default     = []
 }
 
 variable "role_assignments" {
@@ -177,7 +52,6 @@ variable "role_assignments" {
   DESCRIPTION
 }
 
-
 variable "managed_identities" {
   type = object({
     system_assigned            = optional(bool, false) # System Assigned Managed Identity is not supported on VMSS
@@ -188,3 +62,495 @@ variable "managed_identities" {
 }
 
 
+# Code Gen variables
+
+variable "location" {
+  type        = string
+  description = "(Required) The Azure location where the Orchestrated Virtual Machine Scale Set should exist. Changing this forces a new resource to be created."
+  nullable    = false
+}
+
+variable "name" {
+  type        = string
+  description = "(Required) The name of the Orchestrated Virtual Machine Scale Set. Changing this forces a new resource to be created."
+  nullable    = false
+}
+
+/* Defaulted to 1 for VMSS FLexibility
+variable "platform_fault_domain_count" {
+  type        = number
+  description = "(Required) Specifies the number of fault domains that are used by this Orchestrated Virtual Machine Scale Set. Changing this forces a new resource to be created."
+  nullable    = false
+} */
+
+variable "resource_group_name" {
+  type        = string
+  description = "(Required) The name of the Resource Group in which the Orchestrated Virtual Machine Scale Set should exist. Changing this forces a new resource to be created."
+  nullable    = false
+}
+
+variable "additional_capabilities" {
+  type = object({
+    ultra_ssd_enabled = optional(bool)
+  })
+  default     = null
+  description = <<-EOT
+ - `ultra_ssd_enabled` - (Optional) Should the capacity to enable Data Disks of the `UltraSSD_LRS` storage account type be supported on this Orchestrated Virtual Machine Scale Set? Defaults to `false`. Changing this forces a new resource to be created.
+EOT
+}
+
+variable "automatic_instance_repair" {
+  type = object({
+    enabled      = bool
+    grace_period = optional(string)
+  })
+  default     = null
+  description = <<-EOT
+ - `enabled` - (Required) Should the automatic instance repair be enabled on this Orchestrated Virtual Machine Scale Set? Possible values are `true` and `false`.
+ - `grace_period` - (Optional) Amount of time for which automatic repairs will be delayed. The grace period starts right after the VM is found unhealthy. Possible values are between `30` and `90` minutes. The time duration should be specified in `ISO 8601` format (e.g. `PT30M` to `PT90M`). Defaults to `PT30M`.
+EOT
+}
+
+variable "boot_diagnostics" {
+  type = object({
+    storage_account_uri = optional(string)
+  })
+  default     = null
+  description = <<-EOT
+ - `storage_account_uri` - (Optional) The Primary/Secondary Endpoint for the Azure Storage Account which should be used to store Boot Diagnostics, including Console Output and Screenshots from the Hypervisor. By including a `boot_diagnostics` block without passing the `storage_account_uri` field will cause the API to utilize a Managed Storage Account to store the Boot Diagnostics output.
+EOT
+}
+
+variable "capacity_reservation_group_id" {
+  type        = string
+  default     = null
+  description = "(Optional) Specifies the ID of the Capacity Reservation Group which the Virtual Machine Scale Set should be allocated to. Changing this forces a new resource to be created."
+}
+
+variable "data_disk" {
+  type = list(object({
+    caching                        = string
+    create_option                  = optional(string)
+    disk_encryption_set_id         = optional(string)
+    disk_size_gb                   = number
+    lun                            = number
+    storage_account_type           = string
+    ultra_ssd_disk_iops_read_write = optional(number)
+    ultra_ssd_disk_mbps_read_write = optional(number)
+    write_accelerator_enabled      = optional(bool)
+  }))
+  default     = null
+  description = <<-EOT
+ - `caching` - (Required) The type of Caching which should be used for this Data Disk. Possible values are None, ReadOnly and ReadWrite.
+ - `create_option` - (Optional) The create option which should be used for this Data Disk. Possible values are Empty and FromImage. Defaults to `Empty`. (FromImage should only be used if the source image includes data disks).
+ - `disk_encryption_set_id` - (Optional) The ID of the Disk Encryption Set which should be used to encrypt the Data Disk. Changing this forces a new resource to be created.
+ - `disk_size_gb` - (Required) The size of the Data Disk which should be created.
+ - `lun` - (Required) The Logical Unit Number of the Data Disk, which must be unique within the Virtual Machine.
+ - `storage_account_type` - (Required) The Type of Storage Account which should back this Data Disk. Possible values include `Standard_LRS`, `StandardSSD_LRS`, `StandardSSD_ZRS`, `Premium_LRS`, `PremiumV2_LRS`, `Premium_ZRS` and `UltraSSD_LRS`.
+ - `ultra_ssd_disk_iops_read_write` - (Optional) Specifies the Read-Write IOPS for this Data Disk. Only settable when `storage_account_type` is `PremiumV2_LRS` or `UltraSSD_LRS`.
+ - `ultra_ssd_disk_mbps_read_write` - (Optional) Specifies the bandwidth in MB per second for this Data Disk. Only settable when `storage_account_type` is `PremiumV2_LRS` or `UltraSSD_LRS`.
+ - `write_accelerator_enabled` - (Optional) Specifies if Write Accelerator is enabled on the Data Disk. Defaults to `false`.
+EOT
+}
+
+variable "encryption_at_host_enabled" {
+  type        = bool
+  default     = null
+  description = "(Optional) Should disks attached to this Virtual Machine Scale Set be encrypted by enabling Encryption at Host?"
+}
+
+variable "eviction_policy" {
+  type        = string
+  default     = null
+  description = "(Optional) The Policy which should be used Virtual Machines are Evicted from the Scale Set. Possible values are `Deallocate` and `Delete`. Changing this forces a new resource to be created."
+}
+
+variable "extension" {
+  type = set(object({
+    auto_upgrade_minor_version_enabled        = optional(bool)
+    extensions_to_provision_after_vm_creation = optional(list(string))
+    failure_suppression_enabled               = optional(bool)
+    force_extension_execution_on_change       = optional(string)
+    name                                      = string
+    protected_settings                        = optional(string)
+    publisher                                 = string
+    settings                                  = optional(string)
+    type                                      = string
+    type_handler_version                      = string
+    protected_settings_from_key_vault = optional(object({
+      secret_url      = string
+      source_vault_id = string
+    }))
+  }))
+  default     = null
+  description = <<-EOT
+ - `auto_upgrade_minor_version_enabled` - (Optional) Should the latest version of the Extension be used at Deployment Time, if one is available? This won't auto-update the extension on existing installation. Defaults to `true`.
+ - `extensions_to_provision_after_vm_creation` - (Optional) An ordered list of Extension names which Orchestrated Virtual Machine Scale Set should provision after VM creation.
+ - `failure_suppression_enabled` - (Optional) Should failures from the extension be suppressed? Possible values are `true` or `false`.
+ - `force_extension_execution_on_change` - (Optional) A value which, when different to the previous value can be used to force-run the Extension even if the Extension Configuration hasn't changed.
+ - `name` - (Required) The name for the Virtual Machine Scale Set Extension.
+ - `protected_settings` - (Optional) A JSON String which specifies Sensitive Settings (such as Passwords) for the Extension.
+ - `publisher` - (Required) Specifies the Publisher of the Extension.
+ - `settings` - (Optional) A JSON String which specifies Settings for the Extension.
+ - `type` - (Required) Specifies the Type of the Extension.
+ - `type_handler_version` - (Required) Specifies the version of the extension to use, available versions can be found using the Azure CLI.
+
+ ---
+ `protected_settings_from_key_vault` block supports the following:
+ - `secret_url` - (Required) The URL to the Key Vault Secret which stores the protected settings.
+ - `source_vault_id` - (Required) The ID of the source Key Vault.
+EOT
+}
+
+variable "extension_operations_enabled" {
+  type        = bool
+  default     = null
+  description = "(Optional) Should extension operations be allowed on the Virtual Machine Scale Set? Possible values are `true` or `false`. Defaults to `true`. Changing this forces a new Orchestrated Virtual Machine Scale Set to be created."
+}
+
+variable "extensions_time_budget" {
+  type        = string
+  default     = null
+  description = "(Optional) Specifies the time alloted for all extensions to start. The time duration should be between 15 minutes and 120 minutes (inclusive) and should be specified in ISO 8601 format. Defaults to `PT1H30M`."
+}
+
+variable "identity" {
+  type = object({
+    identity_ids = set(string)
+    type         = string
+  })
+  default     = null
+  description = <<-EOT
+ - `identity_ids` - (Required) Specifies a list of User Managed Identity IDs to be assigned to this Orchestrated Windows Virtual Machine Scale Set.
+ - `type` - (Required) The type of Managed Identity that should be configured on this Orchestrated Windows Virtual Machine Scale Set. Only possible value is `UserAssigned`.
+EOT
+}
+
+variable "instances" {
+  type        = number
+  default     = null
+  description = "(Optional) The number of Virtual Machines in the Orcestrated Virtual Machine Scale Set."
+}
+
+variable "license_type" {
+  type        = string
+  default     = null
+  description = "(Optional) Specifies the type of on-premise license (also known as Azure Hybrid Use Benefit) which should be used for this Orchestrated Virtual Machine Scale Set. Possible values are `None`, `Windows_Client` and `Windows_Server`."
+}
+
+variable "max_bid_price" {
+  type        = number
+  default     = null
+  description = "(Optional) The maximum price you're willing to pay for each Orchestrated Virtual Machine in this Scale Set, in US Dollars; which must be greater than the current spot price. If this bid price falls below the current spot price the Virtual Machines in the Scale Set will be evicted using the eviction_policy. Defaults to `-1`, which means that each Virtual Machine in the Orchestrated Scale Set should not be evicted for price reasons."
+}
+
+variable "network_interface" {
+  type = list(object({
+    dns_servers                   = optional(list(string))
+    enable_accelerated_networking = optional(bool)
+    enable_ip_forwarding          = optional(bool)
+    name                          = string
+    network_security_group_id     = optional(string)
+    primary                       = optional(bool)
+    ip_configuration = list(object({
+      application_gateway_backend_address_pool_ids = optional(set(string))
+      application_security_group_ids               = optional(set(string))
+      load_balancer_backend_address_pool_ids       = optional(set(string))
+      name                                         = string
+      primary                                      = optional(bool)
+      subnet_id                                    = optional(string)
+      version                                      = optional(string)
+      public_ip_address = optional(list(object({
+        domain_name_label       = optional(string)
+        idle_timeout_in_minutes = optional(number)
+        name                    = string
+        public_ip_prefix_id     = optional(string)
+        sku_name                = optional(string)
+        version                 = optional(string)
+        ip_tag = optional(list(object({
+          tag  = string
+          type = string
+        })))
+      })))
+    }))
+  }))
+  default     = null
+  description = <<-EOT
+ - `dns_servers` - (Optional) A list of IP Addresses of DNS Servers which should be assigned to the Network Interface.
+ - `enable_accelerated_networking` - (Optional) Does this Network Interface support Accelerated Networking? Possible values are `true` and `false`. Defaults to `false`.
+ - `enable_ip_forwarding` - (Optional) Does this Network Interface support IP Forwarding? Possible values are `true` and `false`. Defaults to `false`.
+ - `name` - (Required) The Name which should be used for this Network Interface. Changing this forces a new resource to be created.
+ - `network_security_group_id` - (Optional) The ID of a Network Security Group which should be assigned to this Network Interface.
+ - `primary` - (Optional) Is this the Primary IP Configuration? Possible values are `true` and `false`. Defaults to `false`.
+
+ ---
+ `ip_configuration` block supports the following:
+ - `application_gateway_backend_address_pool_ids` - (Optional) A list of Backend Address Pools IDs from a Application Gateway which this Orchestrated Virtual Machine Scale Set should be connected to.
+ - `application_security_group_ids` - (Optional) A list of Application Security Group IDs which this Orchestrated Virtual Machine Scale Set should be connected to.
+ - `load_balancer_backend_address_pool_ids` - (Optional) A list of Backend Address Pools IDs from a Load Balancer which this Orchestrated Virtual Machine Scale Set should be connected to.
+ - `name` - (Required) The Name which should be used for this IP Configuration.
+ - `primary` - (Optional) Is this the Primary IP Configuration for this Network Interface? Possible values are `true` and `false`. Defaults to `false`.
+ - `subnet_id` - (Optional) The ID of the Subnet which this IP Configuration should be connected to.
+ - `version` - (Optional) The Internet Protocol Version which should be used for this IP Configuration. Possible values are `IPv4` and `IPv6`. Defaults to `IPv4`.
+
+ ---
+ `public_ip_address` block supports the following:
+ - `domain_name_label` - (Optional) The Prefix which should be used for the Domain Name Label for each Virtual Machine Instance. Azure concatenates the Domain Name Label and Virtual Machine Index to create a unique Domain Name Label for each Virtual Machine. Valid values must be between `1` and `26` characters long, start with a lower case letter, end with a lower case letter or number and contains only `a-z`, `0-9` and `hyphens`.
+ - `idle_timeout_in_minutes` - (Optional) The Idle Timeout in Minutes for the Public IP Address. Possible values are in the range `4` to `32`.
+ - `name` - (Required) The Name of the Public IP Address Configuration.
+ - `public_ip_prefix_id` - (Optional) The ID of the Public IP Address Prefix from where Public IP Addresses should be allocated. Changing this forces a new resource to be created.
+ - `sku_name` - (Optional) Specifies what Public IP Address SKU the Public IP Address should be provisioned as. Possible vaules include `Basic_Regional`, `Basic_Global`, `Standard_Regional` or `Standard_Global`. For more information about Public IP Address SKU's and their capabilities, please see the [product documentation](https://docs.microsoft.com/azure/virtual-network/ip-services/public-ip-addresses#sku). Changing this forces a new resource to be created.
+ - `version` - (Optional) The Internet Protocol Version which should be used for this public IP address. Possible values are `IPv4` and `IPv6`. Defaults to `IPv4`. Changing this forces a new resource to be created.
+
+ ---
+ `ip_tag` block supports the following:
+ - `tag` - (Required) The IP Tag associated with the Public IP, such as `SQL` or `Storage`. Changing this forces a new resource to be created.
+ - `type` - (Required) The Type of IP Tag, such as `FirstPartyUsage`. Changing this forces a new resource to be created.
+EOT
+}
+
+variable "os_disk" {
+  type = object({
+    caching                   = string
+    disk_encryption_set_id    = optional(string)
+    disk_size_gb              = optional(number)
+    storage_account_type      = string
+    write_accelerator_enabled = optional(bool)
+    diff_disk_settings = optional(object({
+      option    = string
+      placement = optional(string)
+    }))
+  })
+  default     = null
+  description = <<-EOT
+ - `caching` - (Required) The Type of Caching which should be used for the Internal OS Disk. Possible values are `None`, `ReadOnly` and `ReadWrite`.
+ - `disk_encryption_set_id` - (Optional) The ID of the Disk Encryption Set which should be used to encrypt this OS Disk. Changing this forces a new resource to be created.
+ - `disk_size_gb` - (Optional) The Size of the Internal OS Disk in GB, if you wish to vary from the size used in the image this Virtual Machine Scale Set is sourced from.
+ - `storage_account_type` - (Required) The Type of Storage Account which should back this the Internal OS Disk. Possible values include `Standard_LRS`, `StandardSSD_LRS`, `StandardSSD_ZRS`, `Premium_LRS` and `Premium_ZRS`. Changing this forces a new resource to be created.
+ - `write_accelerator_enabled` - (Optional) Specifies if Write Accelerator is enabled on the OS Disk. Defaults to `false`.
+
+ ---
+ `diff_disk_settings` block supports the following:
+ - `option` - (Required) Specifies the Ephemeral Disk Settings for the OS Disk. At this time the only possible value is `Local`. Changing this forces a new resource to be created.
+ - `placement` - (Optional) Specifies where to store the Ephemeral Disk. Possible values are `CacheDisk` and `ResourceDisk`. Defaults to `CacheDisk`. Changing this forces a new resource to be created.
+EOT
+}
+
+variable "os_profile" {
+  type = object({
+    custom_data = optional(string)
+    linux_configuration = optional(object({
+      admin_password                  = optional(string)
+      admin_username                  = string
+      computer_name_prefix            = optional(string)
+      disable_password_authentication = optional(bool)
+      patch_assessment_mode           = optional(string)
+      patch_mode                      = optional(string)
+      provision_vm_agent              = optional(bool)
+      admin_ssh_key = optional(set(object({
+        public_key = string
+        username   = string
+      })))
+      secret = optional(list(object({
+        key_vault_id = string
+        certificate = set(object({
+          url = string
+        }))
+      })))
+    }))
+    windows_configuration = optional(object({
+      admin_password           = string
+      admin_username           = string
+      computer_name_prefix     = optional(string)
+      enable_automatic_updates = optional(bool)
+      hotpatching_enabled      = optional(bool)
+      patch_assessment_mode    = optional(string)
+      patch_mode               = optional(string)
+      provision_vm_agent       = optional(bool)
+      timezone                 = optional(string)
+      secret = optional(list(object({
+        key_vault_id = string
+        certificate = set(object({
+          store = string
+          url   = string
+        }))
+      })))
+      winrm_listener = optional(set(object({
+        certificate_url = optional(string)
+        protocol        = string
+      })))
+    }))
+  })
+  default     = null
+  description = <<-EOT
+ - `custom_data` - (Optional) The Base64-Encoded Custom Data which should be used for this Orchestrated Virtual Machine Scale Set.
+
+ ---
+ `linux_configuration` block supports the following:
+ - `admin_password` - (Optional) The Password which should be used for the local-administrator on this Virtual Machine. Changing this forces a new resource to be created.
+ - `admin_username` - (Required) The username of the local administrator on each Orchestrated Virtual Machine Scale Set instance. Changing this forces a new resource to be created.
+ - `computer_name_prefix` - (Optional) The prefix which should be used for the name of the Virtual Machines in this Scale Set. If unspecified this defaults to the value for the name field. If the value of the name field is not a valid `computer_name_prefix`, then you must specify `computer_name_prefix`. Changing this forces a new resource to be created.
+ - `disable_password_authentication` - (Optional) When an `admin_password` is specified `disable_password_authentication` must be set to `false`. Defaults to `true`.
+ - `patch_assessment_mode` - (Optional) Specifies the mode of VM Guest Patching for the virtual machines that are associated to the Orchestrated Virtual Machine Scale Set. Possible values are `AutomaticByPlatform` or `ImageDefault`. Defaults to `ImageDefault`.
+ - `patch_mode` - (Optional) Specifies the mode of in-guest patching of this Windows Virtual Machine. Possible values are `ImageDefault` or `AutomaticByPlatform`. Defaults to `ImageDefault`. For more information on patch modes please see the [product documentation](https://docs.microsoft.com/azure/virtual-machines/automatic-vm-guest-patching#patch-orchestration-modes).
+ - `provision_vm_agent` - (Optional) Should the Azure VM Agent be provisioned on each Virtual Machine in the Scale Set? Defaults to `true`. Changing this value forces a new resource to be created.
+
+ ---
+ `admin_ssh_key` block supports the following:
+ - `public_key` - (Required) The Public Key which should be used for authentication, which needs to be at least 2048-bit and in ssh-rsa format.
+ - `username` - (Required) The Username for which this Public SSH Key should be configured.
+
+ ---
+ `secret` block supports the following:
+ - `key_vault_id` - (Required) The ID of the Key Vault from which all Secrets should be sourced.
+
+ ---
+ `certificate` block supports the following:
+ - `url` - (Required) The Secret URL of a Key Vault Certificate.
+
+ ---
+ `windows_configuration` block supports the following:
+ - `admin_password` - (Required) The Password which should be used for the local-administrator on this Virtual Machine. Changing this forces a new resource to be created.
+ - `admin_username` - (Required) The username of the local administrator on each Orchestrated Virtual Machine Scale Set instance. Changing this forces a new resource to be created.
+ - `computer_name_prefix` - (Optional) The prefix which should be used for the name of the Virtual Machines in this Scale Set. If unspecified this defaults to the value for the `name` field. If the value of the `name` field is not a valid `computer_name_prefix`, then you must specify `computer_name_prefix`. Changing this forces a new resource to be created.
+ - `enable_automatic_updates` - (Optional) Are automatic updates enabled for this Virtual Machine? Defaults to `true`.
+ - `hotpatching_enabled` - (Optional) Should the VM be patched without requiring a reboot? Possible values are `true` or `false`. Defaults to `false`. For more information about hot patching please see the [product documentation](https://docs.microsoft.com/azure/automanage/automanage-hotpatch).
+ - `patch_assessment_mode` - (Optional) Specifies the mode of VM Guest Patching for the virtual machines that are associated to the Orchestrated Virtual Machine Scale Set. Possible values are `AutomaticByPlatform` or `ImageDefault`. Defaults to `ImageDefault`.
+ - `patch_mode` - (Optional) Specifies the mode of in-guest patching of this Windows Virtual Machine. Possible values are `Manual`, `AutomaticByOS` and `AutomaticByPlatform`. Defaults to `AutomaticByOS`. For more information on patch modes please see the [product documentation](https://docs.microsoft.com/azure/virtual-machines/automatic-vm-guest-patching#patch-orchestration-modes).
+ - `provision_vm_agent` - (Optional) Should the Azure VM Agent be provisioned on each Virtual Machine in the Scale Set? Defaults to `true`. Changing this value forces a new resource to be created.
+ - `timezone` - (Optional) Specifies the time zone of the virtual machine, the possible values are defined [here](https://jackstromberg.com/2017/01/list-of-time-zones-consumed-by-azure/).
+
+ ---
+ `secret` block supports the following:
+ - `key_vault_id` - (Required) The ID of the Key Vault from which all Secrets should be sourced.
+
+ ---
+ `certificate` block supports the following:
+ - `store` - (Required) The certificate store on the Virtual Machine where the certificate should be added.
+ - `url` - (Required) The Secret URL of a Key Vault Certificate.
+
+ ---
+ `winrm_listener` block supports the following:
+ - `certificate_url` - (Optional) The Secret URL of a Key Vault Certificate, which must be specified when protocol is set to `Https`. Changing this forces a new resource to be created.
+ - `protocol` - (Required) Specifies the protocol of listener. Possible values are `Http` or `Https`. Changing this forces a new resource to be created.
+EOT
+}
+
+variable "plan" {
+  type = object({
+    name      = string
+    product   = string
+    publisher = string
+  })
+  default     = null
+  description = <<-EOT
+ - `name` - (Required) Specifies the name of the image from the marketplace. Changing this forces a new resource to be created.
+ - `product` - (Required) Specifies the product of the image from the marketplace. Changing this forces a new resource to be created.
+ - `publisher` - (Required) Specifies the publisher of the image. Changing this forces a new resource to be created.
+EOT
+}
+
+variable "priority" {
+  type        = string
+  default     = null
+  description = "(Optional) The Priority of this Orchestrated Virtual Machine Scale Set. Possible values are `Regular` and `Spot`. Defaults to `Regular`. Changing this value forces a new resource."
+}
+
+variable "priority_mix" {
+  type = object({
+    base_regular_count            = optional(number)
+    regular_percentage_above_base = optional(number)
+  })
+  default     = null
+  description = <<-EOT
+ - `base_regular_count` - (Optional) Specifies the base number of VMs of `Regular` priority that will be created before any VMs of priority `Spot` are created. Possible values are integers between `0` and `1000`. Defaults to `0`.
+ - `regular_percentage_above_base` - (Optional) Specifies the desired percentage of VM instances that are of `Regular` priority after the base count has been reached. Possible values are integers between `0` and `100`. Defaults to `0`.
+EOT
+}
+
+variable "proximity_placement_group_id" {
+  type        = string
+  default     = null
+  description = "(Optional) The ID of the Proximity Placement Group which the Orchestrated Virtual Machine should be assigned to. Changing this forces a new resource to be created."
+}
+
+variable "single_placement_group" {
+  type        = bool
+  default     = null
+  description = "(Optional) Should this Virtual Machine Scale Set be limited to a Single Placement Group, which means the number of instances will be capped at 100 Virtual Machines. Possible values are `true` or `false`."
+}
+
+variable "sku_name" {
+  type        = string
+  default     = null
+  description = "(Optional) The `name` of the SKU to be used by this Orcestrated Virtual Machine Scale Set. Valid values include: any of the [General purpose](https://docs.microsoft.com/azure/virtual-machines/sizes-general), [Compute optimized](https://docs.microsoft.com/azure/virtual-machines/sizes-compute), [Memory optimized](https://docs.microsoft.com/azure/virtual-machines/sizes-memory), [Storage optimized](https://docs.microsoft.com/azure/virtual-machines/sizes-storage), [GPU optimized](https://docs.microsoft.com/azure/virtual-machines/sizes-gpu), [FPGA optimized](https://docs.microsoft.com/azure/virtual-machines/sizes-field-programmable-gate-arrays), [High performance](https://docs.microsoft.com/azure/virtual-machines/sizes-hpc), or [Previous generation](https://docs.microsoft.com/azure/virtual-machines/sizes-previous-gen) virtual machine SKUs."
+}
+
+variable "source_image_id" {
+  type        = string
+  default     = null
+  description = "(Optional) The ID of an Image which each Virtual Machine in this Scale Set should be based on. Possible Image ID types include `Image ID`s, `Shared Image ID`s, `Shared Image Version ID`s, `Community Gallery Image ID`s, `Community Gallery Image Version ID`s, `Shared Gallery Image ID`s and `Shared Gallery Image Version ID`s."
+}
+
+variable "source_image_reference" {
+  type = object({
+    offer     = string
+    publisher = string
+    sku       = string
+    version   = string
+  })
+  default     = null
+  description = <<-EOT
+ - `offer` - (Required) Specifies the offer of the image used to create the virtual machines. Changing this forces a new resource to be created.
+ - `publisher` - (Required) Specifies the publisher of the image used to create the virtual machines. Changing this forces a new resource to be created.
+ - `sku` - (Required) Specifies the SKU of the image used to create the virtual machines.
+ - `version` - (Required) Specifies the version of the image used to create the virtual machines.
+EOT
+}
+
+variable "termination_notification" {
+  type = object({
+    enabled = bool
+    timeout = optional(string)
+  })
+  default     = null
+  description = <<-EOT
+ - `enabled` - (Required) Should the termination notification be enabled on this Virtual Machine Scale Set? Possible values `true` or `false`
+ - `timeout` - (Optional) Length of time (in minutes, between `5` and `15`) a notification to be sent to the VM on the instance metadata server till the VM gets deleted. The time duration should be specified in `ISO 8601` format. Defaults to `PT5M`.
+EOT
+}
+
+variable "timeouts" {
+  type = object({
+    create = optional(string)
+    delete = optional(string)
+    read   = optional(string)
+    update = optional(string)
+  })
+  default     = null
+  description = <<-EOT
+ - `create` - (Defaults to 60 minutes) Used when creating the Orchestrated Virtual Machine Scale Set.
+ - `delete` - (Defaults to 60 minutes) Used when deleting the Orchestrated Virtual Machine Scale Set.
+ - `read` - (Defaults to 5 minutes) Used when retrieving the Orchestrated Virtual Machine Scale Set.
+ - `update` - (Defaults to 60 minutes) Used when updating the Orchestrated Virtual Machine Scale Set.
+EOT
+}
+
+variable "user_data_base64" {
+  type        = string
+  default     = null
+  description = "(Optional) The Base64-Encoded User Data which should be used for this Virtual Machine Scale Set."
+  sensitive   = true
+}
+
+variable "zone_balance" {
+  type        = bool
+  default     = null
+  description = "(Optional) Should the Virtual Machines in this Scale Set be strictly evenly distributed across Availability Zones? Defaults to `false`. Changing this forces a new resource to be created."
+}
+
+variable "zones" {
+  type        = set(string)
+  default     = null
+  description = "(Optional) Specifies a list of Availability Zones in which this Orchestrated Virtual Machine should be located. Changing this forces a new Orchestrated Virtual Machine to be created."
+}
