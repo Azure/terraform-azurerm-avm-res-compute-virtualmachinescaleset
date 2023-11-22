@@ -115,6 +115,8 @@ module "terraform-azurerm-avm-res-compute-virtualmachinescaleset" {
       hotpatching_enabled             = true
       patch_assessment_mode           = "ImageDefault"
       patch_mode                      = "AutomaticByOS"
+      timezone                        = "Pacific Standard Time"
+      provision_vm_agent              = true
       winrm_listener = [{
         protocol = "Http"
       }]

@@ -212,6 +212,7 @@ module "terraform-azurerm-avm-res-compute-virtualmachinescaleset" {
         username   = "azureuser"
         public_key = tls_private_key.example_ssh.public_key_openssh
       }]
+      provision_vm_agent              = true
       secret = [{
         key_vault_id = module.avm-res-keyvault-vault.resource.id
         certificate = toset([{

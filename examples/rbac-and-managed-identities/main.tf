@@ -127,6 +127,7 @@ module "terraform-azurerm-avm-res-compute-virtualmachinescaleset" {
         username   = "azureuser"
         public_key = tls_private_key.example_ssh.public_key_openssh
       }]
+      provision_vm_agent              = true
     }
   }
   source_image_reference = {

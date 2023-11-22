@@ -1,21 +1,35 @@
 <!-- BEGIN_TF_DOCS -->
-# Windows example
+# Spot example
 
-This uses the module to deploy Windows VMs.
+This deploys shows advanced settings for VMSS Deployments.
 
-Best practices: (see: https://registry.terraform.io/providers/hashicorp/azurerm/latest/docs/resources/orchestrated_virtual_machine_scale_set.html#admin_username)
-- certificates
-- winrm (https, certificate)
-- password authentication
-- patching
-  - hot patching
-  - Assessment mode (e.g. "ImageDefault")
-  - Mode (e.g. "AutomaticByOS")
-- License type
-- prefixes
-- vm agent
-- health
-- time zone
+## Spot
+- Bid price
+- Priority mix
+  - Lower priority vs Spot 
+- Termination notification
+- Eviction policy
+- Enable automatic updates
+- Patch assessment Mode
+
+## Instance placement 
+- Zone Balance
+- Proximity placement group
+- Single Placement group
+
+## Miscellaneous
+- Time zone
+- Boot diagnostics
+- Encryption at host
+- Computer name prefix
+- Data disks
+- Provisioning a VM Agent
+- Automatic Instance Repair
+
+## Extensions
+- Custom Script
+- Azure Monitor
+- Defender
 
 
 ```hcl
