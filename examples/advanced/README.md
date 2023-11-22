@@ -1,5 +1,5 @@
 <!-- BEGIN_TF_DOCS -->
-# Spot example
+# Advanced example
 
 This deploys shows advanced settings for VMSS Deployments.
 
@@ -17,6 +17,12 @@ This deploys shows advanced settings for VMSS Deployments.
 - Proximity placement group
 - Single Placement group
 
+
+## Extensions
+- Custom Script
+- Azure Monitor
+- Defender
+
 ## Miscellaneous
 - Time zone
 - Boot diagnostics
@@ -25,12 +31,6 @@ This deploys shows advanced settings for VMSS Deployments.
 - Data disks
 - Provisioning a VM Agent
 - Automatic Instance Repair
-
-## Extensions
-- Custom Script
-- Azure Monitor
-- Defender
-
 
 ```hcl
 terraform {
