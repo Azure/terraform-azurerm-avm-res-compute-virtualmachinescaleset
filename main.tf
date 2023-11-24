@@ -1,7 +1,7 @@
 resource "azurerm_orchestrated_virtual_machine_scale_set" "virtual_machine_scale_set" {
   location                      = var.location
   name                          = var.name
-  platform_fault_domain_count   = 1       # For zonal deployments, this must be set to 1
+  platform_fault_domain_count   = 1 # For zonal deployments, this must be set to 1
   resource_group_name           = var.resource_group_name
   capacity_reservation_group_id = var.capacity_reservation_group_id
   encryption_at_host_enabled    = var.encryption_at_host_enabled

@@ -106,18 +106,18 @@ data "azurerm_client_config" "current" {}
 module "terraform-azurerm-avm-res-compute-virtualmachinescaleset" {
   source = "../../"
   # source             = "Azure/avm-res-compute-virtualmachinescaleset/azurerm"
-  name                = module.naming.virtual_machine_scale_set.name_unique
-  resource_group_name = azurerm_resource_group.this.name
-  enable_telemetry    = var.enable_telemetry
-  location            = azurerm_resource_group.this.location
-  platform_fault_domain_count = 1  
+  name                        = module.naming.virtual_machine_scale_set.name_unique
+  resource_group_name         = azurerm_resource_group.this.name
+  enable_telemetry            = var.enable_telemetry
+  location                    = azurerm_resource_group.this.location
+  platform_fault_domain_count = 1
   network_interface = [{
     name = "VMSS-NIC"
     ip_configuration = [{
-      name                          = "VMSS-IPConfig"
-      subnet_id                     = azurerm_subnet.subnet.id
+      name      = "VMSS-IPConfig"
+      subnet_id = azurerm_subnet.subnet.id
     }]
-  }] 
+  }]
   os_profile = {
     linux_configuration = {
       disable_password_authentication = false
@@ -128,7 +128,7 @@ module "terraform-azurerm-avm-res-compute-virtualmachinescaleset" {
         username   = "azureuser"
         public_key = tls_private_key.example_ssh.public_key_openssh
       }]
-      provision_vm_agent              = true
+      provision_vm_agent = true
     }
   }
   source_image_reference = {
@@ -147,7 +147,7 @@ module "terraform-azurerm-avm-res-compute-virtualmachinescaleset" {
       role_definition_id_or_name = "Reader"
       description                = "Assign the Reader role to the deployment user on this virtual machine scale set resource scope."
     }
-  } 
+  }
   tags = {
     source = "AVM Sample RBAC and MI Deployment"
   }

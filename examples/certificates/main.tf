@@ -95,17 +95,17 @@ data "azurerm_client_config" "current" {}
 
 #create a keyvault for storing the credential with RBAC for the deployment user
 module "avm-res-keyvault-vault" {
-  source              = "Azure/avm-res-keyvault-vault/azurerm"
-  version             = "0.3.0"
-  tenant_id           = data.azurerm_client_config.current.tenant_id
-  name                = module.naming.key_vault.name_unique
-  resource_group_name = azurerm_resource_group.this.name
-  location            = azurerm_resource_group.this.location
+  source                 = "Azure/avm-res-keyvault-vault/azurerm"
+  version                = "0.3.0"
+  tenant_id              = data.azurerm_client_config.current.tenant_id
+  name                   = module.naming.key_vault.name_unique
+  resource_group_name    = azurerm_resource_group.this.name
+  location               = azurerm_resource_group.this.location
   enabled_for_deployment = true
 
   network_acls = {
     default_action = "Allow"
-    bypass = "AzureServices"
+    bypass         = "AzureServices"
   }
 
   role_assignments = {
@@ -125,7 +125,7 @@ module "avm-res-keyvault-vault" {
 }
 
 resource "time_sleep" "wait_60_seconds" {
-  depends_on = [module.avm-res-keyvault-vault]
+  depends_on      = [module.avm-res-keyvault-vault]
   create_duration = "60s"
 }
 
@@ -184,25 +184,25 @@ resource "azurerm_key_vault_certificate" "example" {
   tags = {
     scenario = "AVM VMSS Sample Certificates Deployment"
   }
-  depends_on = [ time_sleep.wait_60_seconds ]
+  depends_on = [time_sleep.wait_60_seconds]
 }
 
 # This is the module call
 module "terraform-azurerm-avm-res-compute-virtualmachinescaleset" {
   source = "../../"
   # source             = "Azure/avm-res-compute-virtualmachinescaleset/azurerm"
-  name                = module.naming.virtual_machine_scale_set.name_unique
-  resource_group_name = azurerm_resource_group.this.name
-  enable_telemetry    = var.enable_telemetry
-  location            = azurerm_resource_group.this.location
-  platform_fault_domain_count = 1  
+  name                        = module.naming.virtual_machine_scale_set.name_unique
+  resource_group_name         = azurerm_resource_group.this.name
+  enable_telemetry            = var.enable_telemetry
+  location                    = azurerm_resource_group.this.location
+  platform_fault_domain_count = 1
   network_interface = [{
     name = "VMSS-NIC"
     ip_configuration = [{
-      name                          = "VMSS-IPConfig"
-      subnet_id                     = azurerm_subnet.subnet.id
+      name      = "VMSS-IPConfig"
+      subnet_id = azurerm_subnet.subnet.id
     }]
-  }] 
+  }]
   os_profile = {
     linux_configuration = {
       disable_password_authentication = false
@@ -213,7 +213,7 @@ module "terraform-azurerm-avm-res-compute-virtualmachinescaleset" {
         username   = "azureuser"
         public_key = tls_private_key.example_ssh.public_key_openssh
       }]
-      provision_vm_agent              = true
+      provision_vm_agent = true
       secret = [{
         key_vault_id = module.avm-res-keyvault-vault.resource.id
         certificate = toset([{

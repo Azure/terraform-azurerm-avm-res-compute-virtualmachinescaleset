@@ -115,30 +115,30 @@ resource "azurerm_proximity_placement_group" "this" {
 module "terraform-azurerm-avm-res-compute-virtualmachinescaleset" {
   source = "../../"
   # source             = "Azure/avm-res-compute-virtualmachinescaleset/azurerm"
-  name                = module.naming.virtual_machine_scale_set.name_unique
-  resource_group_name = azurerm_resource_group.this.name
-  enable_telemetry    = var.enable_telemetry
-  location            = azurerm_resource_group.this.location
-  platform_fault_domain_count = 1  
+  name                        = module.naming.virtual_machine_scale_set.name_unique
+  resource_group_name         = azurerm_resource_group.this.name
+  enable_telemetry            = var.enable_telemetry
+  location                    = azurerm_resource_group.this.location
+  platform_fault_domain_count = 1
   # Spot variables
-  priority            = "Spot" 
-  max_bid_price       = 0.01
-  priority_mix        = {
+  priority      = "Spot"
+  max_bid_price = 0.01
+  priority_mix = {
     low_priority_virtual_machine_scale_set_percentage = 100
     spot_virtual_machine_scale_set_percentage         = 0
   }
   termination_notification = {
-    enabled           = true
-    timeout           = "PT5M"
+    enabled = true
+    timeout = "PT5M"
   }
   eviction_policy = "Deallocate"
   # Instance Placement
-  zone_balance = true
+  zone_balance                 = true
   proximity_placement_group_id = azurerm_proximity_placement_group.this.id
-  single_placement_group = true
+  single_placement_group       = true
   # Miscellanous settings
   encryption_at_host_enabled = true
-  automatic_instance_repair  = {
+  automatic_instance_repair = {
     enabled = true
   }
   boot_diagnostics = {
@@ -157,18 +157,18 @@ module "terraform-azurerm-avm-res-compute-virtualmachinescaleset" {
   network_interface = [{
     name = "VMSS-NIC"
     ip_configuration = [{
-      name                          = "VMSS-IPConfig"
-      subnet_id                     = azurerm_subnet.subnet.id
+      name      = "VMSS-IPConfig"
+      subnet_id = azurerm_subnet.subnet.id
     }]
-  }] 
+  }]
   # Extensions
   extension = [{
-    name                 = "Custom Script Extension"
-    publisher            = "Microsoft.Azure.Extensions"
-    type                 = "CustomScript"
-    type_handler_version = "2.0"
+    name                       = "Custom Script Extension"
+    publisher                  = "Microsoft.Azure.Extensions"
+    type                       = "CustomScript"
+    type_handler_version       = "2.0"
     auto_upgrade_minor_version = true
-    settings = <<SETTINGS
+    settings                   = <<SETTINGS
     {
       "commandToExecute": "echo 'Hello World!' > /tmp/hello.txt"
     }

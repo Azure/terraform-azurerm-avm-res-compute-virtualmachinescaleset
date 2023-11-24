@@ -95,18 +95,18 @@ resource "tls_private_key" "example_ssh" {
 module "terraform-azurerm-avm-res-compute-virtualmachinescaleset" {
   source = "../../"
   # source             = "Azure/avm-res-compute-virtualmachinescaleset/azurerm"
-  name                = module.naming.virtual_machine_scale_set.name_unique
-  resource_group_name = azurerm_resource_group.this.name
-  enable_telemetry    = var.enable_telemetry
-  location            = azurerm_resource_group.this.location
+  name                        = module.naming.virtual_machine_scale_set.name_unique
+  resource_group_name         = azurerm_resource_group.this.name
+  enable_telemetry            = var.enable_telemetry
+  location                    = azurerm_resource_group.this.location
   platform_fault_domain_count = 1
   network_interface = [{
     name = "VMSS-NIC"
     ip_configuration = [{
-      name                          = "VMSS-IPConfig"
-      subnet_id                     = azurerm_subnet.subnet.id
+      name      = "VMSS-IPConfig"
+      subnet_id = azurerm_subnet.subnet.id
     }]
-  }] 
+  }]
   os_profile = {
     linux_configuration = {
       disable_password_authentication = false
@@ -118,7 +118,7 @@ module "terraform-azurerm-avm-res-compute-virtualmachinescaleset" {
         public_key = tls_private_key.example_ssh.public_key_openssh
         #public_key = file("<filename>")  # Replace if you have a public key file
       }])
-      provision_vm_agent              = true
+      provision_vm_agent = true
     }
   }
   source_image_reference = {

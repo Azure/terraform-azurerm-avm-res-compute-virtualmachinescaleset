@@ -29,17 +29,17 @@ variable "lock" {
 }
 
 variable "role_assignments" {
-    type = map(object({
-      role_definition_id_or_name             = string
-      principal_id                           = string
-      description                            = optional(string, null)
-      skip_service_principal_aad_check       = optional(bool, false)
-      condition                              = optional(string, null)
-      condition_version                      = optional(string, null)
-      delegated_managed_identity_resource_id = optional(string, null)
-    }))
-    default     = {}
-    description = <<DESCRIPTION
+  type = map(object({
+    role_definition_id_or_name             = string
+    principal_id                           = string
+    description                            = optional(string, null)
+    skip_service_principal_aad_check       = optional(bool, false)
+    condition                              = optional(string, null)
+    condition_version                      = optional(string, null)
+    delegated_managed_identity_resource_id = optional(string, null)
+  }))
+  default     = {}
+  description = <<DESCRIPTION
   A map of role assignments to create on the Virtual Machine Scale Set. The map key is deliberately arbitrary to avoid issues where map keys maybe unknown at plan time.
   
   - `role_definition_id_or_name` - The ID or name of the role definition to assign to the principal.
@@ -58,7 +58,7 @@ variable "managed_identities" {
     system_assigned            = optional(bool, false) # System Assigned Managed Identity is not supported on VMSS
     user_assigned_resource_ids = optional(set(string), [])
   })
-  default = null
+  default     = null
   description = "The managed identities to assign to the Virtual Machine Scale Set."
 }
 
@@ -86,7 +86,7 @@ variable "platform_fault_domain_count" {
     condition     = var.platform_fault_domain_count == 1
     error_message = "The platform fault domain count must be 1 for Flexible orchestration."
   }
-} 
+}
 
 variable "resource_group_name" {
   type        = string
@@ -144,45 +144,45 @@ variable "data_disk" {
     ultra_ssd_disk_mbps_read_write = optional(number)
     write_accelerator_enabled      = optional(bool)
   }))
-  default     = null
+  default = null
   validation {
     condition = var.data_disk == null ? true : alltrue([
       for dd in var.data_disk : alltrue([
-        dd.ultra_ssd_disk_iops_read_write == null ? true : contains (["PremiumV2_LRS","UltraSSD_LRS"], dd.storage_account_type)
+        dd.ultra_ssd_disk_iops_read_write == null ? true : contains(["PremiumV2_LRS", "UltraSSD_LRS"], dd.storage_account_type)
       ])
-    ])  
+    ])
     error_message = "The ultra_ssd_disk_iops_read_write can only be set when storage_account_type is 'PremiumV2_LRS' or 'UltraSSD_LRS'."
   }
   validation {
     condition = var.data_disk == null ? true : alltrue([
       for dd in var.data_disk : alltrue([
-        dd.ultra_ssd_disk_mbps_read_write == null ? true : contains (["PremiumV2_LRS","UltraSSD_LRS"], dd.ultra_ssd_disk_mbps_read_write)
+        dd.ultra_ssd_disk_mbps_read_write == null ? true : contains(["PremiumV2_LRS", "UltraSSD_LRS"], dd.ultra_ssd_disk_mbps_read_write)
       ])
-    ])  
+    ])
     error_message = "The ultra_ssd_disk_mbps_read_write can only be set when storage_account_type is 'PremiumV2_LRS' or 'UltraSSD_LRS'."
   }
   validation {
     condition = var.data_disk == null ? true : alltrue([
       for dd in var.data_disk : alltrue([
-        contains (["None","ReadOnly","ReadWrite"], dd.caching)
+        contains(["None", "ReadOnly", "ReadWrite"], dd.caching)
       ])
-    ])  
+    ])
     error_message = "The caching must be one of: 'None', 'ReadOnly', or 'ReadWrite'."
   }
   validation {
     condition = var.data_disk == null ? true : alltrue([
       for dd in var.data_disk : alltrue([
-        dd.create_option == null ? true : contains (["Empty", "FromImage"], dd.create_option)
+        dd.create_option == null ? true : contains(["Empty", "FromImage"], dd.create_option)
       ])
-    ])  
+    ])
     error_message = "The create_option must be one of: 'Empty' or 'FromImage'."
   }
- validation {
+  validation {
     condition = var.data_disk == null ? true : alltrue([
       for dd in var.data_disk : alltrue([
-        contains (["Standard_LRS","StandardSSD_LRS","StandardSSD_ZRS","Premium_LRS","PremiumV2_LRS","Premium_ZRS","UltraSSD_LRS"], dd.storage_account_type)
+        contains(["Standard_LRS", "StandardSSD_LRS", "StandardSSD_ZRS", "Premium_LRS", "PremiumV2_LRS", "Premium_ZRS", "UltraSSD_LRS"], dd.storage_account_type)
       ])
-    ])  
+    ])
     error_message = "The storage_account_type must be one of: 'Standard_LRS', 'StandardSSD_LRS', 'StandardSSD_ZRS', 'Premium_LRS', 'PremiumV2_LRS', 'Premium_ZRS' or 'UltraSSD_LRS'."
   }
   description = <<-EOT
@@ -231,9 +231,9 @@ variable "extension" {
       source_vault_id = string
     }))
   }))
-  default     = null
+  default = null
   validation {
-    condition    = var.extension == null  ? true : alltrue([
+    condition = var.extension == null ? true : alltrue([
       for ext in var.extension : alltrue([
         ext.protected_settings == null || ext.protected_settings_from_key_vault == null ? true : false
       ])
@@ -276,7 +276,7 @@ variable "identity" {
     identity_ids = set(string)
     type         = string
   })
-  default     = null
+  default = null
   validation {
     condition     = var.identity == null ? true : contains(["UserAssigned"], var.identity.type)
     error_message = "The identity type must be 'UserAssigned'."
@@ -339,12 +339,12 @@ variable "network_interface" {
       })))
     }))
   }))
-  default     = null
+  default = null
   validation {
     condition = var.network_interface == null ? true : alltrue([
       for ni in var.network_interface : alltrue([
-        for ic in ni.ip_configuration : ic.version == null ? true : 
-          contains(["IPv4", "IPv6"], ic.version)  
+        for ic in ni.ip_configuration : ic.version == null ? true :
+        contains(["IPv4", "IPv6"], ic.version)
       ])
     ])
     error_message = "The 'ip_configuration' 'version' must be one of: 'IPv4' or 'IPv6'."
@@ -373,7 +373,7 @@ variable "network_interface" {
     ])
     error_message = "Valid 'idle_timeout_in_minutes'  values must be between 4 and 32"
   }
- /* validation {
+  /* validation {
     error_message = "'idle_timeout_in_minutes' possible values are in the range 4 to 32"
     condition = var.network_interface == null ? true : var.network_interface[*].ip_configuration[*].public_ip_address == null ? true : var.network_interface.ip_configuration.public_ip_address.idle_timeout_in_minutes == null ? true : var.network_interface.ip_configuration.public_ip_address.idle_timeout_in_minutes >= 4 && var.network_interface.ip_configuration.public_ip_address.idle_timeout_in_minutes <= 32
   }*/
@@ -423,20 +423,20 @@ variable "os_disk" {
       placement = optional(string)
     }))
   })
-  default     = null
+  default = null
   validation {
-    condition = var.os_disk == null ? true : contains (["None", "ReadOnly", "ReadWrite"], var.os_disk.caching)
+    condition     = var.os_disk == null ? true : contains(["None", "ReadOnly", "ReadWrite"], var.os_disk.caching)
     error_message = "The caching must be one of: 'None', 'ReadOnly', or 'ReadWrite'."
   }
   validation {
-    condition = var.os_disk == null ? true : var.os_disk.diff_disk_settings == null? true : contains (["Local"], var.os_disk.diff_disk_settings.option)
+    condition     = var.os_disk == null ? true : var.os_disk.diff_disk_settings == null ? true : contains(["Local"], var.os_disk.diff_disk_settings.option)
     error_message = "The diff_disk_settings option must be 'Local'."
   }
   validation {
-    condition = var.os_disk == null ? true : var.os_disk.diff_disk_settings == null? true : var.os_disk.diff_disk_settings.placement == null ? true : contains (["CacheDisk","ResourceDisk"], var.os_disk.diff_disk_settings.placement)
+    condition     = var.os_disk == null ? true : var.os_disk.diff_disk_settings == null ? true : var.os_disk.diff_disk_settings.placement == null ? true : contains(["CacheDisk", "ResourceDisk"], var.os_disk.diff_disk_settings.placement)
     error_message = "The diff_disk_settings placement must be one of: 'CacheDisk' or 'ResourceDisk'."
   }
-  
+
   description = <<-EOT
  - `caching` - (Required) The Type of Caching which should be used for the Internal OS Disk. Possible values are `None`, `ReadOnly` and `ReadWrite`.
  - `disk_encryption_set_id` - (Optional) The ID of the Disk Encryption Set which should be used to encrypt this OS Disk. Changing this forces a new resource to be created.
@@ -496,27 +496,27 @@ variable "os_profile" {
       })))
     }))
   })
-  default     = null
+  default = null
   validation {
-    condition = var.os_profile.linux_configuration == null ? true : var.os_profile.linux_configuration.patch_mode == null ? true : contains(["ImageDefault","AutomaticByPlatform"],var.os_profile.linux_configuration.patch_mode)
+    condition     = var.os_profile.linux_configuration == null ? true : var.os_profile.linux_configuration.patch_mode == null ? true : contains(["ImageDefault", "AutomaticByPlatform"], var.os_profile.linux_configuration.patch_mode)
     error_message = "Value must be one of: 'ImageDefault' or 'AutomaticByPlatform'"
   }
   validation {
-    condition = var. os_profile.linux_configuration == null ? true : var.os_profile.linux_configuration.patch_assessment_mode == null ? true : contains(["AutomaticByPlatform","ImageDefault"],var.os_profile.linux_configuration.patch_assessment_mode)
+    condition     = var.os_profile.linux_configuration == null ? true : var.os_profile.linux_configuration.patch_assessment_mode == null ? true : contains(["AutomaticByPlatform", "ImageDefault"], var.os_profile.linux_configuration.patch_assessment_mode)
     error_message = "Value must be one of: 'AutomaticByPlatform' or 'ImageDefault'"
   }
   validation {
-    condition = var.os_profile.windows_configuration == null ? true : var.os_profile.windows_configuration.patch_mode == null ? true : contains(["Manual","AutomaticByOS","AutomaticByPlatform"],var.os_profile.windows_configuration.patch_mode)
+    condition     = var.os_profile.windows_configuration == null ? true : var.os_profile.windows_configuration.patch_mode == null ? true : contains(["Manual", "AutomaticByOS", "AutomaticByPlatform"], var.os_profile.windows_configuration.patch_mode)
     error_message = "Value must be one of: 'ImageDefault' or 'AutomaticByPlatform'"
   }
   validation {
-    condition = var.os_profile.windows_configuration == null ? true : var.os_profile.windows_configuration.patch_assessment_mode == null ? true : contains(["AutomaticByPlatform","ImageDefault"],var.os_profile.windows_configuration.patch_assessment_mode)
+    condition     = var.os_profile.windows_configuration == null ? true : var.os_profile.windows_configuration.patch_assessment_mode == null ? true : contains(["AutomaticByPlatform", "ImageDefault"], var.os_profile.windows_configuration.patch_assessment_mode)
     error_message = "Value must be one of: 'AutomaticByPlatform' or 'ImageDefault'"
   }
   validation {
-    condition = var.os_profile.windows_configuration == null ? true: var.os_profile.windows_configuration.winrm_listener == null ? true : alltrue ([
+    condition = var.os_profile.windows_configuration == null ? true : var.os_profile.windows_configuration.winrm_listener == null ? true : alltrue([
       for wl in var.os_profile.windows_configuration.winrm_listener :
-        contains(["Http","Https"],wl.protocol)
+      contains(["Http", "Https"], wl.protocol)
     ])
     error_message = "Value must be one of: 'Http' or 'Https'"
   }
@@ -603,14 +603,14 @@ variable "priority_mix" {
     base_regular_count            = optional(number)
     regular_percentage_above_base = optional(number)
   })
-  default     = null
+  default = null
   validation {
     error_message = "'base_regular_count' must be between 0 and 1000"
-    condition = var.priority_mix == null ? true : var.priority_mix.base_regular_count == null ? true : var.priority_mix.base_regular_count >= 0 && var.priority_mix.base_regular_count <= 1000
+    condition     = var.priority_mix == null ? true : var.priority_mix.base_regular_count == null ? true : var.priority_mix.base_regular_count >= 0 && var.priority_mix.base_regular_count <= 1000
   }
   validation {
     error_message = "'regular_percentage_above_base' must be between 0 and 100"
-    condition = var.priority_mix == null ? true : var.priority_mix.regular_percentage_above_base == null ? true : var.priority_mix.regular_percentage_above_base >= 0 && var.priority_mix.regular_percentage_above_base <= 100
+    condition     = var.priority_mix == null ? true : var.priority_mix.regular_percentage_above_base == null ? true : var.priority_mix.regular_percentage_above_base >= 0 && var.priority_mix.regular_percentage_above_base <= 100
   }
   description = <<-EOT
  - `base_regular_count` - (Optional) Specifies the base number of VMs of `Regular` priority that will be created before any VMs of priority `Spot` are created. Possible values are integers between `0` and `1000`. Defaults to `0`.
@@ -634,8 +634,8 @@ variable "sku_name" {
   type        = string
   default     = null
   description = "(Optional) The `name` of the SKU to be used by this Orcestrated Virtual Machine Scale Set. Valid values include: any of the [General purpose](https://docs.microsoft.com/azure/virtual-machines/sizes-general), [Compute optimized](https://docs.microsoft.com/azure/virtual-machines/sizes-compute), [Memory optimized](https://docs.microsoft.com/azure/virtual-machines/sizes-memory), [Storage optimized](https://docs.microsoft.com/azure/virtual-machines/sizes-storage), [GPU optimized](https://docs.microsoft.com/azure/virtual-machines/sizes-gpu), [FPGA optimized](https://docs.microsoft.com/azure/virtual-machines/sizes-field-programmable-gate-arrays), [High performance](https://docs.microsoft.com/azure/virtual-machines/sizes-hpc), or [Previous generation](https://docs.microsoft.com/azure/virtual-machines/sizes-previous-gen) virtual machine SKUs."
-  validation { 
-    condition = var.sku_name == null ? true : contains(["General purpose","Compute optimized","Memory optimized","Storage optimized","GPU optimized","FPGA optimized","High performance","Previous generation"], var.sku_name)
+  validation {
+    condition     = var.sku_name == null ? true : contains(["General purpose", "Compute optimized", "Memory optimized", "Storage optimized", "GPU optimized", "FPGA optimized", "High performance", "Previous generation"], var.sku_name)
     error_message = "Value must be one of: 'General purpose', 'Compute optimized', 'Memory optimized', 'Storage optimized', 'GPU optimized', 'FPGA optimized', 'High performance', or 'Previous generation'"
   }
 }
@@ -645,7 +645,7 @@ variable "source_image_id" {
   default     = null
   description = "(Optional) The ID of an Image which each Virtual Machine in this Scale Set should be based on. Possible Image ID types include `Image ID`s, `Shared Image ID`s, `Shared Image Version ID`s, `Community Gallery Image ID`s, `Community Gallery Image Version ID`s, `Shared Gallery Image ID`s and `Shared Gallery Image Version ID`s."
   validation {
-    condition = var.source_image_id == null ? true : contains(["Image ID", "Shared Image ID", "Shared Image Version ID", "Community Gallery Image ID", "Community Gallery Image Version ID", "Shared Gallery Image ID", "Shared Gallery Image Version ID"], var.source_image_id)
+    condition     = var.source_image_id == null ? true : contains(["Image ID", "Shared Image ID", "Shared Image Version ID", "Community Gallery Image ID", "Community Gallery Image Version ID", "Shared Gallery Image ID", "Shared Gallery Image Version ID"], var.source_image_id)
     error_message = "Value must be one of: 'Image ID', 'Shared Image ID', 'Shared Image Version ID', 'Community Gallery Image ID', 'Community Gallery Image Version ID', 'Shared Gallery Image ID', or 'Shared Gallery Image Version ID'"
   }
 }

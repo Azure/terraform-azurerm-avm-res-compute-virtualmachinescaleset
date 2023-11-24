@@ -95,16 +95,16 @@ resource "tls_private_key" "example_ssh" {
 module "terraform-azurerm-avm-res-compute-virtualmachinescaleset" {
   source = "../../"
   # source             = "Azure/avm-res-compute-virtualmachinescaleset/azurerm"
-  name                = module.naming.virtual_machine_scale_set.name_unique
-  resource_group_name = azurerm_resource_group.this.name
-  enable_telemetry    = var.enable_telemetry
-  location            = azurerm_resource_group.this.location
-  platform_fault_domain_count = 1  
+  name                        = module.naming.virtual_machine_scale_set.name_unique
+  resource_group_name         = azurerm_resource_group.this.name
+  enable_telemetry            = var.enable_telemetry
+  location                    = azurerm_resource_group.this.location
+  platform_fault_domain_count = 1
   network_interface = [{
     name = "VMSS-NIC"
     ip_configuration = [{
-      name                          = "VMSS-IPConfig"
-      subnet_id                     = azurerm_subnet.subnet.id
+      name      = "VMSS-IPConfig"
+      subnet_id = azurerm_subnet.subnet.id
     }]
   }]
   os_profile = {
@@ -114,10 +114,10 @@ module "terraform-azurerm-avm-res-compute-virtualmachinescaleset" {
       admin_password                  = "P@ssw0rd1234!"
       license_type                    = "None"
       # hotpatching_enabled             = true
-      patch_assessment_mode           = "ImageDefault"
-      patch_mode                      = "AutomaticByOS"
-      timezone                        = "Pacific Standard Time"
-      provision_vm_agent              = true
+      patch_assessment_mode = "ImageDefault"
+      patch_mode            = "AutomaticByOS"
+      timezone              = "Pacific Standard Time"
+      provision_vm_agent    = true
       winrm_listener = [{
         protocol = "Http"
       }]
