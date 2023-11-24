@@ -51,6 +51,12 @@ Description: (Required) The name of the Orchestrated Virtual Machine Scale Set. 
 
 Type: `string`
 
+### <a name="input_platform_fault_domain_count"></a> [platform\_fault\_domain\_count](#input\_platform\_fault\_domain\_count)
+
+Description: (Required) Specifies the number of fault domains that are used by this Orchestrated Virtual Machine Scale Set. Changing this forces a new resource to be created.
+
+Type: `number`
+
 ### <a name="input_resource_group_name"></a> [resource\_group\_name](#input\_resource\_group\_name)
 
 Description: (Required) The name of the Resource Group in which the Orchestrated Virtual Machine Scale Set should exist. Changing this forces a new resource to be created.
@@ -145,7 +151,8 @@ Default: `null`
 
 ### <a name="input_enable_telemetry"></a> [enable\_telemetry](#input\_enable\_telemetry)
 
-Description: This variable controls whether or not telemetry is enabled for the module.  
+Description: -> This is a Note  
+This variable controls whether or not telemetry is enabled for the module.  
 For more information see https://aka.ms/avm/telemetryinfo.  
 If it is set to false, then no telemetry will be collected.
 
@@ -294,7 +301,7 @@ Description: (Optional) The maximum price you're willing to pay for each Orchest
 
 Type: `number`
 
-Default: `null`
+Default: `-1`
 
 ### <a name="input_network_interface"></a> [network\_interface](#input\_network\_interface)
 
@@ -524,7 +531,7 @@ Description: (Optional) The Priority of this Orchestrated Virtual Machine Scale 
 
 Type: `string`
 
-Default: `null`
+Default: `"Regular"`
 
 ### <a name="input_priority_mix"></a> [priority\_mix](#input\_priority\_mix)
 

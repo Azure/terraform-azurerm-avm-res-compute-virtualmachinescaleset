@@ -99,6 +99,7 @@ module "terraform-azurerm-avm-res-compute-virtualmachinescaleset" {
   resource_group_name = azurerm_resource_group.this.name
   enable_telemetry    = var.enable_telemetry
   location            = azurerm_resource_group.this.location
+  platform_fault_domain_count = 1
   network_interface = [{
     name = "VMSS-NIC"
     ip_configuration = [{
@@ -152,3 +153,4 @@ output "virtual_machine_scale_set_id" {
 output "virtual_machine_scale_set_unique_id" {
   value = module.terraform-azurerm-avm-res-compute-virtualmachinescaleset.unique_id
 }
+

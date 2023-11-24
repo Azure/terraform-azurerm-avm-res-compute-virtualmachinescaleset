@@ -8,6 +8,7 @@ variable "enable_telemetry" {
   type        = bool
   default     = true
   description = <<DESCRIPTION
+-> This is a Note
 This variable controls whether or not telemetry is enabled for the module.
 For more information see https://aka.ms/avm/telemetryinfo.
 If it is set to false, then no telemetry will be collected.
@@ -76,12 +77,16 @@ variable "name" {
   nullable    = false
 }
 
-/* Defaulted to 1 for VMSS FLexibility
+# Must be 1 for VMSS FLexibility
 variable "platform_fault_domain_count" {
   type        = number
   description = "(Required) Specifies the number of fault domains that are used by this Orchestrated Virtual Machine Scale Set. Changing this forces a new resource to be created."
   nullable    = false
-} */
+  validation {
+    condition     = var.platform_fault_domain_count == 1
+    error_message = "The platform fault domain count must be 1 for Flexible orchestration."
+  }
+} 
 
 variable "resource_group_name" {
   type        = string
@@ -140,6 +145,46 @@ variable "data_disk" {
     write_accelerator_enabled      = optional(bool)
   }))
   default     = null
+  validation {
+    condition = var.data_disk == null ? true : alltrue([
+      for dd in var.data_disk : alltrue([
+        dd.ultra_ssd_disk_iops_read_write == null ? true : contains (["PremiumV2_LRS","UltraSSD_LRS"], dd.storage_account_type)
+      ])
+    ])  
+    error_message = "The ultra_ssd_disk_iops_read_write can only be set when storage_account_type is 'PremiumV2_LRS' or 'UltraSSD_LRS'."
+  }
+  validation {
+    condition = var.data_disk == null ? true : alltrue([
+      for dd in var.data_disk : alltrue([
+        dd.ultra_ssd_disk_mbps_read_write == null ? true : contains (["PremiumV2_LRS","UltraSSD_LRS"], dd.ultra_ssd_disk_mbps_read_write)
+      ])
+    ])  
+    error_message = "The ultra_ssd_disk_mbps_read_write can only be set when storage_account_type is 'PremiumV2_LRS' or 'UltraSSD_LRS'."
+  }
+  validation {
+    condition = var.data_disk == null ? true : alltrue([
+      for dd in var.data_disk : alltrue([
+        contains (["None","ReadOnly","ReadWrite"], dd.caching)
+      ])
+    ])  
+    error_message = "The caching must be one of: 'None', 'ReadOnly', or 'ReadWrite'."
+  }
+  validation {
+    condition = var.data_disk == null ? true : alltrue([
+      for dd in var.data_disk : alltrue([
+        dd.create_option == null ? true : contains (["Empty", "FromImage"], dd.create_option)
+      ])
+    ])  
+    error_message = "The create_option must be one of: 'Empty' or 'FromImage'."
+  }
+ validation {
+    condition = var.data_disk == null ? true : alltrue([
+      for dd in var.data_disk : alltrue([
+        contains (["Standard_LRS","StandardSSD_LRS","StandardSSD_ZRS","Premium_LRS","PremiumV2_LRS","Premium_ZRS","UltraSSD_LRS"], dd.storage_account_type)
+      ])
+    ])  
+    error_message = "The storage_account_type must be one of: 'Standard_LRS', 'StandardSSD_LRS', 'StandardSSD_ZRS', 'Premium_LRS', 'PremiumV2_LRS', 'Premium_ZRS' or 'UltraSSD_LRS'."
+  }
   description = <<-EOT
  - `caching` - (Required) The type of Caching which should be used for this Data Disk. Possible values are None, ReadOnly and ReadWrite.
  - `create_option` - (Optional) The create option which should be used for this Data Disk. Possible values are Empty and FromImage. Defaults to `Empty`. (FromImage should only be used if the source image includes data disks).
@@ -163,6 +208,10 @@ variable "eviction_policy" {
   type        = string
   default     = null
   description = "(Optional) The Policy which should be used Virtual Machines are Evicted from the Scale Set. Possible values are `Deallocate` and `Delete`. Changing this forces a new resource to be created."
+  validation {
+    condition     = var.eviction_policy == null ? true : contains(["Deallocate", "Delete"], var.eviction_policy)
+    error_message = "The eviction policy must be one of: 'Deallocate' or 'Delete'."
+  }
 }
 
 variable "extension" {
@@ -183,6 +232,14 @@ variable "extension" {
     }))
   }))
   default     = null
+  validation {
+    condition    = var.extension == null  ? true : alltrue([
+      for ext in var.extension : alltrue([
+        ext.protected_settings == null || ext.protected_settings_from_key_vault == null ? true : false
+      ])
+    ])
+    error_message = "`protected_settings_from_key_vault` cannot be used with `protected_settings`."
+  }
   description = <<-EOT
  - `auto_upgrade_minor_version_enabled` - (Optional) Should the latest version of the Extension be used at Deployment Time, if one is available? This won't auto-update the extension on existing installation. Defaults to `true`.
  - `extensions_to_provision_after_vm_creation` - (Optional) An ordered list of Extension names which Orchestrated Virtual Machine Scale Set should provision after VM creation.
@@ -220,6 +277,10 @@ variable "identity" {
     type         = string
   })
   default     = null
+  validation {
+    condition     = var.identity == null ? true : contains(["UserAssigned"], var.identity.type)
+    error_message = "The identity type must be 'UserAssigned'."
+  }
   description = <<-EOT
  - `identity_ids` - (Required) Specifies a list of User Managed Identity IDs to be assigned to this Orchestrated Windows Virtual Machine Scale Set.
  - `type` - (Required) The type of Managed Identity that should be configured on this Orchestrated Windows Virtual Machine Scale Set. Only possible value is `UserAssigned`.
@@ -236,11 +297,15 @@ variable "license_type" {
   type        = string
   default     = null
   description = "(Optional) Specifies the type of on-premise license (also known as Azure Hybrid Use Benefit) which should be used for this Orchestrated Virtual Machine Scale Set. Possible values are `None`, `Windows_Client` and `Windows_Server`."
+  validation {
+    condition     = var.license_type == null ? true : contains(["None", "Windows_Client", "Windows_Server"], var.license_type)
+    error_message = "The license type must be one of: 'None', 'Windows_Client', or 'Windows_Server'."
+  }
 }
 
 variable "max_bid_price" {
   type        = number
-  default     = null
+  default     = -1
   description = "(Optional) The maximum price you're willing to pay for each Orchestrated Virtual Machine in this Scale Set, in US Dollars; which must be greater than the current spot price. If this bid price falls below the current spot price the Virtual Machines in the Scale Set will be evicted using the eviction_policy. Defaults to `-1`, which means that each Virtual Machine in the Orchestrated Scale Set should not be evicted for price reasons."
 }
 
@@ -275,6 +340,43 @@ variable "network_interface" {
     }))
   }))
   default     = null
+  validation {
+    condition = var.network_interface == null ? true : alltrue([
+      for ni in var.network_interface : alltrue([
+        for ic in ni.ip_configuration : ic.version == null ? true : 
+          contains(["IPv4", "IPv6"], ic.version)  
+      ])
+    ])
+    error_message = "The 'ip_configuration' 'version' must be one of: 'IPv4' or 'IPv6'."
+  }
+  validation {
+    condition = var.network_interface == null ? true : alltrue([
+      for ni in var.network_interface : alltrue([
+        for ic in ni.ip_configuration : ic.public_ip_address == null ? true : alltrue([
+          for pip in ic.public_ip_address : alltrue([
+            pip.domain_name_label == null ? true : length(regexall("^[a-z0-9-]+$", var.network_interface.ip_configuration.public_ip_address.domain_name_label)) > 0
+          ])
+        ])
+      ])
+    ])
+    error_message = "Valid 'domain_name_label' values must be between 1 and 26 characters long, start with a lower case letter, end with a lower case letter or number and contains only a-z, 0-9 and hyphens."
+  }
+  validation {
+    condition = var.network_interface == null ? true : alltrue([
+      for ni in var.network_interface : alltrue([
+        for ic in ni.ip_configuration : ic.public_ip_address == null ? true : alltrue([
+          for pip in ic.public_ip_address : alltrue([
+            pip.idle_timeout_in_minutes == null ? true : pip.idle_timeout_in_minutes >= 4 && var.network_interface.ip_configuration.public_ip_address.idle_timeout_in_minutes <= 32
+          ])
+        ])
+      ])
+    ])
+    error_message = "Valid 'idle_timeout_in_minutes'  values must be between 4 and 32"
+  }
+ /* validation {
+    error_message = "'idle_timeout_in_minutes' possible values are in the range 4 to 32"
+    condition = var.network_interface == null ? true : var.network_interface[*].ip_configuration[*].public_ip_address == null ? true : var.network_interface.ip_configuration.public_ip_address.idle_timeout_in_minutes == null ? true : var.network_interface.ip_configuration.public_ip_address.idle_timeout_in_minutes >= 4 && var.network_interface.ip_configuration.public_ip_address.idle_timeout_in_minutes <= 32
+  }*/
   description = <<-EOT
  - `dns_servers` - (Optional) A list of IP Addresses of DNS Servers which should be assigned to the Network Interface.
  - `enable_accelerated_networking` - (Optional) Does this Network Interface support Accelerated Networking? Possible values are `true` and `false`. Defaults to `false`.
@@ -322,6 +424,19 @@ variable "os_disk" {
     }))
   })
   default     = null
+  validation {
+    condition = var.os_disk == null ? true : contains (["None", "ReadOnly", "ReadWrite"], var.os_disk.caching)
+    error_message = "The caching must be one of: 'None', 'ReadOnly', or 'ReadWrite'."
+  }
+  validation {
+    condition = var.os_disk == null ? true : var.os_disk.diff_disk_settings == null? true : contains (["Local"], var.os_disk.diff_disk_settings.option)
+    error_message = "The diff_disk_settings option must be 'Local'."
+  }
+  validation {
+    condition = var.os_disk == null ? true : var.os_disk.diff_disk_settings == null? true : var.os_disk.diff_disk_settings.placement == null ? true : contains (["CacheDisk","ResourceDisk"], var.os_disk.diff_disk_settings.placement)
+    error_message = "The diff_disk_settings placement must be one of: 'CacheDisk' or 'ResourceDisk'."
+  }
+  
   description = <<-EOT
  - `caching` - (Required) The Type of Caching which should be used for the Internal OS Disk. Possible values are `None`, `ReadOnly` and `ReadWrite`.
  - `disk_encryption_set_id` - (Optional) The ID of the Disk Encryption Set which should be used to encrypt this OS Disk. Changing this forces a new resource to be created.
@@ -382,6 +497,29 @@ variable "os_profile" {
     }))
   })
   default     = null
+  validation {
+    condition = var.os_profile.linux_configuration == null ? true : var.os_profile.linux_configuration.patch_mode == null ? true : contains(["ImageDefault","AutomaticByPlatform"],var.os_profile.linux_configuration.patch_mode)
+    error_message = "Value must be one of: 'ImageDefault' or 'AutomaticByPlatform'"
+  }
+  validation {
+    condition = var. os_profile.linux_configuration == null ? true : var.os_profile.linux_configuration.patch_assessment_mode == null ? true : contains(["AutomaticByPlatform","ImageDefault"],var.os_profile.linux_configuration.patch_assessment_mode)
+    error_message = "Value must be one of: 'AutomaticByPlatform' or 'ImageDefault'"
+  }
+  validation {
+    condition = var.os_profile.windows_configuration == null ? true : var.os_profile.windows_configuration.patch_mode == null ? true : contains(["Manual","AutomaticByOS","AutomaticByPlatform"],var.os_profile.windows_configuration.patch_mode)
+    error_message = "Value must be one of: 'ImageDefault' or 'AutomaticByPlatform'"
+  }
+  validation {
+    condition = var.os_profile.windows_configuration == null ? true : var.os_profile.windows_configuration.patch_assessment_mode == null ? true : contains(["AutomaticByPlatform","ImageDefault"],var.os_profile.windows_configuration.patch_assessment_mode)
+    error_message = "Value must be one of: 'AutomaticByPlatform' or 'ImageDefault'"
+  }
+  validation {
+    condition = var.os_profile.windows_configuration == null ? true: var.os_profile.windows_configuration.winrm_listener == null ? true : alltrue ([
+      for wl in var.os_profile.windows_configuration.winrm_listener :
+        contains(["Http","Https"],wl.protocol)
+    ])
+    error_message = "Value must be one of: 'Http' or 'Https'"
+  }
   description = <<-EOT
  - `custom_data` - (Optional) The Base64-Encoded Custom Data which should be used for this Orchestrated Virtual Machine Scale Set.
 
@@ -452,8 +590,12 @@ EOT
 
 variable "priority" {
   type        = string
-  default     = null
+  default     = "Regular"
   description = "(Optional) The Priority of this Orchestrated Virtual Machine Scale Set. Possible values are `Regular` and `Spot`. Defaults to `Regular`. Changing this value forces a new resource."
+  validation {
+    condition     = contains(["Regular", "Spot"], var.priority)
+    error_message = "The priority must be one of: 'Regular' or 'Spot'."
+  }
 }
 
 variable "priority_mix" {
@@ -462,6 +604,14 @@ variable "priority_mix" {
     regular_percentage_above_base = optional(number)
   })
   default     = null
+  validation {
+    error_message = "'base_regular_count' must be between 0 and 1000"
+    condition = var.priority_mix == null ? true : var.priority_mix.base_regular_count == null ? true : var.priority_mix.base_regular_count >= 0 && var.priority_mix.base_regular_count <= 1000
+  }
+  validation {
+    error_message = "'regular_percentage_above_base' must be between 0 and 100"
+    condition = var.priority_mix == null ? true : var.priority_mix.regular_percentage_above_base == null ? true : var.priority_mix.regular_percentage_above_base >= 0 && var.priority_mix.regular_percentage_above_base <= 100
+  }
   description = <<-EOT
  - `base_regular_count` - (Optional) Specifies the base number of VMs of `Regular` priority that will be created before any VMs of priority `Spot` are created. Possible values are integers between `0` and `1000`. Defaults to `0`.
  - `regular_percentage_above_base` - (Optional) Specifies the desired percentage of VM instances that are of `Regular` priority after the base count has been reached. Possible values are integers between `0` and `100`. Defaults to `0`.
@@ -484,12 +634,20 @@ variable "sku_name" {
   type        = string
   default     = null
   description = "(Optional) The `name` of the SKU to be used by this Orcestrated Virtual Machine Scale Set. Valid values include: any of the [General purpose](https://docs.microsoft.com/azure/virtual-machines/sizes-general), [Compute optimized](https://docs.microsoft.com/azure/virtual-machines/sizes-compute), [Memory optimized](https://docs.microsoft.com/azure/virtual-machines/sizes-memory), [Storage optimized](https://docs.microsoft.com/azure/virtual-machines/sizes-storage), [GPU optimized](https://docs.microsoft.com/azure/virtual-machines/sizes-gpu), [FPGA optimized](https://docs.microsoft.com/azure/virtual-machines/sizes-field-programmable-gate-arrays), [High performance](https://docs.microsoft.com/azure/virtual-machines/sizes-hpc), or [Previous generation](https://docs.microsoft.com/azure/virtual-machines/sizes-previous-gen) virtual machine SKUs."
+  validation { 
+    condition = var.sku_name == null ? true : contains(["General purpose","Compute optimized","Memory optimized","Storage optimized","GPU optimized","FPGA optimized","High performance","Previous generation"], var.sku_name)
+    error_message = "Value must be one of: 'General purpose', 'Compute optimized', 'Memory optimized', 'Storage optimized', 'GPU optimized', 'FPGA optimized', 'High performance', or 'Previous generation'"
+  }
 }
 
 variable "source_image_id" {
   type        = string
   default     = null
   description = "(Optional) The ID of an Image which each Virtual Machine in this Scale Set should be based on. Possible Image ID types include `Image ID`s, `Shared Image ID`s, `Shared Image Version ID`s, `Community Gallery Image ID`s, `Community Gallery Image Version ID`s, `Shared Gallery Image ID`s and `Shared Gallery Image Version ID`s."
+  validation {
+    condition = var.source_image_id == null ? true : contains(["Image ID", "Shared Image ID", "Shared Image Version ID", "Community Gallery Image ID", "Community Gallery Image Version ID", "Shared Gallery Image ID", "Shared Gallery Image Version ID"], var.source_image_id)
+    error_message = "Value must be one of: 'Image ID', 'Shared Image ID', 'Shared Image Version ID', 'Community Gallery Image ID', 'Community Gallery Image Version ID', 'Shared Gallery Image ID', or 'Shared Gallery Image Version ID'"
+  }
 }
 
 variable "source_image_reference" {

@@ -119,6 +119,7 @@ module "terraform-azurerm-avm-res-compute-virtualmachinescaleset" {
   resource_group_name = azurerm_resource_group.this.name
   enable_telemetry    = var.enable_telemetry
   location            = azurerm_resource_group.this.location
+  platform_fault_domain_count = 1  
   # Spot variables
   priority            = "Spot" 
   max_bid_price       = 0.01

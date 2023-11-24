@@ -99,6 +99,7 @@ module "terraform-azurerm-avm-res-compute-virtualmachinescaleset" {
   resource_group_name = azurerm_resource_group.this.name
   enable_telemetry    = var.enable_telemetry
   location            = azurerm_resource_group.this.location
+  platform_fault_domain_count = 1  
   network_interface = [{
     name = "VMSS-NIC"
     ip_configuration = [{
@@ -112,7 +113,7 @@ module "terraform-azurerm-avm-res-compute-virtualmachinescaleset" {
       admin_username                  = "azureuser"
       admin_password                  = "P@ssw0rd1234!"
       license_type                    = "None"
-      hotpatching_enabled             = true
+      # hotpatching_enabled             = true
       patch_assessment_mode           = "ImageDefault"
       patch_mode                      = "AutomaticByOS"
       timezone                        = "Pacific Standard Time"
@@ -123,7 +124,7 @@ module "terraform-azurerm-avm-res-compute-virtualmachinescaleset" {
     }
   }
   source_image_reference = {
-    publisher = "MicrosoftWindowsServer"
+    publisher = "MicrosoftWindowsServer" # 2022-datacenter-azure-edition
     offer     = "WindowsServer"
     sku       = "2022-Datacenter"
     version   = "latest"
