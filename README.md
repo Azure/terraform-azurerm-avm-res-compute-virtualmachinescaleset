@@ -135,6 +135,8 @@ Description: (Optional) Specifies the ID of the Capacity Reservation Group which
 
 > Note: `capacity_reservation_group_id` cannot be specified with `proximity_placement_group_id`.  If `capacity_reservation_group_id` is specified the `single_placement_group` must be set to false.
 
+Type: `string`
+
 Default: `null`
 
 ### <a name="input_data_disk"></a> [data\_disk](#input\_data\_disk)
@@ -151,7 +153,6 @@ Description:  - `caching` - (Required) The type of Caching which should be used 
  - `ultra_ssd_disk_iops_read_write` - (Optional) Specifies the Read-Write IOPS for this Data Disk. Only settable when `storage_account_type` is `PremiumV2_LRS` or `UltraSSD_LRS`.
  - `ultra_ssd_disk_mbps_read_write` - (Optional) Specifies the bandwidth in MB per second for this Data Disk. Only settable when `storage_account_type` is `PremiumV2_LRS` or `UltraSSD_LRS`.
  - `write_accelerator_enabled` - (Optional) Specifies if Write Accelerator is enabled on the Data Disk. Defaults to `false`.
-
 
 Type:
 
@@ -487,7 +488,7 @@ Description: Configure the operating system provile.
 
  > Note: The schema of the `certificate block` is slightly different depending on if you are provisioning a `windows_configuration` or a `linux_configuration`.
 
- ---
+---
  `windows_configuration` block supports the following:
  - `admin_password` - (Required) The Password which should be used for the local-administrator on this Virtual Machine. Changing this forces a new resource to be created.
  - `admin_username` - (Required) The username of the local administrator on each Orchestrated Virtual Machine Scale Set instance. Changing this forces a new resource to be created.
