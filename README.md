@@ -17,6 +17,8 @@ Things to do:
 
 Major version Zero (0.y.z) is for initial development. Anything MAY change at any time. A module SHOULD NOT be considered stable till at least it is major version one (1.0.0) or greater. Changes will always be via new versions being published and no changes will be made to existing published versions. For more details please go to https://semver.org/
 
+> Note: This AVM will only deploy Azure Virtual Machine Scale Sets in Orchestrated mode.  Please see this reliability guidance for more information:  [Deploy VMs with flexible orchestration mode](https://learn.microsoft.com/en-us/azure/reliability/reliability-virtual-machine-scale-sets?tabs=graph-4%2Cgraph-1%2Cgraph-2%2Cgraph-3%2Cgraph-5%2Cgraph-6%2Cportal#-deploy-vms-with-flexible-orchestration-mode)
+
 <!-- markdownlint-disable MD033 -->
 ## Requirements
 
@@ -97,7 +99,7 @@ Default: `null`
 
 Description: Description: Enabling automatic instance repair allows VMSS to automatically detect and recover unhealthy VM instances at runtime, ensuring high application availability
 
-> Note: To enable the `automatic_instance_repair`, the Orchestrated Virtual Machine Scale Set must have a valid `health_probe_id` or an [Application Health Extension](https://docs.microsoft.com/azure/virtual-machine-scale-sets/virtual-machine-scale-sets-health-extension).
+> Note: To enable the `automatic_instance_repair`, the Orchestrated Virtual Machine Scale Set must have a valid `health_probe_id` or an [Application Health Extension](https://docs.microsoft.com/azure/virtual-machine-scale-sets/virtual-machine-scale-sets-health-extension).  Defaulted to true as per this reliability recommendation: [Enable automatic repair policy](https://learn.microsoft.com/en-us/azure/reliability/reliability-virtual-machine-scale-sets?tabs=graph-4%2Cgraph-1%2Cgraph-2%2Cgraph-3%2Cgraph-5%2Cgraph-6%2Cportal#-enable-automatic-repair-policy)
 
  - `enabled` - (Required) Should the automatic instance repair be enabled on this Orchestrated Virtual Machine Scale Set? Possible values are `true` and `false`.
  - `grace_period` - (Optional) Amount of time for which automatic repairs will be delayed. The grace period starts right after the VM is found unhealthy. Possible values are between `30` and `90` minutes. The time duration should be specified in `ISO 8601` format (e.g. `PT30M` to `PT90M`). Defaults to `PT30M`.
@@ -111,7 +113,7 @@ object({
   })
 ```
 
-Default: `null`
+Default: `true`
 
 ### <a name="input_boot_diagnostics"></a> [boot\_diagnostics](#input\_boot\_diagnostics)
 
@@ -131,9 +133,7 @@ Default: `null`
 
 Description: (Optional) Specifies the ID of the Capacity Reservation Group which the Virtual Machine Scale Set should be allocated to. Changing this forces a new resource to be created.
 
-> Note: `capacity_reservation_group_id` cannot be specified with `proximity_placement_group_id`
-<br>
-> Note: If `capacity_reservation_group_id` is specified the `single_placement_group` must be set to false.
+> Note: `capacity_reservation_group_id` cannot be specified with `proximity_placement_group_id`.  If `capacity_reservation_group_id` is specified the `single_placement_group` must be set to false.
 
 Type: `string`
 
@@ -185,7 +185,7 @@ Default: `true`
 
 ### <a name="input_encryption_at_host_enabled"></a> [encryption\_at\_host\_enabled](#input\_encryption\_at\_host\_enabled)
 
-Description: (Optional) Should disks attached to this Virtual Machine Scale Set be encrypted by enabling Encryption at Host?
+Description: (Optional) Should disks attached to this Virtual Machine Scale Set be encrypted by enabling Encryption at Host?.
 
 Type: `bool`
 
@@ -223,7 +223,7 @@ Description:  - `auto_upgrade_minor_version_enabled` - (Optional) Should the lat
  - `secret_url` - (Required) The URL to the Key Vault Secret which stores the protected settings.
  - `source_vault_id` - (Required) The ID of the source Key Vault.
 
-> Note: protected\_settings\_from\_key\_vault cannot be used with protected\_settings
+> Note: `protected_settings_from_key_vault` cannot be used with `protected_settings`
 
 Type:
 
@@ -329,7 +329,7 @@ Default: `null`
 
 ### <a name="input_max_bid_price"></a> [max\_bid\_price](#input\_max\_bid\_price)
 
-Description: (Optional) The maximum price you're willing to pay for each Orchestrated Virtual Machine in this Scale Set, in US Dollars; which must be greater than the current spot price. If this bid price falls below the current spot price the Virtual Machines in the Scale Set will be evicted using the eviction\_policy. Defaults to `-1`, which means that each Virtual Machine in the Orchestrated Scale Set should not be evicted for price reasons.
+Description: (Optional) The maximum price you're willing to pay for each Orchestrated Virtual Machine in this Scale Set, in US Dollars; which must be greater than the current spot price. If this bid price falls below the current spot price the Virtual Machines in the Scale Set will be evicted using the eviction\_policy. Defaults to `-1`, which means that each Virtual Machine in the Orchestrated Scale Set should not be evicted for price reasons.  See this reference for more details: [Pricing](https://learn.microsoft.com/en-us/azure/virtual-machines/spot-vms#pricing)
 
 Type: `number`
 
@@ -764,13 +764,21 @@ Default: `null`
 
 ### <a name="input_zones"></a> [zones](#input\_zones)
 
-Description: (Optional) Specifies a list of Availability Zones in which this Orchestrated Virtual Machine should be located. Changing this forces a new Orchestrated Virtual Machine to be created.
+Description: Specifies a list of Availability Zones in which this Orchestrated Virtual Machine should be located. Changing this forces a new Orchestrated Virtual Machine to be created.  Defaulted to 3 zones as per this reliability guidance: [Deploy Virtual Machine Scale Sets across availability zones with Virtual Machine Scale Sets Flex](https://learn.microsoft.com/en-us/azure/reliability/reliability-virtual-machine-scale-sets?tabs=graph-4%2Cgraph-1%2Cgraph-2%2Cgraph-3%2Cgraph-5%2Cgraph-6%2Cportal#-deploy-virtual-machine-scale-sets-across-availability-zones-with-virtual-machine-scale-sets-flex)
 
 > Note: Due to a limitation of the Azure API at this time only one Availability Zone can be defined.
 
 Type: `set(string)`
 
-Default: `null`
+Default:
+
+```json
+[
+  "1",
+  "2",
+  "3"
+]
+```
 
 ## Outputs
 
