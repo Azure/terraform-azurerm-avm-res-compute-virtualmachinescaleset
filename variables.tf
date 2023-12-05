@@ -595,7 +595,7 @@ Configure the operating system provile.
 
  > Note: The schema of the `certificate block` is slightly different depending on if you are provisioning a `windows_configuration` or a `linux_configuration`.
 
- ---
+---
  `windows_configuration` block supports the following:
  - `admin_password` - (Required) The Password which should be used for the local-administrator on this Virtual Machine. Changing this forces a new resource to be created.
  - `admin_username` - (Required) The username of the local administrator on each Orchestrated Virtual Machine Scale Set instance. Changing this forces a new resource to be created.
