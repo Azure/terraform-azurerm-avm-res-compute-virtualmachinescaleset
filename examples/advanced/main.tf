@@ -121,6 +121,13 @@ module "terraform-azurerm-avm-res-compute-virtualmachinescaleset" {
   location                    = azurerm_resource_group.this.location
   admin_password              = "P@ssw0rd1234!"
   platform_fault_domain_count = 1
+  admin_ssh_keys = [(
+    { 
+      id = tls_private_key.example_ssh.id
+      public_key = tls_private_key.example_ssh.public_key_openssh
+      username = "azureuser"
+    }
+  )]
   # Spot variables
   priority      = "Spot"
   max_bid_price = 0.01
@@ -189,10 +196,9 @@ module "terraform-azurerm-avm-res-compute-virtualmachinescaleset" {
       disable_password_authentication = false
       user_data_base64                = base64encode(file("user-data.sh"))
       admin_username                  = "azureuser"
-      # admin_password                  = "P@ssw0rd1234!"
-      computer_name_prefix = "prefix"
-      provision_vm_agent   = true
-      admin_ssh_key        = toset([tls_private_key.example_ssh.id])
+      computer_name_prefix            = "prefix"
+      provision_vm_agent              = true
+      admin_ssh_key                   = toset([tls_private_key.example_ssh.id])
     }
   }
   source_image_reference = {

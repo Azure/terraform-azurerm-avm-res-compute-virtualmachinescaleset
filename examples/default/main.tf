@@ -101,6 +101,13 @@ module "terraform-azurerm-avm-res-compute-virtualmachinescaleset" {
   location                    = azurerm_resource_group.this.location
   platform_fault_domain_count = 1
   admin_password              = "P@ssw0rd1234!"
+  admin_ssh_keys = [(
+    { 
+      id = tls_private_key.example_ssh.id
+      public_key = tls_private_key.example_ssh.public_key_openssh
+      username = "azureuser"
+    }
+  )]
   network_interface = [{
     name = "VMSS-NIC"
     ip_configuration = [{
@@ -113,11 +120,7 @@ module "terraform-azurerm-avm-res-compute-virtualmachinescaleset" {
       disable_password_authentication = false
       user_data_base64                = base64encode(file("user-data.sh"))
       admin_username                  = "azureuser"
-      admin_ssh_key = toset([{
-        username   = "azureuser"
-        public_key = tls_private_key.example_ssh.public_key_openssh
-        #public_key = file("<filename>")  # Replace if you have a public key file
-      }])
+      admin_ssh_key                   = toset([tls_private_key.example_ssh.id])
       provision_vm_agent = true
     }
   }

@@ -1,7 +1,14 @@
-output "resource" {
-  value = azurerm_orchestrated_virtual_machine_scale_set.virtual_machine_scale_set.id
+terraform {
+  required_version = ">= 1.0.0"
+  required_providers {
+    azurerm = {
+      source  = "hashicorp/azurerm"
+      version = ">= 3.83, < 4.0"
+    }
+    random = {
+      source  = "hashicorp/random"
+      version = ">= 3.6.0"
+    }
+  }
 }
 
-output "unique_id" {
-  value = azurerm_orchestrated_virtual_machine_scale_set.virtual_machine_scale_set.unique_id
-}
