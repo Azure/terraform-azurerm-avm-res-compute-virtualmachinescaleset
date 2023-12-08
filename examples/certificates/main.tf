@@ -3,7 +3,7 @@ terraform {
   required_providers {
     azurerm = {
       source  = "hashicorp/azurerm"
-      version = ">= 3.7.0, < 4.0.0"
+      version = ">= 3.83, < 4.0"
     }
   }
 }
@@ -30,18 +30,18 @@ module "naming" {
 
 # This is required for resource modules
 resource "azurerm_resource_group" "this" {
-  name     = module.naming.resource_group.name_unique
   location = "eastus"
+  name     = module.naming.resource_group.name_unique
   tags = {
     scenario = "AVM VMSS Sample Certificates Deployment"
   }
 }
 
 resource "azurerm_virtual_network" "this" {
-  name                = module.naming.virtual_network.name_unique
-  location            = azurerm_resource_group.this.location
-  resource_group_name = azurerm_resource_group.this.name
   address_space       = ["10.0.0.0/16"]
+  location            = azurerm_resource_group.this.location
+  name                = module.naming.virtual_network.name_unique
+  resource_group_name = azurerm_resource_group.this.name
   dns_servers         = ["10.0.0.4", "10.0.0.5"]
   tags = {
     scenario = "AVM VMSS Sample Certificates Deployment"
@@ -49,27 +49,27 @@ resource "azurerm_virtual_network" "this" {
 }
 
 resource "azurerm_subnet" "subnet" {
+  address_prefixes     = ["10.0.1.0/24"]
   name                 = "VMSS-Subnet"
   resource_group_name  = azurerm_resource_group.this.name
   virtual_network_name = azurerm_virtual_network.this.name
-  address_prefixes     = ["10.0.1.0/24"]
 }
 
 resource "azurerm_public_ip" "natgwpip" {
-  name                = module.naming.public_ip.name_unique
-  location            = azurerm_resource_group.this.location
-  resource_group_name = azurerm_resource_group.this.name
   allocation_method   = "Static"
+  location            = azurerm_resource_group.this.location
+  name                = module.naming.public_ip.name_unique
+  resource_group_name = azurerm_resource_group.this.name
   sku                 = "Standard"
-  zones               = ["1", "2", "3"]
   tags = {
     scenario = "AVM VMSS Sample Certificates Deployment"
   }
+  zones = ["1", "2", "3"]
 }
 
 resource "azurerm_nat_gateway" "this" {
-  name                = "MyNatGateway"
   location            = azurerm_resource_group.this.location
+  name                = "MyNatGateway"
   resource_group_name = azurerm_resource_group.this.name
   tags = {
     scenario = "AVM VMSS Sample Certificates Deployment"
@@ -77,13 +77,13 @@ resource "azurerm_nat_gateway" "this" {
 }
 
 resource "azurerm_nat_gateway_public_ip_association" "this" {
-  public_ip_address_id = azurerm_public_ip.natgwpip.id
   nat_gateway_id       = azurerm_nat_gateway.this.id
+  public_ip_address_id = azurerm_public_ip.natgwpip.id
 }
 
 resource "azurerm_subnet_nat_gateway_association" "this" {
-  subnet_id      = azurerm_subnet.subnet.id
   nat_gateway_id = azurerm_nat_gateway.this.id
+  subnet_id      = azurerm_subnet.subnet.id
 }
 
 resource "tls_private_key" "example_ssh" {
@@ -125,45 +125,40 @@ module "avm-res-keyvault-vault" {
 }
 
 resource "time_sleep" "wait_60_seconds" {
-  depends_on      = [module.avm-res-keyvault-vault]
   create_duration = "60s"
+
+  depends_on = [module.avm-res-keyvault-vault]
 }
 
 resource "azurerm_key_vault_certificate" "example" {
-  name         = "generated-cert"
   key_vault_id = module.avm-res-keyvault-vault.resource.id
+  name         = "generated-cert"
+  tags = {
+    scenario = "AVM VMSS Sample Certificates Deployment"
+  }
 
   certificate_policy {
     issuer_parameters {
       name = "Self"
     }
-
     key_properties {
       exportable = true
-      key_size   = 2048
       key_type   = "RSA"
       reuse_key  = true
+      key_size   = 2048
     }
-
+    secret_properties {
+      content_type = "application/x-pkcs12"
+    }
     lifetime_action {
       action {
         action_type = "AutoRenew"
       }
-
       trigger {
         days_before_expiry = 30
       }
     }
-
-    secret_properties {
-      content_type = "application/x-pkcs12"
-    }
-
     x509_certificate_properties {
-      # Server Authentication = 1.3.6.1.5.5.7.3.1
-      # Client Authentication = 1.3.6.1.5.5.7.3.2
-      extended_key_usage = ["1.3.6.1.5.5.7.3.1"]
-
       key_usage = [
         "cRLSign",
         "dataEncipherment",
@@ -172,18 +167,18 @@ resource "azurerm_key_vault_certificate" "example" {
         "keyCertSign",
         "keyEncipherment",
       ]
+      subject            = "CN=hello-world"
+      validity_in_months = 12
+      # Server Authentication = 1.3.6.1.5.5.7.3.1
+      # Client Authentication = 1.3.6.1.5.5.7.3.2
+      extended_key_usage = ["1.3.6.1.5.5.7.3.1"]
 
       subject_alternative_names {
         dns_names = ["internal.contoso.com", "domain.hello.world"]
       }
-
-      subject            = "CN=hello-world"
-      validity_in_months = 12
     }
   }
-  tags = {
-    scenario = "AVM VMSS Sample Certificates Deployment"
-  }
+
   depends_on = [time_sleep.wait_60_seconds]
 }
 
@@ -196,6 +191,7 @@ module "terraform-azurerm-avm-res-compute-virtualmachinescaleset" {
   enable_telemetry            = var.enable_telemetry
   location                    = azurerm_resource_group.this.location
   platform_fault_domain_count = 1
+  admin_password              = "P@ssw0rd1234!"
   network_interface = [{
     name = "VMSS-NIC"
     ip_configuration = [{
@@ -207,8 +203,7 @@ module "terraform-azurerm-avm-res-compute-virtualmachinescaleset" {
     linux_configuration = {
       disable_password_authentication = false
       user_data_base64                = base64encode(file("user-data.sh"))
-      admin_username                  = "azureuser"
-      admin_password                  = "P@ssw0rd1234!"
+      admin_username                  = "azureuser"      
       admin_ssh_key = [{
         username   = "azureuser"
         public_key = tls_private_key.example_ssh.public_key_openssh
