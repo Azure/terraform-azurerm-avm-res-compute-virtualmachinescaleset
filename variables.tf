@@ -39,10 +39,26 @@ EOT
 }
 
 variable "admin_password" {
-  type = string
-  default = null
+  type        = string
+  default     = null
   description = "(Optional) Sets the VM password"
-  sensitive = true
+  sensitive   = true
+}
+
+variable "admin_ssh_keys" {
+  type = set(object({
+    id         = string
+    public_key = string
+    username   = string
+  }))
+  default     = null
+  description = <<-EOT
+(Optional) SSH Keys to be used for Linx instances
+- Unique id.  Referenced in the `os_profile` below
+- (Required) The Public Key which should be used for authentication, which needs to be at least 2048-bit and in ssh-rsa format.
+- (Required) The Username for which this Public SSH Key should be configured.
+EOT
+  sensitive   = true
 }
 
 variable "automatic_instance_repair" {
@@ -181,7 +197,6 @@ variable "eviction_policy" {
   }
 }
 
-
 variable "extension" {
   type = set(object({
     auto_upgrade_minor_version_enabled        = optional(bool)
@@ -226,13 +241,6 @@ variable "extension" {
 EOT
 }
 
-variable "extension_protected_setting" {
-  type = map(string)
-  sensitive = true
-  default = null
-  description = "(Optional) A JSON String which specifies Sensitive Settings (such as Passwords) for the Extension."
-}
-
 variable "extension_operations_enabled" {
   type        = bool
   default     = null
@@ -240,6 +248,13 @@ variable "extension_operations_enabled" {
 > Note: `extension_operations_enabled` may only be set to `false` if there are no extensions defined in the `extension` field.
 (Optional) Should extension operations be allowed on the Virtual Machine Scale Set? Possible values are `true` or `false`. Defaults to `true`. Changing this forces a new Orchestrated Virtual Machine Scale Set to be created.
 EOT
+}
+
+variable "extension_protected_setting" {
+  type        = map(string)
+  default     = null
+  description = "(Optional) A JSON String which specifies Sensitive Settings (such as Passwords) for the Extension."
+  sensitive   = true
 }
 
 variable "extensions_time_budget" {
@@ -459,23 +474,6 @@ EOT
     error_message = "The diff_disk_settings placement must be one of: 'CacheDisk' or 'ResourceDisk'."
   }
 }
-
-variable "admin_ssh_keys" {
-  type = set(object({
-    id         = string
-    public_key = string
-    username   = string
-  }))
-  default = null
-  sensitive = true
-  description = <<-EOT
-(Optional) SSH Keys to be used for Linx instances
-- Unique id.  Referenced in the `os_profile` below
-- (Required) The Public Key which should be used for authentication, which needs to be at least 2048-bit and in ssh-rsa format.
-- (Required) The Username for which this Public SSH Key should be configured.
-EOT
-}
-
 
 variable "os_profile" {
   type = object({

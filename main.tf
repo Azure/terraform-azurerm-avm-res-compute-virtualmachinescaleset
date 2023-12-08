@@ -76,7 +76,7 @@ resource "azurerm_orchestrated_virtual_machine_scale_set" "virtual_machine_scale
         }
       }
     }
-  } 
+  }
   dynamic "identity" {
     for_each = var.identity == null ? [] : [var.identity]
     content {
@@ -161,12 +161,13 @@ resource "azurerm_orchestrated_virtual_machine_scale_set" "virtual_machine_scale
           patch_assessment_mode           = linux_configuration.value.patch_assessment_mode
           patch_mode                      = linux_configuration.value.patch_mode
           provision_vm_agent              = linux_configuration.value.provision_vm_agent
+
           dynamic "admin_ssh_key" {
             for_each = linux_configuration.value.admin_ssh_key_id == null ? [] : linux_configuration.value.admin_ssh_key_id
-              content {
-                public_key = var.admin_ssh_keys[each.key].public_key
-                username   = var.admin_ssh_keys[each.key].username
-              }
+            content {
+              public_key = var.admin_ssh_keys[each.key].public_key
+              username   = var.admin_ssh_keys[each.key].username
+            }
           }
           dynamic "secret" {
             for_each = linux_configuration.value.secret == null ? [] : linux_configuration.value.secret
@@ -186,8 +187,8 @@ resource "azurerm_orchestrated_virtual_machine_scale_set" "virtual_machine_scale
       dynamic "windows_configuration" {
         for_each = os_profile.value.windows_configuration == null ? [] : [os_profile.value.windows_configuration]
         content {
-          admin_username           = windows_configuration.value.admin_username
           admin_password           = var.admin_password
+          admin_username           = windows_configuration.value.admin_username
           computer_name_prefix     = windows_configuration.value.computer_name_prefix
           enable_automatic_updates = windows_configuration.value.enable_automatic_updates
           hotpatching_enabled      = windows_configuration.value.hotpatching_enabled

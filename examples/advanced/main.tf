@@ -115,7 +115,7 @@ resource "azurerm_proximity_placement_group" "this" {
 module "terraform-azurerm-avm-res-compute-virtualmachinescaleset" {
   source = "../../"
   # source             = "Azure/avm-res-compute-virtualmachinescaleset/azurerm"
-  name                        = module.naming.virtual_machine_scale_set.name_unique 
+  name                        = module.naming.virtual_machine_scale_set.name_unique
   resource_group_name         = azurerm_resource_group.this.name
   enable_telemetry            = var.enable_telemetry
   location                    = azurerm_resource_group.this.location
@@ -135,7 +135,7 @@ module "terraform-azurerm-avm-res-compute-virtualmachinescaleset" {
   eviction_policy = "Deallocate"
   # Instance Placement
   zone_balance                 = false
-  zones                        = [ "1" ]
+  zones                        = ["1"]
   proximity_placement_group_id = azurerm_proximity_placement_group.this.id
   single_placement_group       = true
   # Miscellanous settings
@@ -165,12 +165,12 @@ module "terraform-azurerm-avm-res-compute-virtualmachinescaleset" {
   }]
   # Extensions
   extension = [{
-      name                       = "Custom Script Extension"
-      publisher                  = "Microsoft.Azure.Extensions"
-      type                       = "CustomScript"
-      type_handler_version       = "2.0"
-      auto_upgrade_minor_version = true
-      settings                   = <<SETTINGS
+    name                       = "Custom Script Extension"
+    publisher                  = "Microsoft.Azure.Extensions"
+    type                       = "CustomScript"
+    type_handler_version       = "2.0"
+    auto_upgrade_minor_version = true
+    settings                   = <<SETTINGS
       {
         "commandToExecute": "echo 'Hello World!' > /tmp/hello.txt"
       }
@@ -190,9 +190,9 @@ module "terraform-azurerm-avm-res-compute-virtualmachinescaleset" {
       user_data_base64                = base64encode(file("user-data.sh"))
       admin_username                  = "azureuser"
       # admin_password                  = "P@ssw0rd1234!"
-      computer_name_prefix            = "prefix"
-      provision_vm_agent              = true
-      admin_ssh_key = toset([ tls_private_key.example_ssh.id ])
+      computer_name_prefix = "prefix"
+      provision_vm_agent   = true
+      admin_ssh_key        = toset([tls_private_key.example_ssh.id])
     }
   }
   source_image_reference = {

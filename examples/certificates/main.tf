@@ -203,7 +203,7 @@ module "terraform-azurerm-avm-res-compute-virtualmachinescaleset" {
     linux_configuration = {
       disable_password_authentication = false
       user_data_base64                = base64encode(file("user-data.sh"))
-      admin_username                  = "azureuser"      
+      admin_username                  = "azureuser"
       admin_ssh_key = [{
         username   = "azureuser"
         public_key = tls_private_key.example_ssh.public_key_openssh
