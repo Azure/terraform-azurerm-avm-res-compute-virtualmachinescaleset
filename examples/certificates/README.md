@@ -1,21 +1,7 @@
 <!-- BEGIN_TF_DOCS -->
-# terraform-azurerm-avm-template
+# A Virtual Machine Scale Set Deployment with Certificates
 
-This is a template repo for Terraform Azure Verified Modules.
-
-Things to do:
-
-1. Set up a GitHub repo environment called `test`.
-1. Configure environment protection rule to ensure that approval is required before deploying to this environment.
-1. Create a user-assigned managed identity in your test subscription.
-1. Create a role assignment for the managed identity on your test subscription, use the minimum required role.
-1. Configure federated identity credentials on the user assigned managed identity. Use the GitHub environment.
-1. Create the following environment secrets on the `test` environment:
-   1. AZURE\_CLIENT\_ID
-   1. AZURE\_TENANT\_ID
-   1. AZURE\_SUBSCRIPTION\_ID
-
-Major version Zero (0.y.z) is for initial development. Anything MAY change at any time. A module SHOULD NOT be considered stable till at least it is major version one (1.0.0) or greater. Changes will always be via new versions being published and no changes will be made to existing published versions. For more details please go to https://semver.org/
+This example demonstrates how to pull certificates from a Key Vault and send them to VMSS
 
 <!-- markdownlint-disable MD033 -->
 ## Requirements
@@ -24,13 +10,13 @@ The following requirements are needed by this module:
 
 - <a name="requirement_terraform"></a> [terraform](#requirement\_terraform) (>= 1.0.0)
 
-- <a name="requirement_azurerm"></a> [azurerm](#requirement\_azurerm) (>= 3.7.0, < 4.0.0)
+- <a name="requirement_azurerm"></a> [azurerm](#requirement\_azurerm) (>= 3.83, < 4.0)
 
 ## Providers
 
 The following providers are used by this module:
 
-- <a name="provider_azurerm"></a> [azurerm](#provider\_azurerm) (>= 3.7.0, < 4.0.0)
+- <a name="provider_azurerm"></a> [azurerm](#provider\_azurerm) (>= 3.83, < 4.0)
 
 - <a name="provider_time"></a> [time](#provider\_time)
 

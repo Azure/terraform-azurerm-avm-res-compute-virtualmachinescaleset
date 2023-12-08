@@ -26,17 +26,17 @@ The following requirements are needed by this module:
 
 - <a name="requirement_terraform"></a> [terraform](#requirement\_terraform) (>= 1.0.0)
 
-- <a name="requirement_azurerm"></a> [azurerm](#requirement\_azurerm) (>= 3.81.0)
+- <a name="requirement_azurerm"></a> [azurerm](#requirement\_azurerm) (>= 3.83, < 4.0)
 
-- <a name="requirement_random"></a> [random](#requirement\_random) (>= 3.5.1)
+- <a name="requirement_random"></a> [random](#requirement\_random) (>= 3.6.0)
 
 ## Providers
 
 The following providers are used by this module:
 
-- <a name="provider_azurerm"></a> [azurerm](#provider\_azurerm) (>= 3.81.0)
+- <a name="provider_azurerm"></a> [azurerm](#provider\_azurerm) (>= 3.83, < 4.0)
 
-- <a name="provider_random"></a> [random](#provider\_random) (>= 3.5.1)
+- <a name="provider_random"></a> [random](#provider\_random) (>= 3.6.0)
 
 ## Resources
 
@@ -95,6 +95,33 @@ object({
 
 Default: `null`
 
+### <a name="input_admin_password"></a> [admin\_password](#input\_admin\_password)
+
+Description: (Optional) Sets the VM password
+
+Type: `string`
+
+Default: `null`
+
+### <a name="input_admin_ssh_keys"></a> [admin\_ssh\_keys](#input\_admin\_ssh\_keys)
+
+Description: (Optional) SSH Keys to be used for Linx instances
+- Unique id.  Referenced in the `os_profile` below
+- (Required) The Public Key which should be used for authentication, which needs to be at least 2048-bit and in ssh-rsa format.
+- (Required) The Username for which this Public SSH Key should be configured.
+
+Type:
+
+```hcl
+set(object({
+    id         = string
+    public_key = string
+    username   = string
+  }))
+```
+
+Default: `null`
+
 ### <a name="input_automatic_instance_repair"></a> [automatic\_instance\_repair](#input\_automatic\_instance\_repair)
 
 Description: Description: Enabling automatic instance repair allows VMSS to automatically detect and recover unhealthy VM instances at runtime, ensuring high application availability
@@ -113,7 +140,13 @@ object({
   })
 ```
 
-Default: `true`
+Default:
+
+```json
+{
+  "enabled": true
+}
+```
 
 ### <a name="input_boot_diagnostics"></a> [boot\_diagnostics](#input\_boot\_diagnostics)
 
@@ -157,7 +190,7 @@ Description:  - `caching` - (Required) The type of Caching which should be used 
 Type:
 
 ```hcl
-list(object({
+set(object({
     caching                        = string
     create_option                  = optional(string)
     disk_encryption_set_id         = optional(string)
@@ -202,14 +235,13 @@ Default: `null`
 ### <a name="input_extension"></a> [extension](#input\_extension)
 
 Description:  - `auto_upgrade_minor_version_enabled` - (Optional) Should the latest version of the Extension be used at Deployment Time, if one is available? This won't auto-update the extension on existing installation. Defaults to `true`.
- - `extensions_to_provision_after_vm_creation` - (Optional) An ordered list of Extension names which Orchestrated Virtual Machine Scale Set should provision after VM creation.
+ - `extensions_to_provision_after_vm_creation` - (Optional) An set of Extension names which Orchestrated Virtual Machine Scale Set should provision after VM creation.
  - `failure_suppression_enabled` - (Optional) Should failures from the extension be suppressed? Possible values are `true` or `false`.
 
 > Note: Operational failures such as not connecting to the VM will not be suppressed regardless of the `failure_suppression_enabled` value.
 
  - `force_extension_execution_on_change` - (Optional) A value which, when different to the previous value can be used to force-run the Extension even if the Extension Configuration hasn't changed.
  - `name` - (Required) The name for the Virtual Machine Scale Set Extension.
- - `protected_settings` - (Optional) A JSON String which specifies Sensitive Settings (such as Passwords) for the Extension.
 
  > Note: Keys within the `protected_settings` block are notoriously case-sensitive, where the casing required (e.g. TitleCase vs snakeCase) depends on the Extension being used. Please refer to the documentation for the specific Orchestrated Virtual Machine Extension you're looking to use for more information.
 
@@ -230,11 +262,10 @@ Type:
 ```hcl
 set(object({
     auto_upgrade_minor_version_enabled        = optional(bool)
-    extensions_to_provision_after_vm_creation = optional(list(string))
+    extensions_to_provision_after_vm_creation = optional(set(string))
     failure_suppression_enabled               = optional(bool)
     force_extension_execution_on_change       = optional(string)
     name                                      = string
-    protected_settings                        = optional(string)
     publisher                                 = string
     settings                                  = optional(string)
     type                                      = string
@@ -257,6 +288,14 @@ Type: `bool`
 
 Default: `null`
 
+### <a name="input_extension_protected_setting"></a> [extension\_protected\_setting](#input\_extension\_protected\_setting)
+
+Description: (Optional) A JSON String which specifies Sensitive Settings (such as Passwords) for the Extension.
+
+Type: `map(string)`
+
+Default: `null`
+
 ### <a name="input_extensions_time_budget"></a> [extensions\_time\_budget](#input\_extensions\_time\_budget)
 
 Description: (Optional) Specifies the time alloted for all extensions to start. The time duration should be between 15 minutes and 120 minutes (inclusive) and should be specified in ISO 8601 format. Defaults to `PT1H30M`.
@@ -267,7 +306,7 @@ Default: `null`
 
 ### <a name="input_identity"></a> [identity](#input\_identity)
 
-Description: - `identity_ids` - (Required) Specifies a list of User Managed Identity IDs to be assigned to this Orchestrated Windows Virtual Machine Scale Set.
+Description: - `identity_ids` - (Required) Specifies a set of User Managed Identity IDs to be assigned to this Orchestrated Windows Virtual Machine Scale Set.
 - `type` - (Required) The type of Managed Identity that should be configured on this Orchestrated Windows Virtual Machine Scale Set. Only possible value is `UserAssigned`.
 
 Type:
@@ -337,7 +376,7 @@ Default: `-1`
 
 ### <a name="input_network_interface"></a> [network\_interface](#input\_network\_interface)
 
-Description:  - `dns_servers` - (Optional) A list of IP Addresses of DNS Servers which should be assigned to the Network Interface.
+Description:  - `dns_servers` - (Optional) A set of IP Addresses of DNS Servers which should be assigned to the Network Interface.
  - `enable_accelerated_networking` - (Optional) Does this Network Interface support Accelerated Networking? Possible values are `true` and `false`. Defaults to `false`.
  - `enable_ip_forwarding` - (Optional) Does this Network Interface support IP Forwarding? Possible values are `true` and `false`. Defaults to `false`.
  - `name` - (Required) The Name which should be used for this Network Interface. Changing this forces a new resource to be created.
@@ -346,9 +385,9 @@ Description:  - `dns_servers` - (Optional) A list of IP Addresses of DNS Servers
 
  ---
  `ip_configuration` block supports the following:
- - `application_gateway_backend_address_pool_ids` - (Optional) A list of Backend Address Pools IDs from a Application Gateway which this Orchestrated Virtual Machine Scale Set should be connected to.
- - `application_security_group_ids` - (Optional) A list of Application Security Group IDs which this Orchestrated Virtual Machine Scale Set should be connected to.
- - `load_balancer_backend_address_pool_ids` - (Optional) A list of Backend Address Pools IDs from a Load Balancer which this Orchestrated Virtual Machine Scale Set should be connected to.
+ - `application_gateway_backend_address_pool_ids` - (Optional) A set of Backend Address Pools IDs from a Application Gateway which this Orchestrated Virtual Machine Scale Set should be connected to.
+ - `application_security_group_ids` - (Optional) A set of Application Security Group IDs which this Orchestrated Virtual Machine Scale Set should be connected to.
+ - `load_balancer_backend_address_pool_ids` - (Optional) A set of Backend Address Pools IDs from a Load Balancer which this Orchestrated Virtual Machine Scale Set should be connected to.
 
 > Note: When using this field you'll also need to configure a Rule for the Load Balancer, and use a depends\_on between this resource and the Load Balancer Rule.
 
@@ -380,14 +419,14 @@ Description:  - `dns_servers` - (Optional) A list of IP Addresses of DNS Servers
 Type:
 
 ```hcl
-list(object({
-    dns_servers                   = optional(list(string))
+set(object({
+    dns_servers                   = optional(set(string))
     enable_accelerated_networking = optional(bool)
     enable_ip_forwarding          = optional(bool)
     name                          = string
     network_security_group_id     = optional(string)
     primary                       = optional(bool)
-    ip_configuration = list(object({
+    ip_configuration = set(object({
       application_gateway_backend_address_pool_ids = optional(set(string))
       application_security_group_ids               = optional(set(string))
       load_balancer_backend_address_pool_ids       = optional(set(string))
@@ -395,14 +434,14 @@ list(object({
       primary                                      = optional(bool)
       subnet_id                                    = optional(string)
       version                                      = optional(string)
-      public_ip_address = optional(list(object({
+      public_ip_address = optional(set(object({
         domain_name_label       = optional(string)
         idle_timeout_in_minutes = optional(number)
         name                    = string
         public_ip_prefix_id     = optional(string)
         sku_name                = optional(string)
         version                 = optional(string)
-        ip_tag = optional(list(object({
+        ip_tag = optional(set(object({
           tag  = string
           type = string
         })))
@@ -454,7 +493,6 @@ Description: Configure the operating system provile.
 
  ---
  `linux_configuration` block supports the following:
- - `admin_password` - (Optional) The Password which should be used for the local-administrator on this Virtual Machine. Changing this forces a new resource to be created.
  - `admin_username` - (Required) The username of the local administrator on each Orchestrated Virtual Machine Scale Set instance. Changing this forces a new resource to be created.
  - `computer_name_prefix` - (Optional) The prefix which should be used for the name of the Virtual Machines in this Scale Set. If unspecified this defaults to the value for the name field. If the value of the name field is not a valid `computer_name_prefix`, then you must specify `computer_name_prefix`. Changing this forces a new resource to be created.
  - `disable_password_authentication` - (Optional) When an `admin_password` is specified `disable_password_authentication` must be set to `false`. Defaults to `true`.
@@ -472,9 +510,7 @@ Description: Configure the operating system provile.
  - `provision_vm_agent` - (Optional) Should the Azure VM Agent be provisioned on each Virtual Machine in the Scale Set? Defaults to `true`. Changing this value forces a new resource to be created.
 
  ---
- `admin_ssh_key` block supports the following:
- - `public_key` - (Required) The Public Key which should be used for authentication, which needs to be at least 2048-bit and in ssh-rsa format.
- - `username` - (Required) The Username for which this Public SSH Key should be configured.
+ `admin_ssh_key_id` Set of ids which reference the `admin_ssh_keys` sensitive variable
 
  > Note: The Azure VM Agent only allows creating SSH Keys at the path `/home/{username}/.ssh/authorized_keys` - as such this public key will be written to the authorized keys file.
 
@@ -490,7 +526,6 @@ Description: Configure the operating system provile.
 
 ---
  `windows_configuration` block supports the following:
- - `admin_password` - (Required) The Password which should be used for the local-administrator on this Virtual Machine. Changing this forces a new resource to be created.
  - `admin_username` - (Required) The username of the local administrator on each Orchestrated Virtual Machine Scale Set instance. Changing this forces a new resource to be created.
  - `computer_name_prefix` - (Optional) The prefix which should be used for the name of the Virtual Machines in this Scale Set. If unspecified this defaults to the value for the `name` field. If the value of the `name` field is not a valid `computer_name_prefix`, then you must specify `computer_name_prefix`. Changing this forces a new resource to be created.
  - `enable_automatic_updates` - (Optional) Are automatic updates enabled for this Virtual Machine? Defaults to `true`.
@@ -531,18 +566,14 @@ Type:
 object({
     custom_data = optional(string)
     linux_configuration = optional(object({
-      admin_password                  = optional(string)
       admin_username                  = string
       computer_name_prefix            = optional(string)
       disable_password_authentication = optional(bool)
       patch_assessment_mode           = optional(string)
       patch_mode                      = optional(string)
       provision_vm_agent              = optional(bool)
-      admin_ssh_key = optional(set(object({
-        public_key = string
-        username   = string
-      })))
-      secret = optional(list(object({
+      admin_ssh_key_id                = optional(set(string))
+      secret = optional(set(object({
         key_vault_id = string
         certificate = set(object({
           url = string
@@ -550,7 +581,6 @@ object({
       })))
     }))
     windows_configuration = optional(object({
-      admin_password           = string
       admin_username           = string
       computer_name_prefix     = optional(string)
       enable_automatic_updates = optional(bool)
@@ -559,7 +589,7 @@ object({
       patch_mode               = optional(string)
       provision_vm_agent       = optional(bool)
       timezone                 = optional(string)
-      secret = optional(list(object({
+      secret = optional(set(object({
         key_vault_id = string
         certificate = set(object({
           store = string
