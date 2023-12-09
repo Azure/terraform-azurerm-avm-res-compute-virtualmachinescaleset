@@ -193,10 +193,10 @@ module "terraform-azurerm-avm-res-compute-virtualmachinescaleset" {
   platform_fault_domain_count = 1
   admin_password              = "P@ssw0rd1234!"
   admin_ssh_keys = [(
-    { 
-      id = tls_private_key.example_ssh.id
+    {
+      id         = tls_private_key.example_ssh.id
       public_key = tls_private_key.example_ssh.public_key_openssh
-      username = "azureuser"
+      username   = "azureuser"
     }
   )]
   network_interface = [{
@@ -212,7 +212,7 @@ module "terraform-azurerm-avm-res-compute-virtualmachinescaleset" {
       user_data_base64                = base64encode(file("user-data.sh"))
       admin_username                  = "azureuser"
       admin_ssh_key                   = toset([tls_private_key.example_ssh.id])
-      provision_vm_agent = true
+      provision_vm_agent              = true
       secret = [{
         key_vault_id = module.avm-res-keyvault-vault.resource.id
         certificate = toset([{

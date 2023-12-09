@@ -122,10 +122,10 @@ module "terraform-azurerm-avm-res-compute-virtualmachinescaleset" {
   admin_password              = "P@ssw0rd1234!"
   platform_fault_domain_count = 1
   admin_ssh_keys = [(
-    { 
-      id = tls_private_key.example_ssh.id
+    {
+      id         = tls_private_key.example_ssh.id
       public_key = tls_private_key.example_ssh.public_key_openssh
-      username = "azureuser"
+      username   = "azureuser"
     }
   )]
   # Spot variables
