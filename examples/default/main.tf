@@ -55,6 +55,49 @@ resource "azurerm_subnet" "subnet" {
   virtual_network_name = azurerm_virtual_network.this.name
 }
 
+# network security group for the subnet with a rule to allow http, https and ssh traffic
+resource "azurerm_network_security_group" "myNSG" {
+  name                = "myNSG"
+  location            = azurerm_resource_group.this.location
+  resource_group_name = azurerm_resource_group.this.name
+
+  security_rule {
+    name                       = "allow-http"
+    priority                   = 100
+    direction                  = "Inbound"
+    access                     = "Allow"
+    protocol                   = "Tcp"
+    source_port_range          = "*"
+    destination_port_range     = "80"
+    source_address_prefix      = "*"
+    destination_address_prefix = "*"
+  }
+
+  security_rule {
+    name                       = "allow-https"
+    priority                   = 101
+    direction                  = "Inbound"
+    access                     = "Allow"
+    protocol                   = "Tcp"
+    source_port_range          = "*"
+    destination_port_range     = "443"
+    source_address_prefix      = "*"
+    destination_address_prefix = "*"
+  }
+  #ssh security rule
+  security_rule {
+    name                       = "allow-ssh"
+    priority                   = 102
+    direction                  = "Inbound"
+    access                     = "Allow"
+    protocol                   = "Tcp"
+    source_port_range          = "*"
+    destination_port_range     = "22"
+    source_address_prefix      = "*"
+    destination_address_prefix = "*"
+  }
+}
+
 resource "azurerm_public_ip" "natgwpip" {
   allocation_method   = "Static"
   location            = azurerm_resource_group.this.location
@@ -101,6 +144,8 @@ module "terraform-azurerm-avm-res-compute-virtualmachinescaleset" {
   location                    = azurerm_resource_group.this.location
   platform_fault_domain_count = 1
   admin_password              = "P@ssw0rd1234!"
+  instances                   = 2
+  sku_name                    = "Standard_D2s_v4"
   admin_ssh_keys = [(
     {
       id         = tls_private_key.example_ssh.id

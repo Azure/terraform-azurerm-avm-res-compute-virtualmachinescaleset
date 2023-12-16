@@ -26,7 +26,7 @@ The following requirements are needed by this module:
 
 - <a name="requirement_terraform"></a> [terraform](#requirement\_terraform) (>= 1.0.0)
 
-- <a name="requirement_azurerm"></a> [azurerm](#requirement\_azurerm) (>= 3.83, < 4.0)
+- <a name="requirement_azurerm"></a> [azurerm](#requirement\_azurerm) (>= 3.85, < 4.0)
 
 - <a name="requirement_random"></a> [random](#requirement\_random) (>= 3.6.0)
 
@@ -34,7 +34,7 @@ The following requirements are needed by this module:
 
 The following providers are used by this module:
 
-- <a name="provider_azurerm"></a> [azurerm](#provider\_azurerm) (>= 3.83, < 4.0)
+- <a name="provider_azurerm"></a> [azurerm](#provider\_azurerm) (>= 3.85, < 4.0)
 
 - <a name="provider_random"></a> [random](#provider\_random) (>= 3.6.0)
 
@@ -255,6 +255,8 @@ Description:  - `auto_upgrade_minor_version_enabled` - (Optional) Should the lat
  - `secret_url` - (Required) The URL to the Key Vault Secret which stores the protected settings.
  - `source_vault_id` - (Required) The ID of the source Key Vault.
 
+A Health Extension is deployed by default as per [WAF guidelines](https://learn.microsoft.com/en-us/azure/reliability/reliability-virtual-machine-scale-sets?tabs=graph-4%2Cgraph-1%2Cgraph-2%2Cgraph-3%2Cgraph-5%2Cgraph-6%2Cportal#monitoring).
+
 > Note: `protected_settings_from_key_vault` cannot be used with `protected_settings`
 
 Type:
@@ -273,11 +275,24 @@ set(object({
     protected_settings_from_key_vault = optional(object({
       secret_url      = string
       source_vault_id = string
-    }))
+    }), null)
   }))
 ```
 
-Default: `null`
+Default:
+
+```json
+[
+  {
+    "auto_upgrade_minor_version": true,
+    "name": "HealthExtension",
+    "publisher": "Microsoft.ManagedServices",
+    "settings": "    {\n      \"protocol\": \"http\",\n      \"port\" : 80,\n      \"requestPath\": \"health\"\n    }\n",
+    "type": "ApplicationHealthLinux",
+    "type_handler_version": "1.0"
+  }
+]
+```
 
 ### <a name="input_extension_operations_enabled"></a> [extension\_operations\_enabled](#input\_extension\_operations\_enabled)
 
@@ -294,7 +309,7 @@ Description: (Optional) A JSON String which specifies Sensitive Settings (such a
 
 Type: `map(string)`
 
-Default: `null`
+Default: `{}`
 
 ### <a name="input_extensions_time_budget"></a> [extensions\_time\_budget](#input\_extensions\_time\_budget)
 
@@ -481,7 +496,14 @@ object({
   })
 ```
 
-Default: `null`
+Default:
+
+```json
+{
+  "caching": "ReadWrite",
+  "storage_account_type": "Premium_LRS"
+}
+```
 
 ### <a name="input_os_profile"></a> [os\_profile](#input\_os\_profile)
 
@@ -570,7 +592,7 @@ object({
       computer_name_prefix            = optional(string)
       disable_password_authentication = optional(bool)
       patch_assessment_mode           = optional(string)
-      patch_mode                      = optional(string)
+      patch_mode                      = optional(string, "AutomaticByPlatform")
       provision_vm_agent              = optional(bool)
       admin_ssh_key_id                = optional(set(string))
       secret = optional(set(object({
@@ -583,10 +605,10 @@ object({
     windows_configuration = optional(object({
       admin_username           = string
       computer_name_prefix     = optional(string)
-      enable_automatic_updates = optional(bool)
+      enable_automatic_updates = optional(bool, true)
       hotpatching_enabled      = optional(bool)
       patch_assessment_mode    = optional(string)
-      patch_mode               = optional(string)
+      patch_mode               = optional(string, "AutomaticByPlatform")
       provision_vm_agent       = optional(bool)
       timezone                 = optional(string)
       secret = optional(set(object({

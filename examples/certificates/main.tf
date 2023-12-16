@@ -192,6 +192,7 @@ module "terraform-azurerm-avm-res-compute-virtualmachinescaleset" {
   location                    = azurerm_resource_group.this.location
   platform_fault_domain_count = 1
   admin_password              = "P@ssw0rd1234!"
+  instances                   = 2
   admin_ssh_keys = [(
     {
       id         = tls_private_key.example_ssh.id

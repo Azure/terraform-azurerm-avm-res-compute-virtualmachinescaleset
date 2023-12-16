@@ -55,6 +55,49 @@ resource "azurerm_subnet" "subnet" {
   virtual_network_name = azurerm_virtual_network.this.name
 }
 
+# network security group for the subnet with a rule to allow http, https and ssh traffic
+resource "azurerm_network_security_group" "myNSG" {
+  name                = "myNSG"
+  location            = azurerm_resource_group.this.location
+  resource_group_name = azurerm_resource_group.this.name
+
+  security_rule {
+    name                       = "allow-http"
+    priority                   = 100
+    direction                  = "Inbound"
+    access                     = "Allow"
+    protocol                   = "Tcp"
+    source_port_range          = "*"
+    destination_port_range     = "80"
+    source_address_prefix      = "*"
+    destination_address_prefix = "*"
+  }
+
+  security_rule {
+    name                       = "allow-https"
+    priority                   = 101
+    direction                  = "Inbound"
+    access                     = "Allow"
+    protocol                   = "Tcp"
+    source_port_range          = "*"
+    destination_port_range     = "443"
+    source_address_prefix      = "*"
+    destination_address_prefix = "*"
+  }
+  #ssh security rule
+  security_rule {
+    name                       = "allow-ssh"
+    priority                   = 102
+    direction                  = "Inbound"
+    access                     = "Allow"
+    protocol                   = "Tcp"
+    source_port_range          = "*"
+    destination_port_range     = "22"
+    source_address_prefix      = "*"
+    destination_address_prefix = "*"
+  }
+}
+
 resource "azurerm_public_ip" "natgwpip" {
   allocation_method   = "Static"
   location            = azurerm_resource_group.this.location
@@ -120,6 +163,8 @@ module "terraform-azurerm-avm-res-compute-virtualmachinescaleset" {
   enable_telemetry            = var.enable_telemetry
   location                    = azurerm_resource_group.this.location
   admin_password              = "P@ssw0rd1234!"
+  sku_name                    = "Standard_D2s_v4"
+  instances                   = 2
   platform_fault_domain_count = 1
   admin_ssh_keys = [(
     {
@@ -130,7 +175,7 @@ module "terraform-azurerm-avm-res-compute-virtualmachinescaleset" {
   )]
   # Spot variables
   priority      = "Spot"
-  max_bid_price = 0.01
+  max_bid_price = 0.1
   priority_mix = {
     low_priority_virtual_machine_scale_set_percentage = 100
     spot_virtual_machine_scale_set_percentage         = 0
@@ -144,9 +189,9 @@ module "terraform-azurerm-avm-res-compute-virtualmachinescaleset" {
   zone_balance                 = false
   zones                        = ["1"]
   proximity_placement_group_id = azurerm_proximity_placement_group.this.id
-  single_placement_group       = true
+  single_placement_group       = false
   # Miscellanous settings
-  encryption_at_host_enabled = true
+  encryption_at_host_enabled = false
   automatic_instance_repair = {
     enabled = false
   }
@@ -160,7 +205,7 @@ module "terraform-azurerm-avm-res-compute-virtualmachinescaleset" {
     lun                       = 0
     managed_disk_type         = "Standard_LRS"
     storage_account_type      = "Standard_LRS"
-    write_accelerator_enabled = true
+    write_accelerator_enabled = false
   }]
   # Network interface
   network_interface = [{
@@ -172,7 +217,7 @@ module "terraform-azurerm-avm-res-compute-virtualmachinescaleset" {
   }]
   # Extensions
   extension = [{
-    name                       = "Custom Script Extension"
+    name                       = "CustomScriptExtension"
     publisher                  = "Microsoft.Azure.Extensions"
     type                       = "CustomScript"
     type_handler_version       = "2.0"
@@ -182,6 +227,20 @@ module "terraform-azurerm-avm-res-compute-virtualmachinescaleset" {
         "commandToExecute": "echo 'Hello World!' > /tmp/hello.txt"
       }
       SETTINGS
+    },
+    {
+      name                       = "HealthExtension"
+      publisher                  = "Microsoft.ManagedServices"
+      type                       = "ApplicationHealthLinux"
+      type_handler_version       = "1.0"
+      auto_upgrade_minor_version = true
+      settings                   = <<SETTINGS
+    {
+      "protocol": "http",
+      "port" : 80,
+      "requestPath": "health"
+    }
+SETTINGS
   }]
   # Extension protected settings
   extension_protected_setting = {

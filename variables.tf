@@ -211,9 +211,23 @@ variable "extension" {
     protected_settings_from_key_vault = optional(object({
       secret_url      = string
       source_vault_id = string
-    }))
+    }), null)
   }))
-  default     = null
+  default = [{
+    name                       = "HealthExtension"
+    publisher                  = "Microsoft.ManagedServices"
+    type                       = "ApplicationHealthLinux"
+    type_handler_version       = "1.0"
+    auto_upgrade_minor_version = true
+    settings                   = <<SETTINGS
+    {
+      "protocol": "http",
+      "port" : 80,
+      "requestPath": "health"
+    }
+SETTINGS
+    #settings = "{ protocol = \"http\"\n port = 80\n requestPath = \"health\"\n }"
+  }]
   description = <<-EOT
  - `auto_upgrade_minor_version_enabled` - (Optional) Should the latest version of the Extension be used at Deployment Time, if one is available? This won't auto-update the extension on existing installation. Defaults to `true`.
  - `extensions_to_provision_after_vm_creation` - (Optional) An set of Extension names which Orchestrated Virtual Machine Scale Set should provision after VM creation.
@@ -236,6 +250,8 @@ variable "extension" {
  - `secret_url` - (Required) The URL to the Key Vault Secret which stores the protected settings.
  - `source_vault_id` - (Required) The ID of the source Key Vault.
 
+A Health Extension is deployed by default as per [WAF guidelines](https://learn.microsoft.com/en-us/azure/reliability/reliability-virtual-machine-scale-sets?tabs=graph-4%2Cgraph-1%2Cgraph-2%2Cgraph-3%2Cgraph-5%2Cgraph-6%2Cportal#monitoring).
+
 > Note: `protected_settings_from_key_vault` cannot be used with `protected_settings`
 
 EOT
@@ -252,7 +268,7 @@ EOT
 
 variable "extension_protected_setting" {
   type        = map(string)
-  default     = null
+  default     = {}
   description = "(Optional) A JSON String which specifies Sensitive Settings (such as Passwords) for the Extension."
   sensitive   = true
 }
@@ -447,7 +463,10 @@ variable "os_disk" {
       placement = optional(string)
     }))
   })
-  default     = null
+  default = {
+    storage_account_type = "Premium_LRS"
+    caching              = "ReadWrite"
+  }
   description = <<-EOT
  - `caching` - (Required) The Type of Caching which should be used for the Internal OS Disk. Possible values are `None`, `ReadOnly` and `ReadWrite`.
  - `disk_encryption_set_id` - (Optional) The ID of the Disk Encryption Set which should be used to encrypt this OS Disk. Changing this forces a new resource to be created.
@@ -483,7 +502,7 @@ variable "os_profile" {
       computer_name_prefix            = optional(string)
       disable_password_authentication = optional(bool)
       patch_assessment_mode           = optional(string)
-      patch_mode                      = optional(string)
+      patch_mode                      = optional(string, "AutomaticByPlatform")
       provision_vm_agent              = optional(bool)
       admin_ssh_key_id                = optional(set(string))
       secret = optional(set(object({
@@ -496,10 +515,10 @@ variable "os_profile" {
     windows_configuration = optional(object({
       admin_username           = string
       computer_name_prefix     = optional(string)
-      enable_automatic_updates = optional(bool)
+      enable_automatic_updates = optional(bool, true)
       hotpatching_enabled      = optional(bool)
       patch_assessment_mode    = optional(string)
-      patch_mode               = optional(string)
+      patch_mode               = optional(string, "AutomaticByPlatform")
       provision_vm_agent       = optional(bool)
       timezone                 = optional(string)
       secret = optional(set(object({
@@ -709,11 +728,6 @@ variable "sku_name" {
   type        = string
   default     = null
   description = "(Optional) The `name` of the SKU to be used by this Orcestrated Virtual Machine Scale Set. Valid values include: any of the [General purpose](https://docs.microsoft.com/azure/virtual-machines/sizes-general), [Compute optimized](https://docs.microsoft.com/azure/virtual-machines/sizes-compute), [Memory optimized](https://docs.microsoft.com/azure/virtual-machines/sizes-memory), [Storage optimized](https://docs.microsoft.com/azure/virtual-machines/sizes-storage), [GPU optimized](https://docs.microsoft.com/azure/virtual-machines/sizes-gpu), [FPGA optimized](https://docs.microsoft.com/azure/virtual-machines/sizes-field-programmable-gate-arrays), [High performance](https://docs.microsoft.com/azure/virtual-machines/sizes-hpc), or [Previous generation](https://docs.microsoft.com/azure/virtual-machines/sizes-previous-gen) virtual machine SKUs."
-
-  validation {
-    condition     = var.sku_name == null ? true : contains(["General purpose", "Compute optimized", "Memory optimized", "Storage optimized", "GPU optimized", "FPGA optimized", "High performance", "Previous generation"], var.sku_name)
-    error_message = "Value must be one of: 'General purpose', 'Compute optimized', 'Memory optimized', 'Storage optimized', 'GPU optimized', 'FPGA optimized', 'High performance', or 'Previous generation'"
-  }
 }
 
 variable "source_image_id" {

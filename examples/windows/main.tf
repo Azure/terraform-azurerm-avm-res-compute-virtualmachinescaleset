@@ -95,11 +95,13 @@ resource "tls_private_key" "example_ssh" {
 module "terraform-azurerm-avm-res-compute-virtualmachinescaleset" {
   source = "../../"
   # source             = "Azure/avm-res-compute-virtualmachinescaleset/azurerm"
-  admin_password              = "P@ssw0rd1234!"
   name                        = module.naming.virtual_machine_scale_set.name_unique
   resource_group_name         = azurerm_resource_group.this.name
   enable_telemetry            = var.enable_telemetry
   location                    = azurerm_resource_group.this.location
+  admin_password              = "P@ssw0rd1234!"
+  sku_name                    = "Standard_D2s_v4"
+  instances                   = 2
   platform_fault_domain_count = 1
   network_interface = [{
     name = "VMSS-NIC"
