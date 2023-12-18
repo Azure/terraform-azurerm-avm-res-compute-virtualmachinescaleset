@@ -175,7 +175,7 @@ module "terraform-azurerm-avm-res-compute-virtualmachinescaleset" {
     sku       = "22_04-LTS-gen2"
     version   = "latest"
   }
-extension = [{
+  extension = [{
     name                       = "HealthExtension"
     publisher                  = "Microsoft.ManagedServices"
     type                       = "ApplicationHealthLinux"

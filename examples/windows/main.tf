@@ -159,10 +159,10 @@ module "terraform-azurerm-avm-res-compute-virtualmachinescaleset" {
       admin_username                  = "azureuser"
       license_type                    = "None"
       hotpatching_enabled             = false
-      patch_assessment_mode = "ImageDefault"
-      patch_mode            = "AutomaticByOS"
-      timezone              = "Pacific Standard Time"
-      provision_vm_agent    = true
+      patch_assessment_mode           = "ImageDefault"
+      patch_mode                      = "AutomaticByOS"
+      timezone                        = "Pacific Standard Time"
+      provision_vm_agent              = true
       winrm_listener = [{
         protocol = "Http"
       }]
@@ -174,7 +174,7 @@ module "terraform-azurerm-avm-res-compute-virtualmachinescaleset" {
     sku       = "2022-Datacenter"
     version   = "latest"
   }
-extension = [{
+  extension = [{
     name                       = "HealthExtension"
     publisher                  = "Microsoft.ManagedServices"
     type                       = "ApplicationHealthWindows"

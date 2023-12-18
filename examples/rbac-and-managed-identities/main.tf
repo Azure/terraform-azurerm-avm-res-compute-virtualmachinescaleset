@@ -187,12 +187,12 @@ module "terraform-azurerm-avm-res-compute-virtualmachinescaleset" {
     version   = "latest"
   }
   extension = [{
-      name                       = "HealthExtension"
-      publisher                  = "Microsoft.ManagedServices"
-      type                       = "ApplicationHealthLinux"
-      type_handler_version       = "1.0"
-      auto_upgrade_minor_version = true
-      settings                   = <<SETTINGS
+    name                       = "HealthExtension"
+    publisher                  = "Microsoft.ManagedServices"
+    type                       = "ApplicationHealthLinux"
+    type_handler_version       = "1.0"
+    auto_upgrade_minor_version = true
+    settings                   = <<SETTINGS
       {
         "protocol": "http",
         "port" : 80,
