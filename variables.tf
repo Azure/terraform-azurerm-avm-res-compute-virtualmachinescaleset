@@ -213,21 +213,6 @@ variable "extension" {
       source_vault_id = string
     }), null)
   }))
-  default = [{
-    name                       = "HealthExtension"
-    publisher                  = "Microsoft.ManagedServices"
-    type                       = "ApplicationHealthLinux"
-    type_handler_version       = "1.0"
-    auto_upgrade_minor_version = true
-    settings                   = <<SETTINGS
-    {
-      "protocol": "http",
-      "port" : 80,
-      "requestPath": "health"
-    }
-SETTINGS
-    #settings = "{ protocol = \"http\"\n port = 80\n requestPath = \"health\"\n }"
-  }]
   description = <<-EOT
  - `auto_upgrade_minor_version_enabled` - (Optional) Should the latest version of the Extension be used at Deployment Time, if one is available? This won't auto-update the extension on existing installation. Defaults to `true`.
  - `extensions_to_provision_after_vm_creation` - (Optional) An set of Extension names which Orchestrated Virtual Machine Scale Set should provision after VM creation.

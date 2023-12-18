@@ -3,7 +3,7 @@ terraform {
   required_providers {
     azurerm = {
       source  = "hashicorp/azurerm"
-      version = ">= 3.83, < 4.0"
+      version = ">= 3.85, < 4.0"
     }
   }
 }
@@ -53,6 +53,49 @@ resource "azurerm_subnet" "subnet" {
   name                 = "VMSS-Subnet"
   resource_group_name  = azurerm_resource_group.this.name
   virtual_network_name = azurerm_virtual_network.this.name
+}
+
+# network security group for the subnet with a rule to allow http, https and ssh traffic
+resource "azurerm_network_security_group" "myNSG" {
+  name                = "myNSG"
+  location            = azurerm_resource_group.this.location
+  resource_group_name = azurerm_resource_group.this.name
+
+  security_rule {
+    name                       = "allow-http"
+    priority                   = 100
+    direction                  = "Inbound"
+    access                     = "Allow"
+    protocol                   = "Tcp"
+    source_port_range          = "*"
+    destination_port_range     = "80"
+    source_address_prefix      = "*"
+    destination_address_prefix = "*"
+  }
+
+  security_rule {
+    name                       = "allow-https"
+    priority                   = 101
+    direction                  = "Inbound"
+    access                     = "Allow"
+    protocol                   = "Tcp"
+    source_port_range          = "*"
+    destination_port_range     = "443"
+    source_address_prefix      = "*"
+    destination_address_prefix = "*"
+  }
+  #ssh security rule
+  security_rule {
+    name                       = "allow-ssh"
+    priority                   = 102
+    direction                  = "Inbound"
+    access                     = "Allow"
+    protocol                   = "Tcp"
+    source_port_range          = "*"
+    destination_port_range     = "22"
+    source_address_prefix      = "*"
+    destination_address_prefix = "*"
+  }
 }
 
 resource "azurerm_public_ip" "natgwpip" {
@@ -143,6 +186,20 @@ module "terraform-azurerm-avm-res-compute-virtualmachinescaleset" {
     sku       = "22_04-LTS-gen2"
     version   = "latest"
   }
+  extension = [{
+      name                       = "HealthExtension"
+      publisher                  = "Microsoft.ManagedServices"
+      type                       = "ApplicationHealthLinux"
+      type_handler_version       = "1.0"
+      auto_upgrade_minor_version = true
+      settings                   = <<SETTINGS
+      {
+        "protocol": "http",
+        "port" : 80,
+        "requestPath": "health"
+      }
+  SETTINGS
+  }]
   managed_identities = {
     system_assigned            = true
     user_assigned_resource_ids = [azurerm_user_assigned_identity.example_identity.id]

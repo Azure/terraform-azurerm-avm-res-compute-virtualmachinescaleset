@@ -3,7 +3,7 @@ terraform {
   required_providers {
     azurerm = {
       source  = "hashicorp/azurerm"
-      version = ">= 3.83, < 4.0"
+      version = ">= 3.85, < 4.0"
     }
   }
 }
@@ -175,6 +175,20 @@ module "terraform-azurerm-avm-res-compute-virtualmachinescaleset" {
     sku       = "22_04-LTS-gen2"
     version   = "latest"
   }
+extension = [{
+    name                       = "HealthExtension"
+    publisher                  = "Microsoft.ManagedServices"
+    type                       = "ApplicationHealthLinux"
+    type_handler_version       = "1.0"
+    auto_upgrade_minor_version = true
+    settings                   = <<SETTINGS
+    {
+      "protocol": "http",
+      "port" : 80,
+      "requestPath": "health"
+    }
+SETTINGS
+  }]
   tags = {
     source = "AVM Sample Default Deployment"
   }
