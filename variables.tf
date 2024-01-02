@@ -1,3 +1,48 @@
+variable "extension" {
+  type = set(object({
+    auto_upgrade_minor_version_enabled        = optional(bool)
+    extensions_to_provision_after_vm_creation = optional(set(string))
+    failure_suppression_enabled               = optional(bool)
+    force_extension_execution_on_change       = optional(string)
+    name                                      = string
+    publisher                                 = string
+    settings                                  = optional(string)
+    type                                      = string
+    type_handler_version                      = string
+    protected_settings_from_key_vault = optional(object({
+      secret_url      = string
+      source_vault_id = string
+    }), null)
+  }))
+  description = <<-EOT
+ - `auto_upgrade_minor_version_enabled` - (Optional) Should the latest version of the Extension be used at Deployment Time, if one is available? This won't auto-update the extension on existing installation. Defaults to `true`.
+ - `extensions_to_provision_after_vm_creation` - (Optional) An set of Extension names which Orchestrated Virtual Machine Scale Set should provision after VM creation.
+ - `failure_suppression_enabled` - (Optional) Should failures from the extension be suppressed? Possible values are `true` or `false`.
+
+> Note: Operational failures such as not connecting to the VM will not be suppressed regardless of the `failure_suppression_enabled` value.
+
+ - `force_extension_execution_on_change` - (Optional) A value which, when different to the previous value can be used to force-run the Extension even if the Extension Configuration hasn't changed.
+ - `name` - (Required) The name for the Virtual Machine Scale Set Extension.
+  
+ > Note: Keys within the `protected_settings` block are notoriously case-sensitive, where the casing required (e.g. TitleCase vs snakeCase) depends on the Extension being used. Please refer to the documentation for the specific Orchestrated Virtual Machine Extension you're looking to use for more information.
+
+ - `publisher` - (Required) Specifies the Publisher of the Extension.
+ - `settings` - (Optional) A JSON String which specifies Settings for the Extension.
+ - `type` - (Required) Specifies the Type of the Extension.
+ - `type_handler_version` - (Required) Specifies the version of the extension to use, available versions can be found using the Azure CLI.
+
+ ---
+ `protected_settings_from_key_vault` block supports the following:
+ - `secret_url` - (Required) The URL to the Key Vault Secret which stores the protected settings.
+ - `source_vault_id` - (Required) The ID of the source Key Vault.
+
+A Health Extension is deployed by default as per [WAF guidelines](https://learn.microsoft.com/en-us/azure/reliability/reliability-virtual-machine-scale-sets?tabs=graph-4%2Cgraph-1%2Cgraph-2%2Cgraph-3%2Cgraph-5%2Cgraph-6%2Cportal#monitoring).
+
+> Note: `protected_settings_from_key_vault` cannot be used with `protected_settings`
+
+EOT
+}
+
 variable "location" {
   type        = string
   description = "(Required) The Azure location where the Orchestrated Virtual Machine Scale Set should exist. Changing this forces a new resource to be created."
@@ -195,51 +240,6 @@ variable "eviction_policy" {
     condition     = var.eviction_policy == null ? true : contains(["Deallocate", "Delete"], var.eviction_policy)
     error_message = "The eviction policy must be one of: 'Deallocate' or 'Delete'."
   }
-}
-
-variable "extension" {
-  type = set(object({
-    auto_upgrade_minor_version_enabled        = optional(bool)
-    extensions_to_provision_after_vm_creation = optional(set(string))
-    failure_suppression_enabled               = optional(bool)
-    force_extension_execution_on_change       = optional(string)
-    name                                      = string
-    publisher                                 = string
-    settings                                  = optional(string)
-    type                                      = string
-    type_handler_version                      = string
-    protected_settings_from_key_vault = optional(object({
-      secret_url      = string
-      source_vault_id = string
-    }), null)
-  }))
-  description = <<-EOT
- - `auto_upgrade_minor_version_enabled` - (Optional) Should the latest version of the Extension be used at Deployment Time, if one is available? This won't auto-update the extension on existing installation. Defaults to `true`.
- - `extensions_to_provision_after_vm_creation` - (Optional) An set of Extension names which Orchestrated Virtual Machine Scale Set should provision after VM creation.
- - `failure_suppression_enabled` - (Optional) Should failures from the extension be suppressed? Possible values are `true` or `false`.
-
-> Note: Operational failures such as not connecting to the VM will not be suppressed regardless of the `failure_suppression_enabled` value.
-
- - `force_extension_execution_on_change` - (Optional) A value which, when different to the previous value can be used to force-run the Extension even if the Extension Configuration hasn't changed.
- - `name` - (Required) The name for the Virtual Machine Scale Set Extension.
-  
- > Note: Keys within the `protected_settings` block are notoriously case-sensitive, where the casing required (e.g. TitleCase vs snakeCase) depends on the Extension being used. Please refer to the documentation for the specific Orchestrated Virtual Machine Extension you're looking to use for more information.
-
- - `publisher` - (Required) Specifies the Publisher of the Extension.
- - `settings` - (Optional) A JSON String which specifies Settings for the Extension.
- - `type` - (Required) Specifies the Type of the Extension.
- - `type_handler_version` - (Required) Specifies the version of the extension to use, available versions can be found using the Azure CLI.
-
- ---
- `protected_settings_from_key_vault` block supports the following:
- - `secret_url` - (Required) The URL to the Key Vault Secret which stores the protected settings.
- - `source_vault_id` - (Required) The ID of the source Key Vault.
-
-A Health Extension is deployed by default as per [WAF guidelines](https://learn.microsoft.com/en-us/azure/reliability/reliability-virtual-machine-scale-sets?tabs=graph-4%2Cgraph-1%2Cgraph-2%2Cgraph-3%2Cgraph-5%2Cgraph-6%2Cportal#monitoring).
-
-> Note: `protected_settings_from_key_vault` cannot be used with `protected_settings`
-
-EOT
 }
 
 variable "extension_operations_enabled" {

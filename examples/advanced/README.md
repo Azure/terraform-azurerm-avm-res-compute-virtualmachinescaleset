@@ -15,90 +15,57 @@ This example demonstrates the creation of an advanced Virtual Machine Scale Set 
 <!-- markdownlint-disable MD033 -->
 ## Requirements
 
-The following requirements are needed by this module:
-
-- <a name="requirement_terraform"></a> [terraform](#requirement\_terraform) (>= 1.0.0)
-
-- <a name="requirement_azurerm"></a> [azurerm](#requirement\_azurerm) (>= 3.85, < 4.0)
+| Name | Version |
+|------|---------|
+| <a name="requirement_terraform"></a> [terraform](#requirement\_terraform) | >= 1.0.0 |
+| <a name="requirement_azurerm"></a> [azurerm](#requirement\_azurerm) | >= 3.85, < 4.0 |
 
 ## Providers
 
-The following providers are used by this module:
-
-- <a name="provider_azurerm"></a> [azurerm](#provider\_azurerm) (>= 3.85, < 4.0)
-
-- <a name="provider_tls"></a> [tls](#provider\_tls)
+| Name | Version |
+|------|---------|
+| <a name="provider_azurerm"></a> [azurerm](#provider\_azurerm) | >= 3.85, < 4.0 |
+| <a name="provider_tls"></a> [tls](#provider\_tls) | n/a |
 
 ## Resources
 
-The following resources are used by this module:
-
-- [azurerm_nat_gateway.this](https://registry.terraform.io/providers/hashicorp/azurerm/latest/docs/resources/nat_gateway) (resource)
-- [azurerm_nat_gateway_public_ip_association.this](https://registry.terraform.io/providers/hashicorp/azurerm/latest/docs/resources/nat_gateway_public_ip_association) (resource)
-- [azurerm_network_security_group.myNSG](https://registry.terraform.io/providers/hashicorp/azurerm/latest/docs/resources/network_security_group) (resource)
-- [azurerm_proximity_placement_group.this](https://registry.terraform.io/providers/hashicorp/azurerm/latest/docs/resources/proximity_placement_group) (resource)
-- [azurerm_public_ip.natgwpip](https://registry.terraform.io/providers/hashicorp/azurerm/latest/docs/resources/public_ip) (resource)
-- [azurerm_resource_group.this](https://registry.terraform.io/providers/hashicorp/azurerm/latest/docs/resources/resource_group) (resource)
-- [azurerm_storage_account.this](https://registry.terraform.io/providers/hashicorp/azurerm/latest/docs/resources/storage_account) (resource)
-- [azurerm_subnet.subnet](https://registry.terraform.io/providers/hashicorp/azurerm/latest/docs/resources/subnet) (resource)
-- [azurerm_subnet_nat_gateway_association.this](https://registry.terraform.io/providers/hashicorp/azurerm/latest/docs/resources/subnet_nat_gateway_association) (resource)
-- [azurerm_virtual_network.this](https://registry.terraform.io/providers/hashicorp/azurerm/latest/docs/resources/virtual_network) (resource)
-- [tls_private_key.example_ssh](https://registry.terraform.io/providers/hashicorp/tls/latest/docs/resources/private_key) (resource)
+| Name | Type |
+|------|------|
+| [azurerm_nat_gateway.this](https://registry.terraform.io/providers/hashicorp/azurerm/latest/docs/resources/nat_gateway) | resource |
+| [azurerm_nat_gateway_public_ip_association.this](https://registry.terraform.io/providers/hashicorp/azurerm/latest/docs/resources/nat_gateway_public_ip_association) | resource |
+| [azurerm_network_security_group.myNSG](https://registry.terraform.io/providers/hashicorp/azurerm/latest/docs/resources/network_security_group) | resource |
+| [azurerm_proximity_placement_group.this](https://registry.terraform.io/providers/hashicorp/azurerm/latest/docs/resources/proximity_placement_group) | resource |
+| [azurerm_public_ip.natgwpip](https://registry.terraform.io/providers/hashicorp/azurerm/latest/docs/resources/public_ip) | resource |
+| [azurerm_resource_group.this](https://registry.terraform.io/providers/hashicorp/azurerm/latest/docs/resources/resource_group) | resource |
+| [azurerm_storage_account.this](https://registry.terraform.io/providers/hashicorp/azurerm/latest/docs/resources/storage_account) | resource |
+| [azurerm_subnet.subnet](https://registry.terraform.io/providers/hashicorp/azurerm/latest/docs/resources/subnet) | resource |
+| [azurerm_subnet_nat_gateway_association.this](https://registry.terraform.io/providers/hashicorp/azurerm/latest/docs/resources/subnet_nat_gateway_association) | resource |
+| [azurerm_virtual_network.this](https://registry.terraform.io/providers/hashicorp/azurerm/latest/docs/resources/virtual_network) | resource |
+| [tls_private_key.example_ssh](https://registry.terraform.io/providers/hashicorp/tls/latest/docs/resources/private_key) | resource |
 
 <!-- markdownlint-disable MD013 -->
-## Required Inputs
+## Inputs
 
-No required inputs.
-
-## Optional Inputs
-
-The following input variables are optional (have default values):
-
-### <a name="input_enable_telemetry"></a> [enable\_telemetry](#input\_enable\_telemetry)
-
-Description: This variable controls whether or not telemetry is enabled for the module.  
-For more information see https://aka.ms/avm/telemetryinfo.  
-If it is set to false, then no telemetry will be collected.
-
-Type: `bool`
-
-Default: `true`
+| Name | Description | Type | Default | Required |
+|------|-------------|------|---------|:--------:|
+| <a name="input_enable_telemetry"></a> [enable\_telemetry](#input\_enable\_telemetry) | This variable controls whether or not telemetry is enabled for the module.<br>For more information see https://aka.ms/avm/telemetryinfo.<br>If it is set to false, then no telemetry will be collected. | `bool` | `true` | no |
 
 ## Outputs
 
-The following outputs are exported:
-
-### <a name="output_location"></a> [location](#output\_location)
-
-Description: n/a
-
-### <a name="output_resource_group_name"></a> [resource\_group\_name](#output\_resource\_group\_name)
-
-Description: n/a
-
-### <a name="output_virtual_machine_scale_set_id"></a> [virtual\_machine\_scale\_set\_id](#output\_virtual\_machine\_scale\_set\_id)
-
-Description: n/a
-
-### <a name="output_virtual_machine_scale_set_unique_id"></a> [virtual\_machine\_scale\_set\_unique\_id](#output\_virtual\_machine\_scale\_set\_unique\_id)
-
-Description: n/a
+| Name | Description |
+|------|-------------|
+| <a name="output_location"></a> [location](#output\_location) | The deployment region. |
+| <a name="output_resource_group_name"></a> [resource\_group\_name](#output\_resource\_group\_name) | The name of the Resource Group. |
+| <a name="output_virtual_machine_scale_set"></a> [virtual\_machine\_scale\_set](#output\_virtual\_machine\_scale\_set) | All attributes of the Virtual Machine Scale Set resource. |
+| <a name="output_virtual_machine_scale_set_id"></a> [virtual\_machine\_scale\_set\_id](#output\_virtual\_machine\_scale\_set\_id) | The ID of the Virtual Machine Scale Set. |
+| <a name="output_virtual_machine_scale_set_name"></a> [virtual\_machine\_scale\_set\_name](#output\_virtual\_machine\_scale\_set\_name) | The name of the Virtual Machine Scale Set. |
 
 ## Modules
 
-The following Modules are called:
-
-### <a name="module_naming"></a> [naming](#module\_naming)
-
-Source: Azure/naming/azurerm
-
-Version: 0.3.0
-
-### <a name="module_terraform-azurerm-avm-res-compute-virtualmachinescaleset"></a> [terraform-azurerm-avm-res-compute-virtualmachinescaleset](#module\_terraform-azurerm-avm-res-compute-virtualmachinescaleset)
-
-Source: ../../
-
-Version:
+| Name | Source | Version |
+|------|--------|---------|
+| <a name="module_naming"></a> [naming](#module\_naming) | Azure/naming/azurerm | 0.3.0 |
+| <a name="module_terraform-azurerm-avm-res-compute-virtualmachinescaleset"></a> [terraform-azurerm-avm-res-compute-virtualmachinescaleset](#module\_terraform-azurerm-avm-res-compute-virtualmachinescaleset) | ../../ | n/a |
 
 <!-- markdownlint-disable-next-line MD041 -->
 ## Data Collection

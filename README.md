@@ -1,19 +1,5 @@
 <!-- BEGIN_TF_DOCS -->
-# terraform-azurerm-avm-template
-
-This is a template repo for Terraform Azure Verified Modules.
-
-Things to do:
-
-1. Set up a GitHub repo environment called `test`.
-1. Configure environment protection rule to ensure that approval is required before deploying to this environment.
-1. Create a user-assigned managed identity in your test subscription.
-1. Create a role assignment for the managed identity on your test subscription, use the minimum required role.
-1. Configure federated identity credentials on the user assigned managed identity. Use the GitHub environment.
-1. Create the following environment secrets on the `test` environment:
-   1. AZURE\_CLIENT\_ID
-   1. AZURE\_TENANT\_ID
-   1. AZURE\_SUBSCRIPTION\_ID
+# terraform-azurerm-avm-res-compute-virtualmachinescaleset
 
 Major version Zero (0.y.z) is for initial development. Anything MAY change at any time. A module SHOULD NOT be considered stable till at least it is major version one (1.0.0) or greater. Changes will always be via new versions being published and no changes will be made to existing published versions. For more details please go to https://semver.org/
 
@@ -823,11 +809,15 @@ The following outputs are exported:
 
 ### <a name="output_resource"></a> [resource](#output\_resource)
 
-Description: n/a
+Description: All attributes of the Virtual Machine Scale Set resource.
 
-### <a name="output_unique_id"></a> [unique\_id](#output\_unique\_id)
+### <a name="output_resource_id"></a> [resource\_id](#output\_resource\_id)
 
-Description: n/a
+Description: The ID of the Virtual Machine Scale Set.
+
+### <a name="output_resource_name"></a> [resource\_name](#output\_resource\_name)
+
+Description: The name of the Virtual Machine Scale Set.
 
 ## Modules
 

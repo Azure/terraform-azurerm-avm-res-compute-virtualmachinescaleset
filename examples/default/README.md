@@ -4,7 +4,7 @@
 This example demonstrates a standard deployment of VMSS. It will deploy:
 
 - a Linux VM
-- a virtual nework with a subnet
+- a virtual network with a subnet
 - a NAT gateway
 - a public IP associated to the NAT gateway
 - an SSH key
