@@ -57,44 +57,43 @@ resource "azurerm_subnet" "subnet" {
 
 # network security group for the subnet with a rule to allow http, https and ssh traffic
 resource "azurerm_network_security_group" "myNSG" {
-  name                = "myNSG"
   location            = azurerm_resource_group.this.location
+  name                = "myNSG"
   resource_group_name = azurerm_resource_group.this.name
 
   security_rule {
+    access                     = "Allow"
+    destination_address_prefix = "*"
+    destination_port_range     = "80"
+    direction                  = "Inbound"
     name                       = "allow-http"
     priority                   = 100
-    direction                  = "Inbound"
-    access                     = "Allow"
     protocol                   = "Tcp"
-    source_port_range          = "*"
-    destination_port_range     = "80"
     source_address_prefix      = "*"
-    destination_address_prefix = "*"
+    source_port_range          = "*"
   }
-
   security_rule {
+    access                     = "Allow"
+    destination_address_prefix = "*"
+    destination_port_range     = "443"
+    direction                  = "Inbound"
     name                       = "allow-https"
     priority                   = 101
-    direction                  = "Inbound"
-    access                     = "Allow"
     protocol                   = "Tcp"
-    source_port_range          = "*"
-    destination_port_range     = "443"
     source_address_prefix      = "*"
-    destination_address_prefix = "*"
+    source_port_range          = "*"
   }
   #ssh security rule
   security_rule {
+    access                     = "Allow"
+    destination_address_prefix = "*"
+    destination_port_range     = "22"
+    direction                  = "Inbound"
     name                       = "allow-ssh"
     priority                   = 102
-    direction                  = "Inbound"
-    access                     = "Allow"
     protocol                   = "Tcp"
-    source_port_range          = "*"
-    destination_port_range     = "22"
     source_address_prefix      = "*"
-    destination_address_prefix = "*"
+    source_port_range          = "*"
   }
 }
 
