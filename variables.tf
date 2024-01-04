@@ -746,7 +746,7 @@ EOT
 variable "tags" {
   type        = map(any)
   default     = null
-  description = "Map of tags to assign to the resources."
+  description = "Map of tags to assign to the resources. "
 }
 
 variable "termination_notification" {
