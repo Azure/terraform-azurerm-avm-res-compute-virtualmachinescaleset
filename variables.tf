@@ -313,15 +313,6 @@ variable "lock" {
   }
 }
 
-variable "managed_identities" {
-  type = object({
-    system_assigned            = optional(bool, false) # System Assigned Managed Identity is not supported on VMSS
-    user_assigned_resource_ids = optional(set(string), [])
-  })
-  default     = null
-  description = "The managed identities to assign to the Virtual Machine Scale Set."
-}
-
 variable "max_bid_price" {
   type        = number
   default     = -1
