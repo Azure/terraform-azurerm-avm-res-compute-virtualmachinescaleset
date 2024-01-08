@@ -19,6 +19,10 @@ terraform {
       source  = "hashicorp/azurerm"
       version = ">= 3.85, < 4.0"
     }
+    tls = {
+      source  = "hashicorp/tls"
+      version = "4.0.5"
+    }
   }
 }
 
@@ -70,7 +74,7 @@ resource "azurerm_subnet" "subnet" {
 }
 
 # network security group for the subnet with a rule to allow http, https and ssh traffic
-resource "azurerm_network_security_group" "myNSG" {
+resource "azurerm_network_security_group" "this" {
   location            = azurerm_resource_group.this.location
   name                = "myNSG"
   resource_group_name = azurerm_resource_group.this.name
@@ -142,7 +146,7 @@ resource "azurerm_subnet_nat_gateway_association" "this" {
   subnet_id      = azurerm_subnet.subnet.id
 }
 
-resource "tls_private_key" "example_ssh" {
+resource "tls_private_key" "this" {
   algorithm = "RSA"
   rsa_bits  = 4096
 }
@@ -159,7 +163,7 @@ resource "azurerm_user_assigned_identity" "example_identity" {
 data "azurerm_client_config" "current" {}
 
 # This is the module call
-module "terraform-azurerm-avm-res-compute-virtualmachinescaleset" {
+module "terraform_azurerm_avm_res_compute_virtualmachinescaleset" {
   source = "../../"
   # source             = "Azure/avm-res-compute-virtualmachinescaleset/azurerm"
   name                        = module.naming.virtual_machine_scale_set.name_unique
@@ -172,8 +176,8 @@ module "terraform-azurerm-avm-res-compute-virtualmachinescaleset" {
   instances                   = 2
   admin_ssh_keys = [(
     {
-      id         = tls_private_key.example_ssh.id
-      public_key = tls_private_key.example_ssh.public_key_openssh
+      id         = tls_private_key.this.id
+      public_key = tls_private_key.this.public_key_openssh
       username   = "azureuser"
     }
   )]
@@ -189,7 +193,7 @@ module "terraform-azurerm-avm-res-compute-virtualmachinescaleset" {
       disable_password_authentication = false
       user_data_base64                = base64encode(file("user-data.sh"))
       admin_username                  = "azureuser"
-      admin_ssh_key                   = toset([tls_private_key.example_ssh.id])
+      admin_ssh_key                   = toset([tls_private_key.this.id])
       provision_vm_agent              = true
     }
   }
@@ -213,10 +217,6 @@ module "terraform-azurerm-avm-res-compute-virtualmachinescaleset" {
       }
   SETTINGS
   }]
-  managed_identities = {
-    system_assigned            = true
-    user_assigned_resource_ids = [azurerm_user_assigned_identity.example_identity.id]
-  }
   role_assignments = {
     role_assignment = {
       principal_id               = data.azurerm_client_config.current.object_id
@@ -241,17 +241,17 @@ output "resource_group_name" {
 }
 
 output "virtual_machine_scale_set_id" {
-  value       = module.terraform-azurerm-avm-res-compute-virtualmachinescaleset.resource_id
+  value       = module.terraform_azurerm_avm_res_compute_virtualmachinescaleset.resource_id
   description = "The ID of the Virtual Machine Scale Set."
 }
 
 output "virtual_machine_scale_set_name" {
-  value       = module.terraform-azurerm-avm-res-compute-virtualmachinescaleset.resource_name
+  value       = module.terraform_azurerm_avm_res_compute_virtualmachinescaleset.resource_name
   description = "The name of the Virtual Machine Scale Set."
 }
 
 output "virtual_machine_scale_set" {
-  value       = module.terraform-azurerm-avm-res-compute-virtualmachinescaleset.resource
+  value       = module.terraform_azurerm_avm_res_compute_virtualmachinescaleset.resource
   sensitive   = true
   description = "All attributes of the Virtual Machine Scale Set resource."
 }
@@ -266,13 +266,15 @@ The following requirements are needed by this module:
 
 - <a name="requirement_azurerm"></a> [azurerm](#requirement\_azurerm) (>= 3.85, < 4.0)
 
+- <a name="requirement_tls"></a> [tls](#requirement\_tls) (4.0.5)
+
 ## Providers
 
 The following providers are used by this module:
 
 - <a name="provider_azurerm"></a> [azurerm](#provider\_azurerm) (>= 3.85, < 4.0)
 
-- <a name="provider_tls"></a> [tls](#provider\_tls)
+- <a name="provider_tls"></a> [tls](#provider\_tls) (4.0.5)
 
 ## Resources
 
@@ -280,14 +282,14 @@ The following resources are used by this module:
 
 - [azurerm_nat_gateway.this](https://registry.terraform.io/providers/hashicorp/azurerm/latest/docs/resources/nat_gateway) (resource)
 - [azurerm_nat_gateway_public_ip_association.this](https://registry.terraform.io/providers/hashicorp/azurerm/latest/docs/resources/nat_gateway_public_ip_association) (resource)
-- [azurerm_network_security_group.myNSG](https://registry.terraform.io/providers/hashicorp/azurerm/latest/docs/resources/network_security_group) (resource)
+- [azurerm_network_security_group.this](https://registry.terraform.io/providers/hashicorp/azurerm/latest/docs/resources/network_security_group) (resource)
 - [azurerm_public_ip.natgwpip](https://registry.terraform.io/providers/hashicorp/azurerm/latest/docs/resources/public_ip) (resource)
 - [azurerm_resource_group.this](https://registry.terraform.io/providers/hashicorp/azurerm/latest/docs/resources/resource_group) (resource)
 - [azurerm_subnet.subnet](https://registry.terraform.io/providers/hashicorp/azurerm/latest/docs/resources/subnet) (resource)
 - [azurerm_subnet_nat_gateway_association.this](https://registry.terraform.io/providers/hashicorp/azurerm/latest/docs/resources/subnet_nat_gateway_association) (resource)
 - [azurerm_user_assigned_identity.example_identity](https://registry.terraform.io/providers/hashicorp/azurerm/latest/docs/resources/user_assigned_identity) (resource)
 - [azurerm_virtual_network.this](https://registry.terraform.io/providers/hashicorp/azurerm/latest/docs/resources/virtual_network) (resource)
-- [tls_private_key.example_ssh](https://registry.terraform.io/providers/hashicorp/tls/latest/docs/resources/private_key) (resource)
+- [tls_private_key.this](https://registry.terraform.io/providers/hashicorp/tls/4.0.5/docs/resources/private_key) (resource)
 - [azurerm_client_config.current](https://registry.terraform.io/providers/hashicorp/azurerm/latest/docs/data-sources/client_config) (data source)
 
 <!-- markdownlint-disable MD013 -->
@@ -343,7 +345,7 @@ Source: Azure/naming/azurerm
 
 Version: 0.3.0
 
-### <a name="module_terraform-azurerm-avm-res-compute-virtualmachinescaleset"></a> [terraform-azurerm-avm-res-compute-virtualmachinescaleset](#module\_terraform-azurerm-avm-res-compute-virtualmachinescaleset)
+### <a name="module_terraform_azurerm_avm_res_compute_virtualmachinescaleset"></a> [terraform\_azurerm\_avm\_res\_compute\_virtualmachinescaleset](#module\_terraform\_azurerm\_avm\_res\_compute\_virtualmachinescaleset)
 
 Source: ../../
 

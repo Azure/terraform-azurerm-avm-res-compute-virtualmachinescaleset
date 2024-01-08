@@ -3,7 +3,7 @@ resource "azurerm_monitor_autoscale_setting" "autoscale" {
   location            = azurerm_resource_group.this.location
   name                = "autoscale"
   resource_group_name = azurerm_resource_group.this.name
-  target_resource_id  = module.terraform-azurerm-avm-res-compute-virtualmachinescaleset.resource_id
+  target_resource_id  = module.terraform_azurerm_avm_res_compute_virtualmachinescaleset.resource_id
   enabled             = true
 
   profile {
@@ -17,7 +17,7 @@ resource "azurerm_monitor_autoscale_setting" "autoscale" {
     rule {
       metric_trigger {
         metric_name        = "Percentage CPU"
-        metric_resource_id = module.terraform-azurerm-avm-res-compute-virtualmachinescaleset.resource_id
+        metric_resource_id = module.terraform_azurerm_avm_res_compute_virtualmachinescaleset.resource_id
         operator           = "LessThan"
         statistic          = "Average"
         threshold          = 10
@@ -35,7 +35,7 @@ resource "azurerm_monitor_autoscale_setting" "autoscale" {
     rule {
       metric_trigger {
         metric_name        = "Percentage CPU"
-        metric_resource_id = module.terraform-azurerm-avm-res-compute-virtualmachinescaleset.resource_id
+        metric_resource_id = module.terraform_azurerm_avm_res_compute_virtualmachinescaleset.resource_id
         operator           = "GreaterThan"
         statistic          = "Average"
         threshold          = 90

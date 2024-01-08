@@ -337,21 +337,6 @@ object({
 
 Default: `{}`
 
-### <a name="input_managed_identities"></a> [managed\_identities](#input\_managed\_identities)
-
-Description: The managed identities to assign to the Virtual Machine Scale Set.
-
-Type:
-
-```hcl
-object({
-    system_assigned            = optional(bool, false) # System Assigned Managed Identity is not supported on VMSS
-    user_assigned_resource_ids = optional(set(string), [])
-  })
-```
-
-Default: `null`
-
 ### <a name="input_max_bid_price"></a> [max\_bid\_price](#input\_max\_bid\_price)
 
 Description: (Optional) The maximum price you're willing to pay for each Orchestrated Virtual Machine in this Scale Set, in US Dollars; which must be greater than the current spot price. If this bid price falls below the current spot price the Virtual Machines in the Scale Set will be evicted using the eviction\_policy. Defaults to `-1`, which means that each Virtual Machine in the Orchestrated Scale Set should not be evicted for price reasons.  See this reference for more details: [Pricing](https://learn.microsoft.com/en-us/azure/virtual-machines/spot-vms#pricing)
