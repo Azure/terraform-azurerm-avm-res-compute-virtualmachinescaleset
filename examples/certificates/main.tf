@@ -184,7 +184,7 @@ resource "azurerm_key_vault_certificate" "example" {
   key_vault_id = module.avm_res_keyvault_vault.resource.id
   name         = "generated-cert"
   tags = {
-    scenario = "AVM VMSS Sample Certificates Deployment"  
+    scenario = "AVM VMSS Sample Certificates Deployment"
   }
 
   certificate_policy {

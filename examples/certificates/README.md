@@ -15,6 +15,10 @@ terraform {
       source  = "hashicorp/time"
       version = "0.10.0"
     }
+    tls = {
+      source  = "hashicorp/tls"
+      version = "4.0.5"
+    }
   }
 }
 
@@ -146,7 +150,7 @@ resource "tls_private_key" "this" {
 data "azurerm_client_config" "current" {}
 
 #create a keyvault for storing the credential with RBAC for the deployment user
-module "avm-res-keyvault-vault" {
+module "avm_res_keyvault_vault" {
   source                 = "Azure/avm-res-keyvault-vault/azurerm"
   version                = "0.3.0"
   tenant_id              = data.azurerm_client_config.current.tenant_id
@@ -179,11 +183,11 @@ module "avm-res-keyvault-vault" {
 resource "time_sleep" "wait_60_seconds" {
   create_duration = "60s"
 
-  depends_on = [module.avm-res-keyvault-vault]
+  depends_on = [module.avm_res_keyvault_vault]
 }
 
 resource "azurerm_key_vault_certificate" "example" {
-  key_vault_id = module.avm-res-keyvault-vault.resource.id
+  key_vault_id = module.avm_res_keyvault_vault.resource.id
   name         = "generated-cert"
   tags = {
     scenario = "AVM VMSS Sample Certificates Deployment"
@@ -268,7 +272,7 @@ module "terraform_azurerm_avm_res_compute_virtualmachinescaleset" {
       admin_ssh_key                   = toset([tls_private_key.this.id])
       provision_vm_agent              = true
       secret = [{
-        key_vault_id = module.avm-res-keyvault-vault.resource.id
+        key_vault_id = module.avm_res_keyvault_vault.resource.id
         certificate = toset([{
           url = azurerm_key_vault_certificate.example.secret_id
         }])
@@ -339,6 +343,8 @@ The following requirements are needed by this module:
 
 - <a name="requirement_time"></a> [time](#requirement\_time) (0.10.0)
 
+- <a name="requirement_tls"></a> [tls](#requirement\_tls) (4.0.5)
+
 ## Providers
 
 The following providers are used by this module:
@@ -347,7 +353,7 @@ The following providers are used by this module:
 
 - <a name="provider_time"></a> [time](#provider\_time) (0.10.0)
 
-- <a name="provider_tls"></a> [tls](#provider\_tls)
+- <a name="provider_tls"></a> [tls](#provider\_tls) (4.0.5)
 
 ## Resources
 
@@ -363,7 +369,7 @@ The following resources are used by this module:
 - [azurerm_subnet_nat_gateway_association.this](https://registry.terraform.io/providers/hashicorp/azurerm/latest/docs/resources/subnet_nat_gateway_association) (resource)
 - [azurerm_virtual_network.this](https://registry.terraform.io/providers/hashicorp/azurerm/latest/docs/resources/virtual_network) (resource)
 - [time_sleep.wait_60_seconds](https://registry.terraform.io/providers/hashicorp/time/0.10.0/docs/resources/sleep) (resource)
-- [tls_private_key.this](https://registry.terraform.io/providers/hashicorp/tls/latest/docs/resources/private_key) (resource)
+- [tls_private_key.this](https://registry.terraform.io/providers/hashicorp/tls/4.0.5/docs/resources/private_key) (resource)
 - [azurerm_client_config.current](https://registry.terraform.io/providers/hashicorp/azurerm/latest/docs/data-sources/client_config) (data source)
 
 <!-- markdownlint-disable MD013 -->
@@ -413,7 +419,7 @@ Description: The name of the Virtual Machine Scale Set.
 
 The following Modules are called:
 
-### <a name="module_avm-res-keyvault-vault"></a> [avm-res-keyvault-vault](#module\_avm-res-keyvault-vault)
+### <a name="module_avm_res_keyvault_vault"></a> [avm\_res\_keyvault\_vault](#module\_avm\_res\_keyvault\_vault)
 
 Source: Azure/avm-res-keyvault-vault/azurerm
 
