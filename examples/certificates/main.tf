@@ -9,6 +9,10 @@ terraform {
       source  = "hashicorp/time"
       version = "0.10.0"
     }
+    tls = {
+      source  = "hashicorp/tls"
+      version = "4.0.5"
+    }
   }
 }
 
@@ -140,7 +144,7 @@ resource "tls_private_key" "this" {
 data "azurerm_client_config" "current" {}
 
 #create a keyvault for storing the credential with RBAC for the deployment user
-module "avm-res-keyvault-vault" {
+module "avm_res_keyvault_vault" {
   source                 = "Azure/avm-res-keyvault-vault/azurerm"
   version                = "0.3.0"
   tenant_id              = data.azurerm_client_config.current.tenant_id
@@ -173,11 +177,11 @@ module "avm-res-keyvault-vault" {
 resource "time_sleep" "wait_60_seconds" {
   create_duration = "60s"
 
-  depends_on = [module.avm-res-keyvault-vault]
+  depends_on = [module.avm_res_keyvault_vault]
 }
 
 resource "azurerm_key_vault_certificate" "example" {
-  key_vault_id = module.avm-res-keyvault-vault.resource.id
+  key_vault_id = module.avm_res_keyvault_vault.resource.id
   name         = "generated-cert"
   tags = {
     scenario = "AVM VMSS Sample Certificates Deployment"
@@ -262,7 +266,7 @@ module "terraform_azurerm_avm_res_compute_virtualmachinescaleset" {
       admin_ssh_key                   = toset([tls_private_key.this.id])
       provision_vm_agent              = true
       secret = [{
-        key_vault_id = module.avm-res-keyvault-vault.resource.id
+        key_vault_id = module.avm_res_keyvault_vault.resource.id
         certificate = toset([{
           url = azurerm_key_vault_certificate.example.secret_id
         }])
