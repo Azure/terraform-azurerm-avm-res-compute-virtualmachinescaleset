@@ -149,7 +149,7 @@ resource "tls_private_key" "this" {
 
 data "azurerm_client_config" "current" {}
 
-#create a keyvault for storing the credential with RBAC for the deployment user
+# create a keyvault for storing the credential with RBAC for the deployment user
 module "avm_res_keyvault_vault" {
   source                 = "Azure/avm-res-keyvault-vault/azurerm"
   version                = "0.3.0"
