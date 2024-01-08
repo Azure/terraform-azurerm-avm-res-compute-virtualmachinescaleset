@@ -183,7 +183,7 @@ module "avm_res_keyvault_vault" {
 resource "time_sleep" "wait_60_seconds" {
   create_duration = "60s"
 
-  depends_on = [module.avm-res-keyvault-vault]
+  depends_on = [module.avm_res_keyvault_vault]
 }
 
 resource "azurerm_key_vault_certificate" "example" {
