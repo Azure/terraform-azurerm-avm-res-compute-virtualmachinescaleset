@@ -3,16 +3,7 @@ terraform {
   required_providers {
     azurerm = {
       source  = "hashicorp/azurerm"
-      version = ">= 3.85, < 4.0"
-    }
-    time = {
-      source  = "hashicorp/time"
-      version = "0.10.0"
-    }
-    tls = {
-      source  = "hashicorp/tls"
-      version = "4.0.5"
-    }
+      version = ">= 3.85, < 4.0" 
   }
 }
 
@@ -64,7 +55,7 @@ resource "azurerm_subnet" "subnet" {
 }
 
 # network security group for the subnet with a rule to allow http, https and ssh traffic
-resource "azurerm_network_security_group" "this" {
+resource "azurerm_network_security_group" "myNSG" {
   location            = azurerm_resource_group.this.location
   name                = "myNSG"
   resource_group_name = azurerm_resource_group.this.name
@@ -136,7 +127,7 @@ resource "azurerm_subnet_nat_gateway_association" "this" {
   subnet_id      = azurerm_subnet.subnet.id
 }
 
-resource "tls_private_key" "this" {
+resource "tls_private_key" "example_ssh" {
   algorithm = "RSA"
   rsa_bits  = 4096
 }
@@ -233,7 +224,7 @@ resource "azurerm_key_vault_certificate" "example" {
 }
 
 # This is the module call
-module "terraform_azurerm_avm_res_compute_virtualmachinescaleset" {
+module "terraform-azurerm-avm-res-compute-virtualmachinescaleset" {
   source = "../../"
   # source             = "Azure/avm-res-compute-virtualmachinescaleset/azurerm"
   name                        = module.naming.virtual_machine_scale_set.name_unique
@@ -246,8 +237,8 @@ module "terraform_azurerm_avm_res_compute_virtualmachinescaleset" {
   sku_name                    = "Standard_D2s_v4"
   admin_ssh_keys = [(
     {
-      id         = tls_private_key.this.id
-      public_key = tls_private_key.this.public_key_openssh
+      id         = tls_private_key.example_ssh.id
+      public_key = tls_private_key.example_ssh.public_key_openssh
       username   = "azureuser"
     }
   )]
@@ -263,7 +254,7 @@ module "terraform_azurerm_avm_res_compute_virtualmachinescaleset" {
       disable_password_authentication = false
       user_data_base64                = base64encode(file("user-data.sh"))
       admin_username                  = "azureuser"
-      admin_ssh_key                   = toset([tls_private_key.this.id])
+      admin_ssh_key                   = toset([tls_private_key.example_ssh.id])
       provision_vm_agent              = true
       secret = [{
         key_vault_id = module.avm_res_keyvault_vault.resource.id
@@ -310,17 +301,17 @@ output "resource_group_name" {
 }
 
 output "virtual_machine_scale_set_id" {
-  value       = module.terraform_azurerm_avm_res_compute_virtualmachinescaleset.resource_id
+  value       = module.terraform-azurerm-avm-res-compute-virtualmachinescaleset.resource_id
   description = "The ID of the Virtual Machine Scale Set."
 }
 
 output "virtual_machine_scale_set_name" {
-  value       = module.terraform_azurerm_avm_res_compute_virtualmachinescaleset.resource_name
+  value       = module.terraform-azurerm-avm-res-compute-virtualmachinescaleset.resource_name
   description = "The name of the Virtual Machine Scale Set."
 }
 
 output "virtual_machine_scale_set" {
-  value       = module.terraform_azurerm_avm_res_compute_virtualmachinescaleset.resource
+  value       = module.terraform-azurerm-avm-res-compute-virtualmachinescaleset.resource
   sensitive   = true
   description = "All attributes of the Virtual Machine Scale Set resource."
 }
