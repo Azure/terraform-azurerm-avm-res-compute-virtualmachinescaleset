@@ -4,8 +4,8 @@ This example demonstrates a standard deployment of VMSS aligned with reliability
 
 - a Linux VM
 - a virtual network with a subnet
-- a NAT gateway
 - a public IP associated to the NAT gateway
+- a NAT gateway
 - an SSH key
 - locking code (commented out)
 - a health extension
