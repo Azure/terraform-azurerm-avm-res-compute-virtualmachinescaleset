@@ -1,21 +1,231 @@
 <!-- BEGIN_TF_DOCS -->
-# terraform-azurerm-avm-template
+# A Default Virtual Machine Scale Set with Windows VMs
 
-This is a template repo for Terraform Azure Verified Modules.
+This example demonstrates a standard deployment with Windows VMs.  The deployment includes:
 
-Things to do:
+- a Windows VM
+- a virtual nework with a subnet
+- a NAT gateway
+- a public IP associated to the NAT gateway
+- an SSH key
 
-1. Set up a GitHub repo environment called `test`.
-1. Configure environment protection rule to ensure that approval is required before deploying to this environment.
-1. Create a user-assigned managed identity in your test subscription.
-1. Create a role assignment for the managed identity on your test subscription, use the minimum required role.
-1. Configure federated identity credentials on the user assigned managed identity. Use the GitHub environment.
-1. Create the following environment secrets on the `test` environment:
-   1. AZURE\_CLIENT\_ID
-   1. AZURE\_TENANT\_ID
-   1. AZURE\_SUBSCRIPTION\_ID
+```hcl
+terraform {
+  required_version = ">= 1.0.0"
+  required_providers {
+    azurerm = {
+      source  = "hashicorp/azurerm"
+      version = ">= 3.85, < 4.0"
+    }
+  }
+}
 
-Major version Zero (0.y.z) is for initial development. Anything MAY change at any time. A module SHOULD NOT be considered stable till at least it is major version one (1.0.0) or greater. Changes will always be via new versions being published and no changes will be made to existing published versions. For more details please go to https://semver.org/
+provider "azurerm" {
+  features {}
+}
+
+variable "enable_telemetry" {
+  type        = bool
+  default     = true
+  description = <<DESCRIPTION
+This variable controls whether or not telemetry is enabled for the module.
+For more information see https://aka.ms/avm/telemetryinfo.
+If it is set to false, then no telemetry will be collected.
+DESCRIPTION
+}
+
+# This ensures we have unique CAF compliant names for our resources.
+module "naming" {
+  source  = "Azure/naming/azurerm"
+  version = "0.3.0"
+}
+
+# This is required for resource modules
+resource "azurerm_resource_group" "this" {
+  location = "eastus"
+  name     = module.naming.resource_group.name_unique
+  tags = {
+    source = "AVM Sample Windows Deployment"
+  }
+}
+
+resource "azurerm_virtual_network" "this" {
+  address_space       = ["10.0.0.0/16"]
+  location            = azurerm_resource_group.this.location
+  name                = module.naming.virtual_network.name_unique
+  resource_group_name = azurerm_resource_group.this.name
+  dns_servers         = ["10.0.0.4", "10.0.0.5"]
+  tags = {
+    source = "AVM Sample Windows Deployment"
+  }
+}
+
+resource "azurerm_subnet" "subnet" {
+  address_prefixes     = ["10.0.1.0/24"]
+  name                 = "VMSS-Subnet"
+  resource_group_name  = azurerm_resource_group.this.name
+  virtual_network_name = azurerm_virtual_network.this.name
+}
+
+# network security group for the subnet with a rule to allow http, https and ssh traffic
+resource "azurerm_network_security_group" "this" {
+  location            = azurerm_resource_group.this.location
+  name                = "myNSG"
+  resource_group_name = azurerm_resource_group.this.name
+
+  security_rule {
+    access                     = "Allow"
+    destination_address_prefix = "*"
+    destination_port_range     = "80"
+    direction                  = "Inbound"
+    name                       = "allow-http"
+    priority                   = 100
+    protocol                   = "Tcp"
+    source_address_prefix      = "*"
+    source_port_range          = "*"
+  }
+  security_rule {
+    access                     = "Allow"
+    destination_address_prefix = "*"
+    destination_port_range     = "443"
+    direction                  = "Inbound"
+    name                       = "allow-https"
+    priority                   = 101
+    protocol                   = "Tcp"
+    source_address_prefix      = "*"
+    source_port_range          = "*"
+  }
+  #ssh security rule
+  security_rule {
+    access                     = "Allow"
+    destination_address_prefix = "*"
+    destination_port_range     = "22"
+    direction                  = "Inbound"
+    name                       = "allow-ssh"
+    priority                   = 102
+    protocol                   = "Tcp"
+    source_address_prefix      = "*"
+    source_port_range          = "*"
+  }
+}
+
+resource "azurerm_public_ip" "natgwpip" {
+  allocation_method   = "Static"
+  location            = azurerm_resource_group.this.location
+  name                = module.naming.public_ip.name_unique
+  resource_group_name = azurerm_resource_group.this.name
+  sku                 = "Standard"
+  tags = {
+    source = "AVM Sample Windows Deployment"
+  }
+  zones = ["1", "2", "3"]
+}
+
+resource "azurerm_nat_gateway" "this" {
+  location            = azurerm_resource_group.this.location
+  name                = "MyNatGateway"
+  resource_group_name = azurerm_resource_group.this.name
+  tags = {
+    source = "AVM Sample Windows Deployment"
+  }
+}
+
+resource "azurerm_nat_gateway_public_ip_association" "this" {
+  nat_gateway_id       = azurerm_nat_gateway.this.id
+  public_ip_address_id = azurerm_public_ip.natgwpip.id
+}
+
+resource "azurerm_subnet_nat_gateway_association" "this" {
+  nat_gateway_id = azurerm_nat_gateway.this.id
+  subnet_id      = azurerm_subnet.subnet.id
+}
+
+# This is the module call
+module "terraform_azurerm_avm_res_compute_virtualmachinescaleset" {
+  source = "../../"
+  # source             = "Azure/avm-res-compute-virtualmachinescaleset/azurerm"
+  name                        = module.naming.virtual_machine_scale_set.name_unique
+  resource_group_name         = azurerm_resource_group.this.name
+  enable_telemetry            = var.enable_telemetry
+  location                    = azurerm_resource_group.this.location
+  admin_password              = "P@ssw0rd1234!"
+  sku_name                    = "Standard_D2s_v4"
+  instances                   = 2
+  platform_fault_domain_count = 1
+  network_interface = [{
+    name = "VMSS-NIC"
+    ip_configuration = [{
+      name      = "VMSS-IPConfig"
+      subnet_id = azurerm_subnet.subnet.id
+    }]
+  }]
+  os_profile = {
+    windows_configuration = {
+      disable_password_authentication = false
+      admin_username                  = "azureuser"
+      license_type                    = "None"
+      hotpatching_enabled             = false
+      patch_assessment_mode           = "ImageDefault"
+      patch_mode                      = "AutomaticByOS"
+      timezone                        = "Pacific Standard Time"
+      provision_vm_agent              = true
+      winrm_listener = [{
+        protocol = "Http"
+      }]
+    }
+  }
+  source_image_reference = {
+    publisher = "MicrosoftWindowsServer" # 2022-datacenter-azure-edition
+    offer     = "WindowsServer"
+    sku       = "2022-Datacenter"
+    version   = "latest"
+  }
+  extension = [{
+    name                       = "HealthExtension"
+    publisher                  = "Microsoft.ManagedServices"
+    type                       = "ApplicationHealthWindows"
+    type_handler_version       = "1.0"
+    auto_upgrade_minor_version = true
+    settings                   = <<SETTINGS
+    {
+      "protocol": "http",
+      "port" : 80,
+      "requestPath": "/"
+    }
+SETTINGS
+  }]
+  tags = {
+    source = "AVM Sample Windows Deployment"
+  }
+  depends_on = [azurerm_subnet_nat_gateway_association.this]
+}
+
+output "location" {
+  value       = azurerm_resource_group.this.location
+  description = "The deployment region."
+}
+
+output "resource_group_name" {
+  value       = azurerm_resource_group.this.name
+  description = "The name of the Resource Group."
+}
+
+output "virtual_machine_scale_set_id" {
+  value       = module.terraform_azurerm_avm_res_compute_virtualmachinescaleset.resource_id
+  description = "The ID of the Virtual Machine Scale Set."
+}
+
+output "virtual_machine_scale_set_name" {
+  value       = module.terraform_azurerm_avm_res_compute_virtualmachinescaleset.resource_name
+  description = "The name of the Virtual Machine Scale Set."
+}
+
+output "virtual_machine_scale_set" {
+  value       = module.terraform_azurerm_avm_res_compute_virtualmachinescaleset.resource
+  sensitive   = true
+  description = "All attributes of the Virtual Machine Scale Set resource."
+}
+```
 
 <!-- markdownlint-disable MD033 -->
 ## Requirements
@@ -24,15 +234,13 @@ The following requirements are needed by this module:
 
 - <a name="requirement_terraform"></a> [terraform](#requirement\_terraform) (>= 1.0.0)
 
-- <a name="requirement_azurerm"></a> [azurerm](#requirement\_azurerm) (>= 3.7.0, < 4.0.0)
+- <a name="requirement_azurerm"></a> [azurerm](#requirement\_azurerm) (>= 3.85, < 4.0)
 
 ## Providers
 
 The following providers are used by this module:
 
-- <a name="provider_azurerm"></a> [azurerm](#provider\_azurerm) (>= 3.7.0, < 4.0.0)
-
-- <a name="provider_tls"></a> [tls](#provider\_tls)
+- <a name="provider_azurerm"></a> [azurerm](#provider\_azurerm) (>= 3.85, < 4.0)
 
 ## Resources
 
@@ -40,12 +248,12 @@ The following resources are used by this module:
 
 - [azurerm_nat_gateway.this](https://registry.terraform.io/providers/hashicorp/azurerm/latest/docs/resources/nat_gateway) (resource)
 - [azurerm_nat_gateway_public_ip_association.this](https://registry.terraform.io/providers/hashicorp/azurerm/latest/docs/resources/nat_gateway_public_ip_association) (resource)
+- [azurerm_network_security_group.this](https://registry.terraform.io/providers/hashicorp/azurerm/latest/docs/resources/network_security_group) (resource)
 - [azurerm_public_ip.natgwpip](https://registry.terraform.io/providers/hashicorp/azurerm/latest/docs/resources/public_ip) (resource)
 - [azurerm_resource_group.this](https://registry.terraform.io/providers/hashicorp/azurerm/latest/docs/resources/resource_group) (resource)
 - [azurerm_subnet.subnet](https://registry.terraform.io/providers/hashicorp/azurerm/latest/docs/resources/subnet) (resource)
 - [azurerm_subnet_nat_gateway_association.this](https://registry.terraform.io/providers/hashicorp/azurerm/latest/docs/resources/subnet_nat_gateway_association) (resource)
 - [azurerm_virtual_network.this](https://registry.terraform.io/providers/hashicorp/azurerm/latest/docs/resources/virtual_network) (resource)
-- [tls_private_key.example_ssh](https://registry.terraform.io/providers/hashicorp/tls/latest/docs/resources/private_key) (resource)
 
 <!-- markdownlint-disable MD013 -->
 ## Required Inputs
@@ -72,19 +280,23 @@ The following outputs are exported:
 
 ### <a name="output_location"></a> [location](#output\_location)
 
-Description: n/a
+Description: The deployment region.
 
 ### <a name="output_resource_group_name"></a> [resource\_group\_name](#output\_resource\_group\_name)
 
-Description: n/a
+Description: The name of the Resource Group.
+
+### <a name="output_virtual_machine_scale_set"></a> [virtual\_machine\_scale\_set](#output\_virtual\_machine\_scale\_set)
+
+Description: All attributes of the Virtual Machine Scale Set resource.
 
 ### <a name="output_virtual_machine_scale_set_id"></a> [virtual\_machine\_scale\_set\_id](#output\_virtual\_machine\_scale\_set\_id)
 
-Description: n/a
+Description: The ID of the Virtual Machine Scale Set.
 
-### <a name="output_virtual_machine_scale_set_unique_id"></a> [virtual\_machine\_scale\_set\_unique\_id](#output\_virtual\_machine\_scale\_set\_unique\_id)
+### <a name="output_virtual_machine_scale_set_name"></a> [virtual\_machine\_scale\_set\_name](#output\_virtual\_machine\_scale\_set\_name)
 
-Description: n/a
+Description: The name of the Virtual Machine Scale Set.
 
 ## Modules
 
@@ -96,7 +308,7 @@ Source: Azure/naming/azurerm
 
 Version: 0.3.0
 
-### <a name="module_terraform-azurerm-avm-res-compute-virtualmachinescaleset"></a> [terraform-azurerm-avm-res-compute-virtualmachinescaleset](#module\_terraform-azurerm-avm-res-compute-virtualmachinescaleset)
+### <a name="module_terraform_azurerm_avm_res_compute_virtualmachinescaleset"></a> [terraform\_azurerm\_avm\_res\_compute\_virtualmachinescaleset](#module\_terraform\_azurerm\_avm\_res\_compute\_virtualmachinescaleset)
 
 Source: ../../
 

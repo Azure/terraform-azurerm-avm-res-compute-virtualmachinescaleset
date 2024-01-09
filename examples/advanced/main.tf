@@ -3,7 +3,11 @@ terraform {
   required_providers {
     azurerm = {
       source  = "hashicorp/azurerm"
-      version = ">= 3.7.0, < 4.0.0"
+      version = ">= 3.85, < 4.0"
+    }
+    tls = {
+      source  = "hashicorp/tls"
+      version = "4.0.5"
     }
   }
 }
@@ -30,18 +34,18 @@ module "naming" {
 
 # This is required for resource modules
 resource "azurerm_resource_group" "this" {
-  name     = module.naming.resource_group.name_unique
   location = "eastus"
+  name     = module.naming.resource_group.name_unique
   tags = {
     source = "AVM Sample Default Deployment"
   }
 }
 
 resource "azurerm_virtual_network" "this" {
-  name                = module.naming.virtual_network.name_unique
-  location            = azurerm_resource_group.this.location
-  resource_group_name = azurerm_resource_group.this.name
   address_space       = ["10.0.0.0/16"]
+  location            = azurerm_resource_group.this.location
+  name                = module.naming.virtual_network.name_unique
+  resource_group_name = azurerm_resource_group.this.name
   dns_servers         = ["10.0.0.4", "10.0.0.5"]
   tags = {
     source = "AVM Sample Default Deployment"
@@ -49,27 +53,69 @@ resource "azurerm_virtual_network" "this" {
 }
 
 resource "azurerm_subnet" "subnet" {
+  address_prefixes     = ["10.0.1.0/24"]
   name                 = "VMSS-Subnet"
   resource_group_name  = azurerm_resource_group.this.name
   virtual_network_name = azurerm_virtual_network.this.name
-  address_prefixes     = ["10.0.1.0/24"]
 }
 
-resource "azurerm_public_ip" "natgwpip" {
-  name                = module.naming.public_ip.name_unique
+# network security group for the subnet with a rule to allow http, https and ssh traffic
+resource "azurerm_network_security_group" "myNSG" {
   location            = azurerm_resource_group.this.location
+  name                = "myNSG"
   resource_group_name = azurerm_resource_group.this.name
-  allocation_method   = "Static"
-  sku                 = "Standard"
-  zones               = ["1", "2", "3"]
-  tags = {
-    source = "AVM Sample Default Deployment"
+
+  security_rule {
+    access                     = "Allow"
+    destination_address_prefix = "*"
+    destination_port_range     = "80"
+    direction                  = "Inbound"
+    name                       = "allow-http"
+    priority                   = 100
+    protocol                   = "Tcp"
+    source_address_prefix      = "*"
+    source_port_range          = "*"
+  }
+  security_rule {
+    access                     = "Allow"
+    destination_address_prefix = "*"
+    destination_port_range     = "443"
+    direction                  = "Inbound"
+    name                       = "allow-https"
+    priority                   = 101
+    protocol                   = "Tcp"
+    source_address_prefix      = "*"
+    source_port_range          = "*"
+  }
+  #ssh security rule
+  security_rule {
+    access                     = "Allow"
+    destination_address_prefix = "*"
+    destination_port_range     = "22"
+    direction                  = "Inbound"
+    name                       = "allow-ssh"
+    priority                   = 102
+    protocol                   = "Tcp"
+    source_address_prefix      = "*"
+    source_port_range          = "*"
   }
 }
 
-resource "azurerm_nat_gateway" "this" {
-  name                = "MyNatGateway"
+resource "azurerm_public_ip" "natgwpip" {
+  allocation_method   = "Static"
   location            = azurerm_resource_group.this.location
+  name                = module.naming.public_ip.name_unique
+  resource_group_name = azurerm_resource_group.this.name
+  sku                 = "Standard"
+  tags = {
+    source = "AVM Sample Default Deployment"
+  }
+  zones = ["1", "2", "3"]
+}
+
+resource "azurerm_nat_gateway" "this" {
+  location            = azurerm_resource_group.this.location
+  name                = "MyNatGateway"
   resource_group_name = azurerm_resource_group.this.name
   tags = {
     source = "AVM Sample Default Deployment"
@@ -77,13 +123,13 @@ resource "azurerm_nat_gateway" "this" {
 }
 
 resource "azurerm_nat_gateway_public_ip_association" "this" {
-  public_ip_address_id = azurerm_public_ip.natgwpip.id
   nat_gateway_id       = azurerm_nat_gateway.this.id
+  public_ip_address_id = azurerm_public_ip.natgwpip.id
 }
 
 resource "azurerm_subnet_nat_gateway_association" "this" {
-  subnet_id      = azurerm_subnet.subnet.id
   nat_gateway_id = azurerm_nat_gateway.this.id
+  subnet_id      = azurerm_subnet.subnet.id
 }
 
 resource "tls_private_key" "example_ssh" {
@@ -92,19 +138,19 @@ resource "tls_private_key" "example_ssh" {
 }
 
 resource "azurerm_storage_account" "this" {
+  account_replication_type = "LRS"
+  account_tier             = "Standard"
+  location                 = azurerm_resource_group.this.location
   name                     = module.naming.storage_account.name_unique
   resource_group_name      = azurerm_resource_group.this.name
-  location                 = azurerm_resource_group.this.location
-  account_tier             = "Standard"
-  account_replication_type = "LRS"
   tags = {
     source = "AVM Sample Default Deployment"
   }
 }
 
 resource "azurerm_proximity_placement_group" "this" {
-  name                = module.naming.proximity_placement_group.name_unique
   location            = azurerm_resource_group.this.location
+  name                = module.naming.proximity_placement_group.name_unique
   resource_group_name = azurerm_resource_group.this.name
   tags = {
     source = "AVM Sample Default Deployment"
@@ -112,17 +158,27 @@ resource "azurerm_proximity_placement_group" "this" {
 }
 
 # This is the module call
-module "terraform-azurerm-avm-res-compute-virtualmachinescaleset" {
+module "terraform_azurerm_avm_res_compute_virtualmachinescaleset" {
   source = "../../"
   # source             = "Azure/avm-res-compute-virtualmachinescaleset/azurerm"
   name                        = module.naming.virtual_machine_scale_set.name_unique
   resource_group_name         = azurerm_resource_group.this.name
   enable_telemetry            = var.enable_telemetry
   location                    = azurerm_resource_group.this.location
+  admin_password              = "P@ssw0rd1234!"
+  sku_name                    = "Standard_D2s_v4"
+  instances                   = 2
   platform_fault_domain_count = 1
+  admin_ssh_keys = [(
+    {
+      id         = tls_private_key.example_ssh.id
+      public_key = tls_private_key.example_ssh.public_key_openssh
+      username   = "azureuser"
+    }
+  )]
   # Spot variables
   priority      = "Spot"
-  max_bid_price = 0.01
+  max_bid_price = 0.1
   priority_mix = {
     low_priority_virtual_machine_scale_set_percentage = 100
     spot_virtual_machine_scale_set_percentage         = 0
@@ -133,13 +189,14 @@ module "terraform-azurerm-avm-res-compute-virtualmachinescaleset" {
   }
   eviction_policy = "Deallocate"
   # Instance Placement
-  zone_balance                 = true
+  zone_balance                 = false
+  zones                        = ["1"]
   proximity_placement_group_id = azurerm_proximity_placement_group.this.id
-  single_placement_group       = true
+  single_placement_group       = false
   # Miscellanous settings
-  encryption_at_host_enabled = true
+  encryption_at_host_enabled = false
   automatic_instance_repair = {
-    enabled = true
+    enabled = false
   }
   boot_diagnostics = {
     storage_uri = azurerm_storage_account.this.primary_blob_endpoint
@@ -151,7 +208,7 @@ module "terraform-azurerm-avm-res-compute-virtualmachinescaleset" {
     lun                       = 0
     managed_disk_type         = "Standard_LRS"
     storage_account_type      = "Standard_LRS"
-    write_accelerator_enabled = true
+    write_accelerator_enabled = false
   }]
   # Network interface
   network_interface = [{
@@ -163,29 +220,47 @@ module "terraform-azurerm-avm-res-compute-virtualmachinescaleset" {
   }]
   # Extensions
   extension = [{
-    name                       = "Custom Script Extension"
+    name                       = "CustomScriptExtension"
     publisher                  = "Microsoft.Azure.Extensions"
     type                       = "CustomScript"
     type_handler_version       = "2.0"
     auto_upgrade_minor_version = true
     settings                   = <<SETTINGS
+      {
+        "commandToExecute": "echo 'Hello World!' > /tmp/hello.txt"
+      }
+      SETTINGS
+    },
     {
-      "commandToExecute": "echo 'Hello World!' > /tmp/hello.txt"
+      name                       = "HealthExtension"
+      publisher                  = "Microsoft.ManagedServices"
+      type                       = "ApplicationHealthLinux"
+      type_handler_version       = "1.0"
+      auto_upgrade_minor_version = true
+      settings                   = <<SETTINGS
+    {
+      "protocol": "http",
+      "port" : 80,
+      "requestPath": "health"
     }
-    SETTINGS
+SETTINGS
   }]
+  # Extension protected settings
+  extension_protected_setting = {
+    "Custom Script Extension" = <<SETTINGS
+      {
+        "commandToExecute": "echo 'Protected Hello World!' > /tmp/protectedhello.txt"
+      }
+      SETTINGS
+  }
   os_profile = {
     linux_configuration = {
       disable_password_authentication = false
       user_data_base64                = base64encode(file("user-data.sh"))
       admin_username                  = "azureuser"
-      admin_password                  = "P@ssw0rd1234!"
       computer_name_prefix            = "prefix"
       provision_vm_agent              = true
-      admin_ssh_key = toset([{
-        username   = "azureuser"
-        public_key = tls_private_key.example_ssh.public_key_openssh
-      }])
+      admin_ssh_key                   = toset([tls_private_key.example_ssh.id])
     }
   }
   source_image_reference = {
@@ -206,17 +281,27 @@ module "terraform-azurerm-avm-res-compute-virtualmachinescaleset" {
 }
 
 output "location" {
-  value = azurerm_resource_group.this.location
+  value       = azurerm_resource_group.this.location
+  description = "The deployment region."
 }
 
 output "resource_group_name" {
-  value = azurerm_resource_group.this.name
+  value       = azurerm_resource_group.this.name
+  description = "The name of the Resource Group."
 }
 
 output "virtual_machine_scale_set_id" {
-  value = module.terraform-azurerm-avm-res-compute-virtualmachinescaleset.resource
+  value       = module.terraform_azurerm_avm_res_compute_virtualmachinescaleset.resource_id
+  description = "The ID of the Virtual Machine Scale Set."
 }
 
-output "virtual_machine_scale_set_unique_id" {
-  value = module.terraform-azurerm-avm-res-compute-virtualmachinescaleset.unique_id
+output "virtual_machine_scale_set_name" {
+  value       = module.terraform_azurerm_avm_res_compute_virtualmachinescaleset.resource_name
+  description = "The name of the Virtual Machine Scale Set."
+}
+
+output "virtual_machine_scale_set" {
+  value       = module.terraform_azurerm_avm_res_compute_virtualmachinescaleset.resource
+  sensitive   = true
+  description = "All attributes of the Virtual Machine Scale Set resource."
 }
