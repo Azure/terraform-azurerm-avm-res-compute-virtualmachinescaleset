@@ -74,7 +74,7 @@ resource "azurerm_subnet" "subnet" {
 }
 
 # network security group for the subnet with a rule to allow http, https and ssh traffic
-resource "azurerm_network_security_group" "this" {
+resource "azurerm_network_security_group" "myNSG" {
   location            = azurerm_resource_group.this.location
   name                = "myNSG"
   resource_group_name = azurerm_resource_group.this.name
@@ -146,7 +146,7 @@ resource "azurerm_subnet_nat_gateway_association" "this" {
   subnet_id      = azurerm_subnet.subnet.id
 }
 
-resource "tls_private_key" "this" {
+resource "tls_private_key" "example_ssh" {
   algorithm = "RSA"
   rsa_bits  = 4096
 }
@@ -176,8 +176,8 @@ module "terraform_azurerm_avm_res_compute_virtualmachinescaleset" {
   instances                   = 2
   admin_ssh_keys = [(
     {
-      id         = tls_private_key.this.id
-      public_key = tls_private_key.this.public_key_openssh
+      id         = tls_private_key.example_ssh.id
+      public_key = tls_private_key.example_ssh.public_key_openssh
       username   = "azureuser"
     }
   )]
@@ -193,7 +193,7 @@ module "terraform_azurerm_avm_res_compute_virtualmachinescaleset" {
       disable_password_authentication = false
       user_data_base64                = base64encode(file("user-data.sh"))
       admin_username                  = "azureuser"
-      admin_ssh_key                   = toset([tls_private_key.this.id])
+      admin_ssh_key                   = toset([tls_private_key.example_ssh.id])
       provision_vm_agent              = true
     }
   }
@@ -282,14 +282,14 @@ The following resources are used by this module:
 
 - [azurerm_nat_gateway.this](https://registry.terraform.io/providers/hashicorp/azurerm/latest/docs/resources/nat_gateway) (resource)
 - [azurerm_nat_gateway_public_ip_association.this](https://registry.terraform.io/providers/hashicorp/azurerm/latest/docs/resources/nat_gateway_public_ip_association) (resource)
-- [azurerm_network_security_group.this](https://registry.terraform.io/providers/hashicorp/azurerm/latest/docs/resources/network_security_group) (resource)
+- [azurerm_network_security_group.myNSG](https://registry.terraform.io/providers/hashicorp/azurerm/latest/docs/resources/network_security_group) (resource)
 - [azurerm_public_ip.natgwpip](https://registry.terraform.io/providers/hashicorp/azurerm/latest/docs/resources/public_ip) (resource)
 - [azurerm_resource_group.this](https://registry.terraform.io/providers/hashicorp/azurerm/latest/docs/resources/resource_group) (resource)
 - [azurerm_subnet.subnet](https://registry.terraform.io/providers/hashicorp/azurerm/latest/docs/resources/subnet) (resource)
 - [azurerm_subnet_nat_gateway_association.this](https://registry.terraform.io/providers/hashicorp/azurerm/latest/docs/resources/subnet_nat_gateway_association) (resource)
 - [azurerm_user_assigned_identity.example_identity](https://registry.terraform.io/providers/hashicorp/azurerm/latest/docs/resources/user_assigned_identity) (resource)
 - [azurerm_virtual_network.this](https://registry.terraform.io/providers/hashicorp/azurerm/latest/docs/resources/virtual_network) (resource)
-- [tls_private_key.this](https://registry.terraform.io/providers/hashicorp/tls/4.0.5/docs/resources/private_key) (resource)
+- [tls_private_key.example_ssh](https://registry.terraform.io/providers/hashicorp/tls/4.0.5/docs/resources/private_key) (resource)
 - [azurerm_client_config.current](https://registry.terraform.io/providers/hashicorp/azurerm/latest/docs/data-sources/client_config) (data source)
 
 <!-- markdownlint-disable MD013 -->

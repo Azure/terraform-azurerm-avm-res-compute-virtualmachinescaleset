@@ -68,7 +68,7 @@ resource "azurerm_subnet" "subnet" {
 }
 
 # network security group for the subnet with a rule to allow http, https and ssh traffic
-resource "azurerm_network_security_group" "this" {
+resource "azurerm_network_security_group" "myNSG" {
   location            = azurerm_resource_group.this.location
   name                = "myNSG"
   resource_group_name = azurerm_resource_group.this.name
@@ -138,6 +138,11 @@ resource "azurerm_nat_gateway_public_ip_association" "this" {
 resource "azurerm_subnet_nat_gateway_association" "this" {
   nat_gateway_id = azurerm_nat_gateway.this.id
   subnet_id      = azurerm_subnet.subnet.id
+}
+
+resource "tls_private_key" "example_ssh" {
+  algorithm = "RSA"
+  rsa_bits  = 4096
 }
 
 # This is the module call
@@ -242,18 +247,21 @@ The following providers are used by this module:
 
 - <a name="provider_azurerm"></a> [azurerm](#provider\_azurerm) (>= 3.85, < 4.0)
 
+- <a name="provider_tls"></a> [tls](#provider\_tls)
+
 ## Resources
 
 The following resources are used by this module:
 
 - [azurerm_nat_gateway.this](https://registry.terraform.io/providers/hashicorp/azurerm/latest/docs/resources/nat_gateway) (resource)
 - [azurerm_nat_gateway_public_ip_association.this](https://registry.terraform.io/providers/hashicorp/azurerm/latest/docs/resources/nat_gateway_public_ip_association) (resource)
-- [azurerm_network_security_group.this](https://registry.terraform.io/providers/hashicorp/azurerm/latest/docs/resources/network_security_group) (resource)
+- [azurerm_network_security_group.myNSG](https://registry.terraform.io/providers/hashicorp/azurerm/latest/docs/resources/network_security_group) (resource)
 - [azurerm_public_ip.natgwpip](https://registry.terraform.io/providers/hashicorp/azurerm/latest/docs/resources/public_ip) (resource)
 - [azurerm_resource_group.this](https://registry.terraform.io/providers/hashicorp/azurerm/latest/docs/resources/resource_group) (resource)
 - [azurerm_subnet.subnet](https://registry.terraform.io/providers/hashicorp/azurerm/latest/docs/resources/subnet) (resource)
 - [azurerm_subnet_nat_gateway_association.this](https://registry.terraform.io/providers/hashicorp/azurerm/latest/docs/resources/subnet_nat_gateway_association) (resource)
 - [azurerm_virtual_network.this](https://registry.terraform.io/providers/hashicorp/azurerm/latest/docs/resources/virtual_network) (resource)
+- [tls_private_key.example_ssh](https://registry.terraform.io/providers/hashicorp/tls/latest/docs/resources/private_key) (resource)
 
 <!-- markdownlint-disable MD013 -->
 ## Required Inputs
