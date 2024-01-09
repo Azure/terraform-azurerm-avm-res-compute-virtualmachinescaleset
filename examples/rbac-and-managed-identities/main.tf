@@ -60,7 +60,7 @@ resource "azurerm_subnet" "subnet" {
 }
 
 # network security group for the subnet with a rule to allow http, https and ssh traffic
-resource "azurerm_network_security_group" "myNSG" {
+resource "azurerm_network_security_group" "this" {
   location            = azurerm_resource_group.this.location
   name                = "myNSG"
   resource_group_name = azurerm_resource_group.this.name
@@ -149,7 +149,7 @@ resource "azurerm_user_assigned_identity" "example_identity" {
 data "azurerm_client_config" "current" {}
 
 # This is the module call
-module "terraform-azurerm-avm-res-compute-virtualmachinescaleset" {
+module "terraform_azurerm_avm_res_compute_virtualmachinescaleset" {
   source = "../../"
   # source             = "Azure/avm-res-compute-virtualmachinescaleset/azurerm"
   name                        = module.naming.virtual_machine_scale_set.name_unique
@@ -227,17 +227,17 @@ output "resource_group_name" {
 }
 
 output "virtual_machine_scale_set_id" {
-  value       = module.terraform-azurerm-avm-res-compute-virtualmachinescaleset.resource_id
+  value       = module.terraform_azurerm_avm_res_compute_virtualmachinescaleset.resource_id
   description = "The ID of the Virtual Machine Scale Set."
 }
 
 output "virtual_machine_scale_set_name" {
-  value       = module.terraform-azurerm-avm-res-compute-virtualmachinescaleset.resource_name
+  value       = module.terraform_azurerm_avm_res_compute_virtualmachinescaleset.resource_name
   description = "The name of the Virtual Machine Scale Set."
 }
 
 output "virtual_machine_scale_set" {
-  value       = module.terraform-azurerm-avm-res-compute-virtualmachinescaleset.resource
+  value       = module.terraform_azurerm_avm_res_compute_virtualmachinescaleset.resource
   sensitive   = true
   description = "All attributes of the Virtual Machine Scale Set resource."
 }
