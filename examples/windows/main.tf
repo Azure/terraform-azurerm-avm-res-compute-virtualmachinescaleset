@@ -5,6 +5,10 @@ terraform {
       source  = "hashicorp/azurerm"
       version = ">= 3.85, < 4.0"
     }
+    tls = {
+      source  = "hashicorp/tls"
+      version = "4.0.5"
+    }
   }
 }
 
@@ -56,7 +60,7 @@ resource "azurerm_subnet" "subnet" {
 }
 
 # network security group for the subnet with a rule to allow http, https and ssh traffic
-resource "azurerm_network_security_group" "myNSG" {
+resource "azurerm_network_security_group" "this" {
   location            = azurerm_resource_group.this.location
   name                = "myNSG"
   resource_group_name = azurerm_resource_group.this.name
