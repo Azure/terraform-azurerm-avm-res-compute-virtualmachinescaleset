@@ -65,7 +65,7 @@ resource "azurerm_orchestrated_virtual_machine_scale_set" "virtual_machine_scale
       extensions_to_provision_after_vm_creation = extension.value.extensions_to_provision_after_vm_creation
       failure_suppression_enabled               = extension.value.failure_suppression_enabled
       force_extension_execution_on_change       = extension.value.force_extension_execution_on_change
-      protected_settings                        = extension.value.protected_settings
+      protected_settings                        = lookup(var.extension_protected_setting, extension.value.name, null)
       settings                                  = extension.value.settings
 
       dynamic "protected_settings_from_key_vault" {
@@ -155,7 +155,7 @@ resource "azurerm_orchestrated_virtual_machine_scale_set" "virtual_machine_scale
         for_each = os_profile.value.linux_configuration == null ? [] : [os_profile.value.linux_configuration]
         content {
           admin_username                  = linux_configuration.value.admin_username
-          admin_password                  = linux_configuration.value.admin_password
+          admin_password                  = var.admin_password
           computer_name_prefix            = linux_configuration.value.computer_name_prefix
           disable_password_authentication = linux_configuration.value.disable_password_authentication
           patch_assessment_mode           = linux_configuration.value.patch_assessment_mode
@@ -163,10 +163,10 @@ resource "azurerm_orchestrated_virtual_machine_scale_set" "virtual_machine_scale
           provision_vm_agent              = linux_configuration.value.provision_vm_agent
 
           dynamic "admin_ssh_key" {
-            for_each = linux_configuration.value.admin_ssh_key == null ? [] : linux_configuration.value.admin_ssh_key
+            for_each = linux_configuration.value.admin_ssh_key_id == null ? [] : linux_configuration.value.admin_ssh_key_id
             content {
-              public_key = admin_ssh_key.value.public_key
-              username   = admin_ssh_key.value.username
+              public_key = var.admin_ssh_keys[each.key].public_key
+              username   = var.admin_ssh_keys[each.key].username
             }
           }
           dynamic "secret" {
@@ -187,7 +187,7 @@ resource "azurerm_orchestrated_virtual_machine_scale_set" "virtual_machine_scale
       dynamic "windows_configuration" {
         for_each = os_profile.value.windows_configuration == null ? [] : [os_profile.value.windows_configuration]
         content {
-          admin_password           = windows_configuration.value.admin_password
+          admin_password           = var.admin_password
           admin_username           = windows_configuration.value.admin_username
           computer_name_prefix     = windows_configuration.value.computer_name_prefix
           enable_automatic_updates = windows_configuration.value.enable_automatic_updates
@@ -267,19 +267,21 @@ resource "azurerm_orchestrated_virtual_machine_scale_set" "virtual_machine_scale
 # AVM Required Code
 
 resource "azurerm_management_lock" "this" {
-  count      = var.lock.kind != "None" ? 1 : 0
+  count = var.lock.kind != "None" ? 1 : 0
+
+  lock_level = var.lock.kind
   name       = coalesce(var.lock.name, "lock-${var.name}")
   scope      = azurerm_orchestrated_virtual_machine_scale_set.virtual_machine_scale_set.id
-  lock_level = var.lock.kind
 }
 resource "azurerm_role_assignment" "this" {
-  for_each                               = var.role_assignments
-  scope                                  = azurerm_orchestrated_virtual_machine_scale_set.virtual_machine_scale_set.id
-  role_definition_id                     = strcontains(lower(each.value.role_definition_id_or_name), lower(local.role_definition_resource_substring)) ? each.value.role_definition_id_or_name : null
-  role_definition_name                   = strcontains(lower(each.value.role_definition_id_or_name), lower(local.role_definition_resource_substring)) ? null : each.value.role_definition_id_or_name
+  for_each = var.role_assignments
+
   principal_id                           = each.value.principal_id
+  scope                                  = azurerm_orchestrated_virtual_machine_scale_set.virtual_machine_scale_set.id
   condition                              = each.value.condition
   condition_version                      = each.value.condition_version
-  skip_service_principal_aad_check       = each.value.skip_service_principal_aad_check
   delegated_managed_identity_resource_id = each.value.delegated_managed_identity_resource_id
+  role_definition_id                     = strcontains(lower(each.value.role_definition_id_or_name), lower(local.role_definition_resource_substring)) ? each.value.role_definition_id_or_name : null
+  role_definition_name                   = strcontains(lower(each.value.role_definition_id_or_name), lower(local.role_definition_resource_substring)) ? null : each.value.role_definition_id_or_name
+  skip_service_principal_aad_check       = each.value.skip_service_principal_aad_check
 }
