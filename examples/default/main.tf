@@ -87,7 +87,7 @@ resource "azurerm_network_security_group" "myNSG" {
     source_address_prefix      = "*"
     source_port_range          = "*"
   }
-  #ssh security rule
+  #ssh security rule 
   security_rule {
     access                     = "Allow"
     destination_address_prefix = "*"
