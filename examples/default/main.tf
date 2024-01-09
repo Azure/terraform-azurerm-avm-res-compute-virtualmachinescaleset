@@ -138,7 +138,7 @@ resource "tls_private_key" "example_ssh" {
 }
 
 # This is the module call
-module "terraform-azurerm-avm-res-compute-virtualmachinescaleset" {
+module "terraform_azurerm_avm_res_compute_virtualmachinescaleset" {
   source = "../../"
   # source             = "Azure/avm-res-compute-virtualmachinescaleset/azurerm"
   name                        = module.naming.virtual_machine_scale_set.name_unique
@@ -214,17 +214,17 @@ output "resource_group_name" {
 }
 
 output "virtual_machine_scale_set_id" {
-  value       = module.terraform-azurerm-avm-res-compute-virtualmachinescaleset.resource_id
+  value       = module.terraform_azurerm_avm_res_compute_virtualmachinescaleset.resource_id
   description = "The ID of the Virtual Machine Scale Set."
 }
 
 output "virtual_machine_scale_set_name" {
-  value       = module.terraform-azurerm-avm-res-compute-virtualmachinescaleset.resource_name
+  value       = module.terraform_azurerm_avm_res_compute_virtualmachinescaleset.resource_name
   description = "The name of the Virtual Machine Scale Set."
 }
 
 output "virtual_machine_scale_set" {
-  value       = module.terraform-azurerm-avm-res-compute-virtualmachinescaleset.resource
+  value       = module.terraform_azurerm_avm_res_compute_virtualmachinescaleset.resource
   sensitive   = true
   description = "All attributes of the Virtual Machine Scale Set resource."
 }
