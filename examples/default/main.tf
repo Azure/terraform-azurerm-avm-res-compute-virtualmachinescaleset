@@ -1,41 +1,3 @@
-terraform {
-  required_version = ">= 1.0.0"
-  required_providers {
-    azurerm = {
-      source  = "hashicorp/azurerm"
-      version = ">= 3.85, < 4.0"
-    }
-    tls = {
-      source  = "hashicorp/tls"
-      version = "4.0.5"
-    }
-  }
-}
-
-provider "azurerm" {
-  features {
-    resource_group {
-      prevent_deletion_if_contains_resources = false
-    }
-  }
-}
-
-variable "enable_telemetry" {
-  type        = bool
-  default     = true
-  description = <<DESCRIPTION
-This variable controls whether or not telemetry is enabled for the module.
-For more information see https://aka.ms/avm/telemetryinfo.
-If it is set to false, then no telemetry will be collected.
-DESCRIPTION
-}
-
-# This ensures we have unique CAF compliant names for our resources.
-module "naming" {
-  source  = "Azure/naming/azurerm"
-  version = "0.4.0"
-}
-
 # This is required for resource modules
 resource "azurerm_resource_group" "this" {
   location = "eastus"
@@ -209,29 +171,5 @@ SETTINGS
   depends_on = [azurerm_subnet_nat_gateway_association.this]
 }
 
-output "location" {
-  value       = azurerm_resource_group.this.location
-  description = "The deployment region."
-}
 
-output "resource_group_name" {
-  value       = azurerm_resource_group.this.name
-  description = "The name of the Resource Group."
-}
-
-output "virtual_machine_scale_set_id" {
-  value       = module.terraform_azurerm_avm_res_compute_virtualmachinescaleset.resource_id
-  description = "The ID of the Virtual Machine Scale Set."
-}
-
-output "virtual_machine_scale_set_name" {
-  value       = module.terraform_azurerm_avm_res_compute_virtualmachinescaleset.resource_name
-  description = "The name of the Virtual Machine Scale Set."
-}
-
-output "virtual_machine_scale_set" {
-  value       = module.terraform_azurerm_avm_res_compute_virtualmachinescaleset.resource
-  sensitive   = true
-  description = "All attributes of the Virtual Machine Scale Set resource."
-}
 
