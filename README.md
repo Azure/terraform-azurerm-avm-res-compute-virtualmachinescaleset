@@ -39,6 +39,12 @@ The following resources are used by this module:
 
 The following input variables are required:
 
+### <a name="input_admin_password"></a> [admin\_password](#input\_admin\_password)
+
+Description: (Optional) Sets the VM password
+
+Type: `string`
+
 ### <a name="input_extension"></a> [extension](#input\_extension)
 
 Description:  - `auto_upgrade_minor_version_enabled` - (Optional) Should the latest version of the Extension be used at Deployment Time, if one is available? This won't auto-update the extension on existing installation. Defaults to `true`.
@@ -125,14 +131,6 @@ object({
     ultra_ssd_enabled = optional(bool)
   })
 ```
-
-Default: `null`
-
-### <a name="input_admin_password"></a> [admin\_password](#input\_admin\_password)
-
-Description: (Optional) Sets the VM password
-
-Type: `string`
 
 Default: `null`
 
