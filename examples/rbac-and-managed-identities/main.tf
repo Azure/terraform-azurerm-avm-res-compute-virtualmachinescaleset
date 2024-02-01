@@ -29,7 +29,7 @@ DESCRIPTION
 # This ensures we have unique CAF compliant names for our resources.
 module "naming" {
   source  = "Azure/naming/azurerm"
-  version = "0.3.0"
+  version = "0.4.0"
 }
 
 # This is required for resource modules
@@ -54,7 +54,7 @@ resource "azurerm_virtual_network" "this" {
 
 resource "azurerm_subnet" "subnet" {
   address_prefixes     = ["10.0.1.0/24"]
-  name                 = "VMSS-Subnet"
+  name                 = module.naming.subnet.name_unique
   resource_group_name  = azurerm_resource_group.this.name
   virtual_network_name = azurerm_virtual_network.this.name
 }
@@ -62,7 +62,7 @@ resource "azurerm_subnet" "subnet" {
 # network security group for the subnet with a rule to allow http, https and ssh traffic
 resource "azurerm_network_security_group" "this" {
   location            = azurerm_resource_group.this.location
-  name                = "myNSG"
+  name                = module.naming.network_security_group.name_unique
   resource_group_name = azurerm_resource_group.this.name
 
   security_rule {
@@ -115,7 +115,7 @@ resource "azurerm_public_ip" "natgwpip" {
 
 resource "azurerm_nat_gateway" "this" {
   location            = azurerm_resource_group.this.location
-  name                = "MyNatGateway"
+  name                = module.naming.nat_gateway.name_unique
   resource_group_name = azurerm_resource_group.this.name
   tags = {
     source = "AVM Sample RBAC and MI Deployment"

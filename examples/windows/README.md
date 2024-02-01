@@ -93,7 +93,7 @@ The following Modules are called:
 
 Source: Azure/naming/azurerm
 
-Version: 0.3.0
+Version: 0.4.0
 
 ### <a name="module_terraform_azurerm_avm_res_compute_virtualmachinescaleset"></a> [terraform\_azurerm\_avm\_res\_compute\_virtualmachinescaleset](#module\_terraform\_azurerm\_avm\_res\_compute\_virtualmachinescaleset)
 
