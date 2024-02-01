@@ -45,6 +45,23 @@ Description: (Optional) Sets the VM password
 
 Type: `string`
 
+### <a name="input_admin_ssh_keys"></a> [admin\_ssh\_keys](#input\_admin\_ssh\_keys)
+
+Description: (Optional) SSH Keys to be used for Linx instances
+- Unique id.  Referenced in the `os_profile` below
+- (Required) The Public Key which should be used for authentication, which needs to be at least 2048-bit and in ssh-rsa format.
+- (Required) The Username for which this Public SSH Key should be configured.
+
+Type:
+
+```hcl
+set(object({
+    id         = string
+    public_key = string
+    username   = string
+  }))
+```
+
 ### <a name="input_extension"></a> [extension](#input\_extension)
 
 Description:  - `auto_upgrade_minor_version_enabled` - (Optional) Should the latest version of the Extension be used at Deployment Time, if one is available? This won't auto-update the extension on existing installation. Defaults to `true`.
@@ -92,6 +109,12 @@ set(object({
   }))
 ```
 
+### <a name="input_extension_protected_setting"></a> [extension\_protected\_setting](#input\_extension\_protected\_setting)
+
+Description: (Optional) A JSON String which specifies Sensitive Settings (such as Passwords) for the Extension.
+
+Type: `map(string)`
+
 ### <a name="input_location"></a> [location](#input\_location)
 
 Description: (Required) The Azure location where the Orchestrated Virtual Machine Scale Set should exist. Changing this forces a new resource to be created.
@@ -116,6 +139,12 @@ Description: (Required) The name of the Resource Group in which the Orchestrated
 
 Type: `string`
 
+### <a name="input_user_data_base64"></a> [user\_data\_base64](#input\_user\_data\_base64)
+
+Description: (Optional) The Base64-Encoded User Data which should be used for this Virtual Machine Scale Set.
+
+Type: `string`
+
 ## Optional Inputs
 
 The following input variables are optional (have default values):
@@ -130,25 +159,6 @@ Type:
 object({
     ultra_ssd_enabled = optional(bool)
   })
-```
-
-Default: `null`
-
-### <a name="input_admin_ssh_keys"></a> [admin\_ssh\_keys](#input\_admin\_ssh\_keys)
-
-Description: (Optional) SSH Keys to be used for Linx instances
-- Unique id.  Referenced in the `os_profile` below
-- (Required) The Public Key which should be used for authentication, which needs to be at least 2048-bit and in ssh-rsa format.
-- (Required) The Username for which this Public SSH Key should be configured.
-
-Type:
-
-```hcl
-set(object({
-    id         = string
-    public_key = string
-    username   = string
-  }))
 ```
 
 Default: `null`
@@ -271,14 +281,6 @@ Description: > Note: `extension_operations_enabled` may only be set to `false` i
 Type: `bool`
 
 Default: `null`
-
-### <a name="input_extension_protected_setting"></a> [extension\_protected\_setting](#input\_extension\_protected\_setting)
-
-Description: (Optional) A JSON String which specifies Sensitive Settings (such as Passwords) for the Extension.
-
-Type: `map(string)`
-
-Default: `{}`
 
 ### <a name="input_extensions_time_budget"></a> [extensions\_time\_budget](#input\_extensions\_time\_budget)
 
@@ -747,14 +749,6 @@ object({
     update = optional(string)
   })
 ```
-
-Default: `null`
-
-### <a name="input_user_data_base64"></a> [user\_data\_base64](#input\_user\_data\_base64)
-
-Description: (Optional) The Base64-Encoded User Data which should be used for this Virtual Machine Scale Set.
-
-Type: `string`
 
 Default: `null`
 

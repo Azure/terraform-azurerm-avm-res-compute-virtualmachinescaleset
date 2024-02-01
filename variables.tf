@@ -95,7 +95,6 @@ variable "admin_ssh_keys" {
     public_key = string
     username   = string
   }))
-  default     = null
   description = <<-EOT
 (Optional) SSH Keys to be used for Linx instances
 - Unique id.  Referenced in the `os_profile` below
@@ -252,7 +251,6 @@ EOT
 
 variable "extension_protected_setting" {
   type        = map(string)
-  default     = {}
   description = "(Optional) A JSON String which specifies Sensitive Settings (such as Passwords) for the Extension."
   sensitive   = true
 }
@@ -769,7 +767,6 @@ EOT
 
 variable "user_data_base64" {
   type        = string
-  default     = null
   description = "(Optional) The Base64-Encoded User Data which should be used for this Virtual Machine Scale Set."
   sensitive   = true
 }
