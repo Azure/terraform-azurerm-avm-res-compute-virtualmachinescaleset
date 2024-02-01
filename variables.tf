@@ -85,7 +85,6 @@ EOT
 
 variable "admin_password" {
   type        = string
-  default     = null
   description = "(Optional) Sets the VM password"
   sensitive   = true
 }
