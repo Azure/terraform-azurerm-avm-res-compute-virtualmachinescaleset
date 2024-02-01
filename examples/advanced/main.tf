@@ -173,6 +173,7 @@ module "terraform_azurerm_avm_res_compute_virtualmachinescaleset" {
   sku_name                    = "Standard_D2s_v4"
   instances                   = 2
   platform_fault_domain_count = 1
+  user_data_base64            = null
   admin_ssh_keys = [(
     {
       id         = tls_private_key.example_ssh.id

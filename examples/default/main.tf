@@ -153,6 +153,8 @@ module "terraform_azurerm_avm_res_compute_virtualmachinescaleset" {
   admin_password              = "P@ssw0rd1234!"
   instances                   = 2
   sku_name                    = "Standard_D2s_v4"
+  extension_protected_setting = {}
+  user_data_base64            = null
   admin_ssh_keys = [(
     {
       id         = tls_private_key.example_ssh.id
