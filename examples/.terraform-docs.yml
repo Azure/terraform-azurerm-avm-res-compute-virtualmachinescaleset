@@ -4,7 +4,7 @@
 
 formatter: "markdown document" # this is required
 
-version: "0.17.0"
+version: "~> 0.17.0"
 
 header-from: "_header.md"
 footer-from: "_footer.md"
@@ -19,6 +19,10 @@ sections:
 
 content: |-
   {{ .Header }}
+
+  ```hcl
+  {{ include "main.tf" }}
+  ```
 
   <!-- markdownlint-disable MD033 -->
   {{ .Requirements }}
@@ -35,7 +39,6 @@ content: |-
   {{ .Modules }}
 
   {{ .Footer }}
-
 output:
   file: README.md
   mode: replace
@@ -60,7 +63,7 @@ settings:
   hide-empty: false
   html: true
   indent: 2
-  lockfile: true
+  lockfile: false
   read-comments: true
   required: true
   sensitive: true
