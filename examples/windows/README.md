@@ -12,7 +12,7 @@ This example demonstrates a standard deployment with Windows VMs.  The deploymen
 ```hcl
 # This is required for resource modules
 resource "azurerm_resource_group" "this" {
-  location = "eastus"
+  location = "westus2"
   name     = module.naming.resource_group.name_unique
   tags = {
     source = "AVM Sample Windows Deployment"

@@ -16,7 +16,7 @@ This example demonstrates a standard deployment of VMSS aligned with reliability
 ```hcl
 # This is required for resource modules
 resource "azurerm_resource_group" "this" {
-  location = "eastus"
+  location = "westus2"
   name     = module.naming.resource_group.name_unique
   tags = {
     source = "AVM Sample Default Deployment"

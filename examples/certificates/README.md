@@ -7,7 +7,7 @@ This example demonstrates how to pull certificates from a Key Vault and send the
 
 # This is required for resource modules
 resource "azurerm_resource_group" "this" {
-  location = "eastus"
+  location = "westus2"
   name     = module.naming.resource_group.name_unique
   tags = {
     scenario = "AVM VMSS Sample Certificates Deployment"
