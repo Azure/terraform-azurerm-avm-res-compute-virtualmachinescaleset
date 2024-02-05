@@ -1,21 +1,204 @@
 <!-- BEGIN_TF_DOCS -->
-# terraform-azurerm-avm-template
+# A Default Virtual Machine Scale Set with RBAC and Managed Identities Deployment
 
-This is a template repo for Terraform Azure Verified Modules.
+This example demonstrates a standard deployment of VMSS with RBAC and Managed Identities.  The deployment includes:
 
-Things to do:
+- a Linux VM
+- a virtual nework with a subnet
+- a NAT gateway
+- a public IP associated to the NAT gateway
+- an SSH key
+- a managed identity
+- role assignments
 
-1. Set up a GitHub repo environment called `test`.
-1. Configure environment protection rule to ensure that approval is required before deploying to this environment.
-1. Create a user-assigned managed identity in your test subscription.
-1. Create a role assignment for the managed identity on your test subscription, use the minimum required role.
-1. Configure federated identity credentials on the user assigned managed identity. Use the GitHub environment.
-1. Create the following environment secrets on the `test` environment:
-   1. AZURE\_CLIENT\_ID
-   1. AZURE\_TENANT\_ID
-   1. AZURE\_SUBSCRIPTION\_ID
+```hcl
+# This is required for resource modules
+resource "azurerm_resource_group" "this" {
+  location = "westus2"
+  name     = module.naming.resource_group.name_unique
+  tags = {
+    source = "AVM Sample RBAC and MI Deployment"
+  }
+}
 
-Major version Zero (0.y.z) is for initial development. Anything MAY change at any time. A module SHOULD NOT be considered stable till at least it is major version one (1.0.0) or greater. Changes will always be via new versions being published and no changes will be made to existing published versions. For more details please go to https://semver.org/
+resource "azurerm_virtual_network" "this" {
+  address_space       = ["10.0.0.0/16"]
+  location            = azurerm_resource_group.this.location
+  name                = module.naming.virtual_network.name_unique
+  resource_group_name = azurerm_resource_group.this.name
+  dns_servers         = ["10.0.0.4", "10.0.0.5"]
+  tags = {
+    source = "AVM Sample RBAC and MI Deployment"
+  }
+}
+
+resource "azurerm_subnet" "subnet" {
+  address_prefixes     = ["10.0.1.0/24"]
+  name                 = module.naming.subnet.name_unique
+  resource_group_name  = azurerm_resource_group.this.name
+  virtual_network_name = azurerm_virtual_network.this.name
+}
+
+# network security group for the subnet with a rule to allow http, https and ssh traffic
+resource "azurerm_network_security_group" "this" {
+  location            = azurerm_resource_group.this.location
+  name                = module.naming.network_security_group.name_unique
+  resource_group_name = azurerm_resource_group.this.name
+
+  security_rule {
+    access                     = "Allow"
+    destination_address_prefix = "*"
+    destination_port_range     = "80"
+    direction                  = "Inbound"
+    name                       = "allow-http"
+    priority                   = 100
+    protocol                   = "Tcp"
+    source_address_prefix      = "*"
+    source_port_range          = "*"
+  }
+  security_rule {
+    access                     = "Allow"
+    destination_address_prefix = "*"
+    destination_port_range     = "443"
+    direction                  = "Inbound"
+    name                       = "allow-https"
+    priority                   = 101
+    protocol                   = "Tcp"
+    source_address_prefix      = "*"
+    source_port_range          = "*"
+  }
+  #ssh security rule
+  security_rule {
+    access                     = "Allow"
+    destination_address_prefix = "*"
+    destination_port_range     = "22"
+    direction                  = "Inbound"
+    name                       = "allow-ssh"
+    priority                   = 102
+    protocol                   = "Tcp"
+    source_address_prefix      = "*"
+    source_port_range          = "*"
+  }
+}
+
+resource "azurerm_public_ip" "natgwpip" {
+  allocation_method   = "Static"
+  location            = azurerm_resource_group.this.location
+  name                = module.naming.public_ip.name_unique
+  resource_group_name = azurerm_resource_group.this.name
+  sku                 = "Standard"
+  tags = {
+    source = "AVM Sample RBAC and MI Deployment"
+  }
+  zones = ["1", "2", "3"]
+}
+
+resource "azurerm_nat_gateway" "this" {
+  location            = azurerm_resource_group.this.location
+  name                = module.naming.nat_gateway.name_unique
+  resource_group_name = azurerm_resource_group.this.name
+  tags = {
+    source = "AVM Sample RBAC and MI Deployment"
+  }
+}
+
+resource "azurerm_nat_gateway_public_ip_association" "this" {
+  nat_gateway_id       = azurerm_nat_gateway.this.id
+  public_ip_address_id = azurerm_public_ip.natgwpip.id
+}
+
+resource "azurerm_subnet_nat_gateway_association" "this" {
+  nat_gateway_id = azurerm_nat_gateway.this.id
+  subnet_id      = azurerm_subnet.subnet.id
+}
+
+resource "tls_private_key" "example_ssh" {
+  algorithm = "RSA"
+  rsa_bits  = 4096
+}
+
+resource "azurerm_user_assigned_identity" "example_identity" {
+  location            = azurerm_resource_group.this.location
+  name                = module.naming.user_assigned_identity.name_unique
+  resource_group_name = azurerm_resource_group.this.name
+  tags = {
+    source = "AVM Sample RBAC and MI Deployment"
+  }
+}
+
+data "azurerm_client_config" "current" {}
+
+# This is the module call
+module "terraform_azurerm_avm_res_compute_virtualmachinescaleset" {
+  source = "../../"
+  # source             = "Azure/avm-res-compute-virtualmachinescaleset/azurerm"
+  name                        = module.naming.virtual_machine_scale_set.name_unique
+  resource_group_name         = azurerm_resource_group.this.name
+  enable_telemetry            = var.enable_telemetry
+  location                    = azurerm_resource_group.this.location
+  platform_fault_domain_count = 1
+  admin_password              = "P@ssw0rd1234!"
+  sku_name                    = "Standard_D2s_v4"
+  instances                   = 2
+  extension_protected_setting = {}
+  user_data_base64            = null
+  admin_ssh_keys = [(
+    {
+      id         = tls_private_key.example_ssh.id
+      public_key = tls_private_key.example_ssh.public_key_openssh
+      username   = "azureuser"
+    }
+  )]
+  network_interface = [{
+    name = "VMSS-NIC"
+    ip_configuration = [{
+      name      = "VMSS-IPConfig"
+      subnet_id = azurerm_subnet.subnet.id
+    }]
+  }]
+  os_profile = {
+    linux_configuration = {
+      disable_password_authentication = false
+      user_data_base64                = base64encode(file("user-data.sh"))
+      admin_username                  = "azureuser"
+      admin_ssh_key                   = toset([tls_private_key.example_ssh.id])
+      provision_vm_agent              = true
+    }
+  }
+  source_image_reference = {
+    publisher = "Canonical"
+    offer     = "0001-com-ubuntu-server-jammy"
+    sku       = "22_04-LTS-gen2"
+    version   = "latest"
+  }
+  extension = [{
+    name                       = "HealthExtension"
+    publisher                  = "Microsoft.ManagedServices"
+    type                       = "ApplicationHealthLinux"
+    type_handler_version       = "1.0"
+    auto_upgrade_minor_version = true
+    settings                   = <<SETTINGS
+      {
+        "protocol": "http",
+        "port" : 80,
+        "requestPath": "health"
+      }
+  SETTINGS
+  }]
+  role_assignments = {
+    role_assignment = {
+      principal_id               = data.azurerm_client_config.current.object_id
+      role_definition_id_or_name = "Reader"
+      description                = "Assign the Reader role to the deployment user on this virtual machine scale set resource scope."
+    }
+  }
+  tags = {
+    source = "AVM Sample RBAC and MI Deployment"
+  }
+  depends_on = [azurerm_subnet_nat_gateway_association.this]
+}
+
+```
 
 <!-- markdownlint-disable MD033 -->
 ## Requirements
@@ -24,15 +207,17 @@ The following requirements are needed by this module:
 
 - <a name="requirement_terraform"></a> [terraform](#requirement\_terraform) (>= 1.0.0)
 
-- <a name="requirement_azurerm"></a> [azurerm](#requirement\_azurerm) (>= 3.7.0, < 4.0.0)
+- <a name="requirement_azurerm"></a> [azurerm](#requirement\_azurerm) (>= 3.85, < 4.0)
+
+- <a name="requirement_tls"></a> [tls](#requirement\_tls) (4.0.5)
 
 ## Providers
 
 The following providers are used by this module:
 
-- <a name="provider_azurerm"></a> [azurerm](#provider\_azurerm) (>= 3.7.0, < 4.0.0)
+- <a name="provider_azurerm"></a> [azurerm](#provider\_azurerm) (>= 3.85, < 4.0)
 
-- <a name="provider_tls"></a> [tls](#provider\_tls)
+- <a name="provider_tls"></a> [tls](#provider\_tls) (4.0.5)
 
 ## Resources
 
@@ -40,13 +225,14 @@ The following resources are used by this module:
 
 - [azurerm_nat_gateway.this](https://registry.terraform.io/providers/hashicorp/azurerm/latest/docs/resources/nat_gateway) (resource)
 - [azurerm_nat_gateway_public_ip_association.this](https://registry.terraform.io/providers/hashicorp/azurerm/latest/docs/resources/nat_gateway_public_ip_association) (resource)
+- [azurerm_network_security_group.this](https://registry.terraform.io/providers/hashicorp/azurerm/latest/docs/resources/network_security_group) (resource)
 - [azurerm_public_ip.natgwpip](https://registry.terraform.io/providers/hashicorp/azurerm/latest/docs/resources/public_ip) (resource)
 - [azurerm_resource_group.this](https://registry.terraform.io/providers/hashicorp/azurerm/latest/docs/resources/resource_group) (resource)
 - [azurerm_subnet.subnet](https://registry.terraform.io/providers/hashicorp/azurerm/latest/docs/resources/subnet) (resource)
 - [azurerm_subnet_nat_gateway_association.this](https://registry.terraform.io/providers/hashicorp/azurerm/latest/docs/resources/subnet_nat_gateway_association) (resource)
 - [azurerm_user_assigned_identity.example_identity](https://registry.terraform.io/providers/hashicorp/azurerm/latest/docs/resources/user_assigned_identity) (resource)
 - [azurerm_virtual_network.this](https://registry.terraform.io/providers/hashicorp/azurerm/latest/docs/resources/virtual_network) (resource)
-- [tls_private_key.example_ssh](https://registry.terraform.io/providers/hashicorp/tls/latest/docs/resources/private_key) (resource)
+- [tls_private_key.example_ssh](https://registry.terraform.io/providers/hashicorp/tls/4.0.5/docs/resources/private_key) (resource)
 - [azurerm_client_config.current](https://registry.terraform.io/providers/hashicorp/azurerm/latest/docs/data-sources/client_config) (data source)
 
 <!-- markdownlint-disable MD013 -->
@@ -74,19 +260,23 @@ The following outputs are exported:
 
 ### <a name="output_location"></a> [location](#output\_location)
 
-Description: n/a
+Description: The deployment region.
 
 ### <a name="output_resource_group_name"></a> [resource\_group\_name](#output\_resource\_group\_name)
 
-Description: n/a
+Description: The name of the Resource Group.
+
+### <a name="output_virtual_machine_scale_set"></a> [virtual\_machine\_scale\_set](#output\_virtual\_machine\_scale\_set)
+
+Description: All attributes of the Virtual Machine Scale Set resource.
 
 ### <a name="output_virtual_machine_scale_set_id"></a> [virtual\_machine\_scale\_set\_id](#output\_virtual\_machine\_scale\_set\_id)
 
-Description: n/a
+Description: The ID of the Virtual Machine Scale Set.
 
-### <a name="output_virtual_machine_scale_set_unique_id"></a> [virtual\_machine\_scale\_set\_unique\_id](#output\_virtual\_machine\_scale\_set\_unique\_id)
+### <a name="output_virtual_machine_scale_set_name"></a> [virtual\_machine\_scale\_set\_name](#output\_virtual\_machine\_scale\_set\_name)
 
-Description: n/a
+Description: The name of the Virtual Machine Scale Set.
 
 ## Modules
 
@@ -96,9 +286,9 @@ The following Modules are called:
 
 Source: Azure/naming/azurerm
 
-Version: 0.3.0
+Version: 0.4.0
 
-### <a name="module_terraform-azurerm-avm-res-compute-virtualmachinescaleset"></a> [terraform-azurerm-avm-res-compute-virtualmachinescaleset](#module\_terraform-azurerm-avm-res-compute-virtualmachinescaleset)
+### <a name="module_terraform_azurerm_avm_res_compute_virtualmachinescaleset"></a> [terraform\_azurerm\_avm\_res\_compute\_virtualmachinescaleset](#module\_terraform\_azurerm\_avm\_res\_compute\_virtualmachinescaleset)
 
 Source: ../../
 

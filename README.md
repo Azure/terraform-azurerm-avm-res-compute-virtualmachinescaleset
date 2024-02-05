@@ -1,19 +1,5 @@
 <!-- BEGIN_TF_DOCS -->
-# terraform-azurerm-avm-template
-
-This is a template repo for Terraform Azure Verified Modules.
-
-Things to do:
-
-1. Set up a GitHub repo environment called `test`.
-1. Configure environment protection rule to ensure that approval is required before deploying to this environment.
-1. Create a user-assigned managed identity in your test subscription.
-1. Create a role assignment for the managed identity on your test subscription, use the minimum required role.
-1. Configure federated identity credentials on the user assigned managed identity. Use the GitHub environment.
-1. Create the following environment secrets on the `test` environment:
-   1. AZURE\_CLIENT\_ID
-   1. AZURE\_TENANT\_ID
-   1. AZURE\_SUBSCRIPTION\_ID
+# terraform-azurerm-avm-res-compute-virtualmachinescaleset
 
 Major version Zero (0.y.z) is for initial development. Anything MAY change at any time. A module SHOULD NOT be considered stable till at least it is major version one (1.0.0) or greater. Changes will always be via new versions being published and no changes will be made to existing published versions. For more details please go to https://semver.org/
 
@@ -26,17 +12,17 @@ The following requirements are needed by this module:
 
 - <a name="requirement_terraform"></a> [terraform](#requirement\_terraform) (>= 1.0.0)
 
-- <a name="requirement_azurerm"></a> [azurerm](#requirement\_azurerm) (>= 3.81.0)
+- <a name="requirement_azurerm"></a> [azurerm](#requirement\_azurerm) (>= 3.85, < 4.0)
 
-- <a name="requirement_random"></a> [random](#requirement\_random) (>= 3.5.1)
+- <a name="requirement_random"></a> [random](#requirement\_random) (>= 3.6.0)
 
 ## Providers
 
 The following providers are used by this module:
 
-- <a name="provider_azurerm"></a> [azurerm](#provider\_azurerm) (>= 3.81.0)
+- <a name="provider_azurerm"></a> [azurerm](#provider\_azurerm) (>= 3.85, < 4.0)
 
-- <a name="provider_random"></a> [random](#provider\_random) (>= 3.5.1)
+- <a name="provider_random"></a> [random](#provider\_random) (>= 3.6.0)
 
 ## Resources
 
@@ -52,6 +38,82 @@ The following resources are used by this module:
 ## Required Inputs
 
 The following input variables are required:
+
+### <a name="input_admin_password"></a> [admin\_password](#input\_admin\_password)
+
+Description: (Optional) Sets the VM password
+
+Type: `string`
+
+### <a name="input_admin_ssh_keys"></a> [admin\_ssh\_keys](#input\_admin\_ssh\_keys)
+
+Description: (Optional) SSH Keys to be used for Linx instances
+- Unique id.  Referenced in the `os_profile` below
+- (Required) The Public Key which should be used for authentication, which needs to be at least 2048-bit and in ssh-rsa format.
+- (Required) The Username for which this Public SSH Key should be configured.
+
+Type:
+
+```hcl
+set(object({
+    id         = string
+    public_key = string
+    username   = string
+  }))
+```
+
+### <a name="input_extension"></a> [extension](#input\_extension)
+
+Description:  - `auto_upgrade_minor_version_enabled` - (Optional) Should the latest version of the Extension be used at Deployment Time, if one is available? This won't auto-update the extension on existing installation. Defaults to `true`.
+ - `extensions_to_provision_after_vm_creation` - (Optional) An set of Extension names which Orchestrated Virtual Machine Scale Set should provision after VM creation.
+ - `failure_suppression_enabled` - (Optional) Should failures from the extension be suppressed? Possible values are `true` or `false`.
+
+> Note: Operational failures such as not connecting to the VM will not be suppressed regardless of the `failure_suppression_enabled` value.
+
+ - `force_extension_execution_on_change` - (Optional) A value which, when different to the previous value can be used to force-run the Extension even if the Extension Configuration hasn't changed.
+ - `name` - (Required) The name for the Virtual Machine Scale Set Extension.
+
+ > Note: Keys within the `protected_settings` block are notoriously case-sensitive, where the casing required (e.g. TitleCase vs snakeCase) depends on the Extension being used. Please refer to the documentation for the specific Orchestrated Virtual Machine Extension you're looking to use for more information.
+
+ - `publisher` - (Required) Specifies the Publisher of the Extension.
+ - `settings` - (Optional) A JSON String which specifies Settings for the Extension.
+ - `type` - (Required) Specifies the Type of the Extension.
+ - `type_handler_version` - (Required) Specifies the version of the extension to use, available versions can be found using the Azure CLI.
+
+ ---
+ `protected_settings_from_key_vault` block supports the following:
+ - `secret_url` - (Required) The URL to the Key Vault Secret which stores the protected settings.
+ - `source_vault_id` - (Required) The ID of the source Key Vault.
+
+A Health Extension is deployed by default as per [WAF guidelines](https://learn.microsoft.com/en-us/azure/reliability/reliability-virtual-machine-scale-sets?tabs=graph-4%2Cgraph-1%2Cgraph-2%2Cgraph-3%2Cgraph-5%2Cgraph-6%2Cportal#monitoring).
+
+> Note: `protected_settings_from_key_vault` cannot be used with `protected_settings`
+
+Type:
+
+```hcl
+set(object({
+    auto_upgrade_minor_version_enabled        = optional(bool)
+    extensions_to_provision_after_vm_creation = optional(set(string))
+    failure_suppression_enabled               = optional(bool)
+    force_extension_execution_on_change       = optional(string)
+    name                                      = string
+    publisher                                 = string
+    settings                                  = optional(string)
+    type                                      = string
+    type_handler_version                      = string
+    protected_settings_from_key_vault = optional(object({
+      secret_url      = string
+      source_vault_id = string
+    }), null)
+  }))
+```
+
+### <a name="input_extension_protected_setting"></a> [extension\_protected\_setting](#input\_extension\_protected\_setting)
+
+Description: (Optional) A JSON String which specifies Sensitive Settings (such as Passwords) for the Extension.
+
+Type: `map(string)`
 
 ### <a name="input_location"></a> [location](#input\_location)
 
@@ -74,6 +136,12 @@ Type: `number`
 ### <a name="input_resource_group_name"></a> [resource\_group\_name](#input\_resource\_group\_name)
 
 Description: (Required) The name of the Resource Group in which the Orchestrated Virtual Machine Scale Set should exist. Changing this forces a new resource to be created.
+
+Type: `string`
+
+### <a name="input_user_data_base64"></a> [user\_data\_base64](#input\_user\_data\_base64)
+
+Description: (Optional) The Base64-Encoded User Data which should be used for this Virtual Machine Scale Set.
 
 Type: `string`
 
@@ -113,7 +181,13 @@ object({
   })
 ```
 
-Default: `true`
+Default:
+
+```json
+{
+  "enabled": true
+}
+```
 
 ### <a name="input_boot_diagnostics"></a> [boot\_diagnostics](#input\_boot\_diagnostics)
 
@@ -157,7 +231,7 @@ Description:  - `caching` - (Required) The type of Caching which should be used 
 Type:
 
 ```hcl
-list(object({
+set(object({
     caching                        = string
     create_option                  = optional(string)
     disk_encryption_set_id         = optional(string)
@@ -199,55 +273,6 @@ Type: `string`
 
 Default: `null`
 
-### <a name="input_extension"></a> [extension](#input\_extension)
-
-Description:  - `auto_upgrade_minor_version_enabled` - (Optional) Should the latest version of the Extension be used at Deployment Time, if one is available? This won't auto-update the extension on existing installation. Defaults to `true`.
- - `extensions_to_provision_after_vm_creation` - (Optional) An ordered list of Extension names which Orchestrated Virtual Machine Scale Set should provision after VM creation.
- - `failure_suppression_enabled` - (Optional) Should failures from the extension be suppressed? Possible values are `true` or `false`.
-
-> Note: Operational failures such as not connecting to the VM will not be suppressed regardless of the `failure_suppression_enabled` value.
-
- - `force_extension_execution_on_change` - (Optional) A value which, when different to the previous value can be used to force-run the Extension even if the Extension Configuration hasn't changed.
- - `name` - (Required) The name for the Virtual Machine Scale Set Extension.
- - `protected_settings` - (Optional) A JSON String which specifies Sensitive Settings (such as Passwords) for the Extension.
-
- > Note: Keys within the `protected_settings` block are notoriously case-sensitive, where the casing required (e.g. TitleCase vs snakeCase) depends on the Extension being used. Please refer to the documentation for the specific Orchestrated Virtual Machine Extension you're looking to use for more information.
-
- - `publisher` - (Required) Specifies the Publisher of the Extension.
- - `settings` - (Optional) A JSON String which specifies Settings for the Extension.
- - `type` - (Required) Specifies the Type of the Extension.
- - `type_handler_version` - (Required) Specifies the version of the extension to use, available versions can be found using the Azure CLI.
-
- ---
- `protected_settings_from_key_vault` block supports the following:
- - `secret_url` - (Required) The URL to the Key Vault Secret which stores the protected settings.
- - `source_vault_id` - (Required) The ID of the source Key Vault.
-
-> Note: `protected_settings_from_key_vault` cannot be used with `protected_settings`
-
-Type:
-
-```hcl
-set(object({
-    auto_upgrade_minor_version_enabled        = optional(bool)
-    extensions_to_provision_after_vm_creation = optional(list(string))
-    failure_suppression_enabled               = optional(bool)
-    force_extension_execution_on_change       = optional(string)
-    name                                      = string
-    protected_settings                        = optional(string)
-    publisher                                 = string
-    settings                                  = optional(string)
-    type                                      = string
-    type_handler_version                      = string
-    protected_settings_from_key_vault = optional(object({
-      secret_url      = string
-      source_vault_id = string
-    }))
-  }))
-```
-
-Default: `null`
-
 ### <a name="input_extension_operations_enabled"></a> [extension\_operations\_enabled](#input\_extension\_operations\_enabled)
 
 Description: > Note: `extension_operations_enabled` may only be set to `false` if there are no extensions defined in the `extension` field.
@@ -267,7 +292,7 @@ Default: `null`
 
 ### <a name="input_identity"></a> [identity](#input\_identity)
 
-Description: - `identity_ids` - (Required) Specifies a list of User Managed Identity IDs to be assigned to this Orchestrated Windows Virtual Machine Scale Set.
+Description: - `identity_ids` - (Required) Specifies a set of User Managed Identity IDs to be assigned to this Orchestrated Windows Virtual Machine Scale Set.
 - `type` - (Required) The type of Managed Identity that should be configured on this Orchestrated Windows Virtual Machine Scale Set. Only possible value is `UserAssigned`.
 
 Type:
@@ -312,21 +337,6 @@ object({
 
 Default: `{}`
 
-### <a name="input_managed_identities"></a> [managed\_identities](#input\_managed\_identities)
-
-Description: The managed identities to assign to the Virtual Machine Scale Set.
-
-Type:
-
-```hcl
-object({
-    system_assigned            = optional(bool, false) # System Assigned Managed Identity is not supported on VMSS
-    user_assigned_resource_ids = optional(set(string), [])
-  })
-```
-
-Default: `null`
-
 ### <a name="input_max_bid_price"></a> [max\_bid\_price](#input\_max\_bid\_price)
 
 Description: (Optional) The maximum price you're willing to pay for each Orchestrated Virtual Machine in this Scale Set, in US Dollars; which must be greater than the current spot price. If this bid price falls below the current spot price the Virtual Machines in the Scale Set will be evicted using the eviction\_policy. Defaults to `-1`, which means that each Virtual Machine in the Orchestrated Scale Set should not be evicted for price reasons.  See this reference for more details: [Pricing](https://learn.microsoft.com/en-us/azure/virtual-machines/spot-vms#pricing)
@@ -337,7 +347,7 @@ Default: `-1`
 
 ### <a name="input_network_interface"></a> [network\_interface](#input\_network\_interface)
 
-Description:  - `dns_servers` - (Optional) A list of IP Addresses of DNS Servers which should be assigned to the Network Interface.
+Description:  - `dns_servers` - (Optional) A set of IP Addresses of DNS Servers which should be assigned to the Network Interface.
  - `enable_accelerated_networking` - (Optional) Does this Network Interface support Accelerated Networking? Possible values are `true` and `false`. Defaults to `false`.
  - `enable_ip_forwarding` - (Optional) Does this Network Interface support IP Forwarding? Possible values are `true` and `false`. Defaults to `false`.
  - `name` - (Required) The Name which should be used for this Network Interface. Changing this forces a new resource to be created.
@@ -346,9 +356,9 @@ Description:  - `dns_servers` - (Optional) A list of IP Addresses of DNS Servers
 
  ---
  `ip_configuration` block supports the following:
- - `application_gateway_backend_address_pool_ids` - (Optional) A list of Backend Address Pools IDs from a Application Gateway which this Orchestrated Virtual Machine Scale Set should be connected to.
- - `application_security_group_ids` - (Optional) A list of Application Security Group IDs which this Orchestrated Virtual Machine Scale Set should be connected to.
- - `load_balancer_backend_address_pool_ids` - (Optional) A list of Backend Address Pools IDs from a Load Balancer which this Orchestrated Virtual Machine Scale Set should be connected to.
+ - `application_gateway_backend_address_pool_ids` - (Optional) A set of Backend Address Pools IDs from a Application Gateway which this Orchestrated Virtual Machine Scale Set should be connected to.
+ - `application_security_group_ids` - (Optional) A set of Application Security Group IDs which this Orchestrated Virtual Machine Scale Set should be connected to.
+ - `load_balancer_backend_address_pool_ids` - (Optional) A set of Backend Address Pools IDs from a Load Balancer which this Orchestrated Virtual Machine Scale Set should be connected to.
 
 > Note: When using this field you'll also need to configure a Rule for the Load Balancer, and use a depends\_on between this resource and the Load Balancer Rule.
 
@@ -380,14 +390,14 @@ Description:  - `dns_servers` - (Optional) A list of IP Addresses of DNS Servers
 Type:
 
 ```hcl
-list(object({
-    dns_servers                   = optional(list(string))
+set(object({
+    dns_servers                   = optional(set(string))
     enable_accelerated_networking = optional(bool)
     enable_ip_forwarding          = optional(bool)
     name                          = string
     network_security_group_id     = optional(string)
     primary                       = optional(bool)
-    ip_configuration = list(object({
+    ip_configuration = set(object({
       application_gateway_backend_address_pool_ids = optional(set(string))
       application_security_group_ids               = optional(set(string))
       load_balancer_backend_address_pool_ids       = optional(set(string))
@@ -395,14 +405,14 @@ list(object({
       primary                                      = optional(bool)
       subnet_id                                    = optional(string)
       version                                      = optional(string)
-      public_ip_address = optional(list(object({
+      public_ip_address = optional(set(object({
         domain_name_label       = optional(string)
         idle_timeout_in_minutes = optional(number)
         name                    = string
         public_ip_prefix_id     = optional(string)
         sku_name                = optional(string)
         version                 = optional(string)
-        ip_tag = optional(list(object({
+        ip_tag = optional(set(object({
           tag  = string
           type = string
         })))
@@ -442,7 +452,14 @@ object({
   })
 ```
 
-Default: `null`
+Default:
+
+```json
+{
+  "caching": "ReadWrite",
+  "storage_account_type": "Premium_LRS"
+}
+```
 
 ### <a name="input_os_profile"></a> [os\_profile](#input\_os\_profile)
 
@@ -454,7 +471,6 @@ Description: Configure the operating system provile.
 
  ---
  `linux_configuration` block supports the following:
- - `admin_password` - (Optional) The Password which should be used for the local-administrator on this Virtual Machine. Changing this forces a new resource to be created.
  - `admin_username` - (Required) The username of the local administrator on each Orchestrated Virtual Machine Scale Set instance. Changing this forces a new resource to be created.
  - `computer_name_prefix` - (Optional) The prefix which should be used for the name of the Virtual Machines in this Scale Set. If unspecified this defaults to the value for the name field. If the value of the name field is not a valid `computer_name_prefix`, then you must specify `computer_name_prefix`. Changing this forces a new resource to be created.
  - `disable_password_authentication` - (Optional) When an `admin_password` is specified `disable_password_authentication` must be set to `false`. Defaults to `true`.
@@ -472,9 +488,7 @@ Description: Configure the operating system provile.
  - `provision_vm_agent` - (Optional) Should the Azure VM Agent be provisioned on each Virtual Machine in the Scale Set? Defaults to `true`. Changing this value forces a new resource to be created.
 
  ---
- `admin_ssh_key` block supports the following:
- - `public_key` - (Required) The Public Key which should be used for authentication, which needs to be at least 2048-bit and in ssh-rsa format.
- - `username` - (Required) The Username for which this Public SSH Key should be configured.
+ `admin_ssh_key_id` Set of ids which reference the `admin_ssh_keys` sensitive variable
 
  > Note: The Azure VM Agent only allows creating SSH Keys at the path `/home/{username}/.ssh/authorized_keys` - as such this public key will be written to the authorized keys file.
 
@@ -490,7 +504,6 @@ Description: Configure the operating system provile.
 
 ---
  `windows_configuration` block supports the following:
- - `admin_password` - (Required) The Password which should be used for the local-administrator on this Virtual Machine. Changing this forces a new resource to be created.
  - `admin_username` - (Required) The username of the local administrator on each Orchestrated Virtual Machine Scale Set instance. Changing this forces a new resource to be created.
  - `computer_name_prefix` - (Optional) The prefix which should be used for the name of the Virtual Machines in this Scale Set. If unspecified this defaults to the value for the `name` field. If the value of the `name` field is not a valid `computer_name_prefix`, then you must specify `computer_name_prefix`. Changing this forces a new resource to be created.
  - `enable_automatic_updates` - (Optional) Are automatic updates enabled for this Virtual Machine? Defaults to `true`.
@@ -531,18 +544,14 @@ Type:
 object({
     custom_data = optional(string)
     linux_configuration = optional(object({
-      admin_password                  = optional(string)
       admin_username                  = string
       computer_name_prefix            = optional(string)
       disable_password_authentication = optional(bool)
       patch_assessment_mode           = optional(string)
-      patch_mode                      = optional(string)
+      patch_mode                      = optional(string, "AutomaticByPlatform")
       provision_vm_agent              = optional(bool)
-      admin_ssh_key = optional(set(object({
-        public_key = string
-        username   = string
-      })))
-      secret = optional(list(object({
+      admin_ssh_key_id                = optional(set(string))
+      secret = optional(set(object({
         key_vault_id = string
         certificate = set(object({
           url = string
@@ -550,16 +559,15 @@ object({
       })))
     }))
     windows_configuration = optional(object({
-      admin_password           = string
       admin_username           = string
       computer_name_prefix     = optional(string)
-      enable_automatic_updates = optional(bool)
+      enable_automatic_updates = optional(bool, true)
       hotpatching_enabled      = optional(bool)
       patch_assessment_mode    = optional(string)
-      patch_mode               = optional(string)
+      patch_mode               = optional(string, "AutomaticByPlatform")
       provision_vm_agent       = optional(bool)
       timezone                 = optional(string)
-      secret = optional(list(object({
+      secret = optional(set(object({
         key_vault_id = string
         certificate = set(object({
           store = string
@@ -744,14 +752,6 @@ object({
 
 Default: `null`
 
-### <a name="input_user_data_base64"></a> [user\_data\_base64](#input\_user\_data\_base64)
-
-Description: (Optional) The Base64-Encoded User Data which should be used for this Virtual Machine Scale Set.
-
-Type: `string`
-
-Default: `null`
-
 ### <a name="input_zone_balance"></a> [zone\_balance](#input\_zone\_balance)
 
 Description: (Optional) Should the Virtual Machines in this Scale Set be strictly evenly distributed across Availability Zones? Defaults to `false`. Changing this forces a new resource to be created.
@@ -786,11 +786,15 @@ The following outputs are exported:
 
 ### <a name="output_resource"></a> [resource](#output\_resource)
 
-Description: n/a
+Description: All attributes of the Virtual Machine Scale Set resource.
 
-### <a name="output_unique_id"></a> [unique\_id](#output\_unique\_id)
+### <a name="output_resource_id"></a> [resource\_id](#output\_resource\_id)
 
-Description: n/a
+Description: The ID of the Virtual Machine Scale Set.
+
+### <a name="output_resource_name"></a> [resource\_name](#output\_resource\_name)
+
+Description: The name of the Virtual Machine Scale Set.
 
 ## Modules
 
