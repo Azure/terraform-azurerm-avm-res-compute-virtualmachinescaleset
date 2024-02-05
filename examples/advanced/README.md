@@ -172,7 +172,7 @@ module "terraform_azurerm_avm_res_compute_virtualmachinescaleset" {
   eviction_policy = "Deallocate"
   # Instance Placement
   zone_balance                 = false
-  zones                        = ["2"]  # Zone redundancy is preferred
+  zones                        = ["2"] # Zone redundancy is preferred
   proximity_placement_group_id = azurerm_proximity_placement_group.this.id
   single_placement_group       = false
   # Miscellanous settings
