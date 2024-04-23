@@ -1,6 +1,31 @@
+module "regions" {
+  source  = "Azure/regions/azurerm"
+  version = ">= 0.4.0"
+}
+
+locals {
+  test_regions = ["centralus", "eastasia", "westus2", "eastus2", "westeurope", "japaneast"]
+}
+
+resource "random_integer" "region_index" {
+  max = length(local.test_regions) - 1
+  min = 0
+}
+
+resource "random_integer" "zone_index" {
+  max = length(module.regions.regions_by_name[local.test_regions[random_integer.region_index.result]].zones)
+  min = 1
+}
+
+module "get_valid_sku_for_deployment_region" {
+  source = "../../modules/sku_selector"
+
+  deployment_region = local.test_regions[random_integer.region_index.result]
+}
+
 # This is required for resource modules
 resource "azurerm_resource_group" "this" {
-  location = "eastus"
+  location = local.test_regions[random_integer.region_index.result]
   name     = module.naming.resource_group.name_unique
   tags = {
     source = "AVM Sample Default Deployment"
@@ -121,7 +146,7 @@ module "terraform_azurerm_avm_res_compute_virtualmachinescaleset" {
   enable_telemetry            = var.enable_telemetry
   location                    = azurerm_resource_group.this.location
   admin_password              = "P@ssw0rd1234!"
-  sku_name                    = "22_04-LTS-gen2"
+  sku_name                    = module.get_valid_sku_for_deployment_region.sku
   instances                   = 2
   platform_fault_domain_count = 1
   user_data_base64            = null
