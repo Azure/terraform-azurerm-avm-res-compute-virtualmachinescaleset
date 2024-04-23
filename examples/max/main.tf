@@ -121,7 +121,7 @@ module "terraform_azurerm_avm_res_compute_virtualmachinescaleset" {
   enable_telemetry            = var.enable_telemetry
   location                    = azurerm_resource_group.this.location
   admin_password              = "P@ssw0rd1234!"
-  sku_name                    = "Standard_D2s_v4"
+  sku_name                    = "22_04-LTS-gen2"
   instances                   = 2
   platform_fault_domain_count = 1
   user_data_base64            = null
