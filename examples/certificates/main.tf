@@ -1,5 +1,5 @@
 
-# This is required for resource modules
+/*# This is required for resource modules
 resource "azurerm_resource_group" "this" {
   location = "eastus"
   name     = module.naming.resource_group.name_unique
@@ -259,3 +259,4 @@ module "terraform_azurerm_avm_res_compute_virtualmachinescaleset" {
   depends_on = [azurerm_subnet_nat_gateway_association.this]
 }
 
+*/

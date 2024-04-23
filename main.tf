@@ -65,7 +65,7 @@ resource "azurerm_orchestrated_virtual_machine_scale_set" "virtual_machine_scale
       extensions_to_provision_after_vm_creation = extension.value.extensions_to_provision_after_vm_creation
       failure_suppression_enabled               = extension.value.failure_suppression_enabled
       force_extension_execution_on_change       = extension.value.force_extension_execution_on_change
-      protected_settings                        = lookup(var.extension_protected_setting, extension.value.name, null)
+      protected_settings                        = lookup(var.extension_protected_setting, extension.value.name, "")
       settings                                  = extension.value.settings
 
       dynamic "protected_settings_from_key_vault" {
