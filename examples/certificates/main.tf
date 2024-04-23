@@ -1,7 +1,7 @@
 
 # This is required for resource modules
 resource "azurerm_resource_group" "this" {
-  location = "westus2"
+  location = "eastus"
   name     = module.naming.resource_group.name_unique
   tags = {
     scenario = "AVM VMSS Sample Certificates Deployment"
@@ -109,7 +109,7 @@ data "azurerm_client_config" "current" {}
 #create a keyvault for storing the credential with RBAC for the deployment user
 module "avm_res_keyvault_vault" {
   source                 = "Azure/avm-res-keyvault-vault/azurerm"
-  version                = "0.3.0"
+  version                = "0.5.3"
   tenant_id              = data.azurerm_client_config.current.tenant_id
   name                   = module.naming.key_vault.name_unique
   resource_group_name    = azurerm_resource_group.this.name
@@ -205,7 +205,7 @@ module "terraform_azurerm_avm_res_compute_virtualmachinescaleset" {
   location                    = azurerm_resource_group.this.location
   platform_fault_domain_count = 1
   admin_password              = "P@ssw0rd1234!"
-  instances                   = 2
+  instances                   = 1
   sku_name                    = "Standard_D2s_v4"
   extension_protected_setting = {}
   user_data_base64            = null
@@ -245,18 +245,13 @@ module "terraform_azurerm_avm_res_compute_virtualmachinescaleset" {
     version   = "latest"
   }
   extension = [{
-    name                       = "HealthExtension"
-    publisher                  = "Microsoft.ManagedServices"
-    type                       = "ApplicationHealthLinux"
-    type_handler_version       = "1.0"
-    auto_upgrade_minor_version = true
-    settings                   = <<SETTINGS
-      {
-        "protocol": "http",
-        "port" : 80,
-        "requestPath": "health"
-      }
-  SETTINGS
+    name                        = "HealthExtension"
+    publisher                   = "Microsoft.ManagedServices"
+    type                        = "ApplicationHealthLinux"
+    type_handler_version        = "1.0"
+    auto_upgrade_minor_version  = true
+    failure_suppression_enabled = false
+    settings                    = "{\"port\":80,\"protocol\":\"http\",\"requestPath\":\"health\"}"
   }]
   tags = {
     scenario = "AVM VMSS Sample Certificates Deployment"

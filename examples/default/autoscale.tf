@@ -12,7 +12,7 @@ resource "azurerm_monitor_autoscale_setting" "autoscale" {
     capacity {
       default = 2
       maximum = 4
-      minimum = 1
+      minimum = 2
     }
     rule {
       metric_trigger {

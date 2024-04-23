@@ -1,6 +1,6 @@
 # This is required for resource modules
 resource "azurerm_resource_group" "this" {
-  location = "westus2"
+  location = "eastus"
   name     = module.naming.resource_group.name_unique
   tags = {
     source = "AVM Sample RBAC and MI Deployment"
@@ -158,18 +158,13 @@ module "terraform_azurerm_avm_res_compute_virtualmachinescaleset" {
     version   = "latest"
   }
   extension = [{
-    name                       = "HealthExtension"
-    publisher                  = "Microsoft.ManagedServices"
-    type                       = "ApplicationHealthLinux"
-    type_handler_version       = "1.0"
-    auto_upgrade_minor_version = true
-    settings                   = <<SETTINGS
-      {
-        "protocol": "http",
-        "port" : 80,
-        "requestPath": "health"
-      }
-  SETTINGS
+    name                        = "HealthExtension"
+    publisher                   = "Microsoft.ManagedServices"
+    type                        = "ApplicationHealthLinux"
+    type_handler_version        = "1.0"
+    auto_upgrade_minor_version  = true
+    failure_suppression_enabled = false
+    settings                    = "{\"port\":80,\"protocol\":\"http\",\"requestPath\":\"health\"}"
   }]
   role_assignments = {
     role_assignment = {

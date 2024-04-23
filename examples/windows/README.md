@@ -12,7 +12,7 @@ This example demonstrates a standard deployment with Windows VMs.  The deploymen
 ```hcl
 # This is required for resource modules
 resource "azurerm_resource_group" "this" {
-  location = "westus2"
+  location = "eastus"
   name     = module.naming.resource_group.name_unique
   tags = {
     source = "AVM Sample Windows Deployment"
@@ -152,6 +152,15 @@ module "terraform_azurerm_avm_res_compute_virtualmachinescaleset" {
       }]
     }
   }
+  data_disk = [{
+    caching                   = "ReadWrite"
+    create_option             = "Empty"
+    disk_size_gb              = 10
+    lun                       = 0
+    managed_disk_type         = "StandardSSD_LRS"
+    storage_account_type      = "StandardSSD_LRS"
+    write_accelerator_enabled = false
+  }]
   source_image_reference = {
     publisher = "MicrosoftWindowsServer" # 2022-datacenter-azure-edition
     offer     = "WindowsServer"
@@ -159,18 +168,13 @@ module "terraform_azurerm_avm_res_compute_virtualmachinescaleset" {
     version   = "latest"
   }
   extension = [{
-    name                       = "HealthExtension"
-    publisher                  = "Microsoft.ManagedServices"
-    type                       = "ApplicationHealthWindows"
-    type_handler_version       = "1.0"
-    auto_upgrade_minor_version = true
-    settings                   = <<SETTINGS
-    {
-      "protocol": "http",
-      "port" : 80,
-      "requestPath": "/"
-    }
-SETTINGS
+    name                        = "HealthExtension"
+    publisher                   = "Microsoft.ManagedServices"
+    type                        = "ApplicationHealthWindows"
+    type_handler_version        = "1.0"
+    auto_upgrade_minor_version  = true
+    failure_suppression_enabled = false
+    settings                    = "{\"port\":80,\"protocol\":\"http\",\"requestPath\":\"health\"}"
   }]
   tags = {
     source = "AVM Sample Windows Deployment"
@@ -187,7 +191,7 @@ The following requirements are needed by this module:
 
 - <a name="requirement_terraform"></a> [terraform](#requirement\_terraform) (>= 1.0.0)
 
-- <a name="requirement_azurerm"></a> [azurerm](#requirement\_azurerm) (>= 3.85, < 4.0)
+- <a name="requirement_azurerm"></a> [azurerm](#requirement\_azurerm) (>= 3.97.1, < 4.0)
 
 - <a name="requirement_tls"></a> [tls](#requirement\_tls) (4.0.5)
 
@@ -195,7 +199,7 @@ The following requirements are needed by this module:
 
 The following providers are used by this module:
 
-- <a name="provider_azurerm"></a> [azurerm](#provider\_azurerm) (>= 3.85, < 4.0)
+- <a name="provider_azurerm"></a> [azurerm](#provider\_azurerm) (>= 3.97.1, < 4.0)
 
 - <a name="provider_tls"></a> [tls](#provider\_tls) (4.0.5)
 

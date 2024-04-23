@@ -480,9 +480,9 @@ variable "os_profile" {
       admin_username                  = string
       computer_name_prefix            = optional(string)
       disable_password_authentication = optional(bool)
-      patch_assessment_mode           = optional(string)
+      patch_assessment_mode           = optional(string) //, "AutomaticByPlatform")
       patch_mode                      = optional(string, "AutomaticByPlatform")
-      provision_vm_agent              = optional(bool)
+      provision_vm_agent              = optional(bool, true)
       admin_ssh_key_id                = optional(set(string))
       secret = optional(set(object({
         key_vault_id = string
@@ -496,9 +496,9 @@ variable "os_profile" {
       computer_name_prefix     = optional(string)
       enable_automatic_updates = optional(bool, true)
       hotpatching_enabled      = optional(bool)
-      patch_assessment_mode    = optional(string)
+      patch_assessment_mode    = optional(string) //, "AutomaticByPlatform")
       patch_mode               = optional(string, "AutomaticByPlatform")
-      provision_vm_agent       = optional(bool)
+      provision_vm_agent       = optional(bool, true)
       timezone                 = optional(string)
       secret = optional(set(object({
         key_vault_id = string
@@ -529,11 +529,11 @@ Configure the operating system provile.
 
 > Note: Either `admin_password` or `admin_ssh_key` must be specified.
 
- - `patch_assessment_mode` - (Optional) Specifies the mode of VM Guest Patching for the virtual machines that are associated to the Orchestrated Virtual Machine Scale Set. Possible values are `AutomaticByPlatform` or `ImageDefault`. Defaults to `ImageDefault`.
+ - `patch_assessment_mode` - (Optional) Specifies the mode of VM Guest Patching for the virtual machines that are associated to the Orchestrated Virtual Machine Scale Set. Possible values are `AutomaticByPlatform` or `ImageDefault`. Defaults to `AutomaticByPlatform`.
 
 > Note: If the `patch_assessment_mode` is set to `AutomaticByPlatform` then the `provision_vm_agent` field must be set to true.
 
- - `patch_mode` - (Optional) Specifies the mode of in-guest patching of this Windows Virtual Machine. Possible values are `ImageDefault` or `AutomaticByPlatform`. Defaults to `ImageDefault`. For more information on patch modes please see the [product documentation](https://docs.microsoft.com/azure/virtual-machines/automatic-vm-guest-patching#patch-orchestration-modes).
+ - `patch_mode` - (Optional) Specifies the mode of in-guest patching of this Windows Virtual Machine. Possible values are `ImageDefault` or `AutomaticByPlatform`. Defaults to `AutomaticByPlatform`. For more information on patch modes please see the [product documentation](https://docs.microsoft.com/azure/virtual-machines/automatic-vm-guest-patching#patch-orchestration-modes).
 
 > Note: If `patch_mode` is set to `AutomaticByPlatform` the `provision_vm_agent` must be set to `true` and the `extension` must contain at least one application health extension. 
 

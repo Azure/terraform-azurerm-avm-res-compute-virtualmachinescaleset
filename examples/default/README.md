@@ -16,7 +16,7 @@ This example demonstrates a standard deployment of VMSS aligned with reliability
 ```hcl
 # This is required for resource modules
 resource "azurerm_resource_group" "this" {
-  location = "westus2"
+  location = "eastus"
   name     = module.naming.resource_group.name_unique
   tags = {
     source = "AVM Sample Default Deployment"
@@ -153,7 +153,6 @@ module "terraform_azurerm_avm_res_compute_virtualmachinescaleset" {
       user_data_base64                = base64encode(file("user-data.sh"))
       admin_username                  = "azureuser"
       admin_ssh_key                   = toset([tls_private_key.example_ssh.id])
-      provision_vm_agent              = true
     }
   }
   source_image_reference = {
@@ -163,18 +162,13 @@ module "terraform_azurerm_avm_res_compute_virtualmachinescaleset" {
     version   = "latest"
   }
   extension = [{
-    name                       = "HealthExtension"
-    publisher                  = "Microsoft.ManagedServices"
-    type                       = "ApplicationHealthLinux"
-    type_handler_version       = "1.0"
-    auto_upgrade_minor_version = true
-    settings                   = <<SETTINGS
-    {
-      "protocol": "http",
-      "port" : 80,
-      "requestPath": "health"
-    }
-SETTINGS
+    name                        = "HealthExtension"
+    publisher                   = "Microsoft.ManagedServices"
+    type                        = "ApplicationHealthLinux"
+    type_handler_version        = "1.0"
+    auto_upgrade_minor_version  = true
+    failure_suppression_enabled = false
+    settings                    = "{\"port\":80,\"protocol\":\"http\",\"requestPath\":\"health\"}"
   }]
   tags = {
     source = "AVM Sample Default Deployment"
