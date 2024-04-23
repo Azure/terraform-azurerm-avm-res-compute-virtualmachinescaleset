@@ -1,6 +1,6 @@
 # This is required for resource modules
 resource "azurerm_resource_group" "this" {
-  location = "westus2"
+  location = "eastus"
   name     = module.naming.resource_group.name_unique
   tags = {
     source = "AVM Sample Default Deployment"
