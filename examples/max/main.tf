@@ -27,6 +27,7 @@ resource "azurerm_network_security_group" "this" {
   location            = azurerm_resource_group.this.location
   name                = module.naming.network_security_group.name_unique
   resource_group_name = azurerm_resource_group.this.name
+
   security_rule {
     access                     = "Allow"
     destination_address_prefix = "*"
@@ -175,23 +176,23 @@ module "terraform_azurerm_avm_res_compute_virtualmachinescaleset" {
   }]
   # Extensions
   extension = [{
-    name                       = "CustomScriptExtension"
-    publisher                  = "Microsoft.Azure.Extensions"
-    type                       = "CustomScript"
-    type_handler_version       = "2.0"
-    auto_upgrade_minor_version = true
+    name                        = "CustomScriptExtension"
+    publisher                   = "Microsoft.Azure.Extensions"
+    type                        = "CustomScript"
+    type_handler_version        = "2.0"
+    auto_upgrade_minor_version  = true
     failure_suppression_enabled = false
-    settings                   = "{\"commandToExecute\":\"echo 'Hello World!' \\u003e /tmp/hello.txt\"}"
+    settings                    = "{\"commandToExecute\":\"echo 'Hello World!' \\u003e /tmp/hello.txt\"}"
     },
     {
-      name                       = "HealthExtension"
-      publisher                  = "Microsoft.ManagedServices"
-      type                       = "ApplicationHealthLinux"
-      type_handler_version       = "1.0"
-      auto_upgrade_minor_version = true
-      failure_suppression_enabled = false
+      name                                = "HealthExtension"
+      publisher                           = "Microsoft.ManagedServices"
+      type                                = "ApplicationHealthLinux"
+      type_handler_version                = "1.0"
+      auto_upgrade_minor_version          = true
+      failure_suppression_enabled         = false
       force_extension_execution_on_change = ""
-      settings                   = "{\"port\":80,\"protocol\":\"http\",\"requestPath\":\"health\"}"
+      settings                            = "{\"port\":80,\"protocol\":\"http\",\"requestPath\":\"health\"}"
   }]
   # Extension protected settings
   extension_protected_setting = {
