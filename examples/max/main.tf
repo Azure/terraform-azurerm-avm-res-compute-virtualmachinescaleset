@@ -4,7 +4,7 @@ module "regions" {
 }
 
 locals {
-  test_regions = ["centralus", "eastasia", "westus2", "eastus2", "westeurope", "japaneast"]
+  test_regions = ["centralus", "eastasia", "eastus2", "westeurope"]
 }
 
 resource "random_integer" "region_index" {
