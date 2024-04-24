@@ -157,18 +157,18 @@ module "terraform_azurerm_avm_res_compute_virtualmachinescaleset" {
       username   = "azureuser"
     }
   )]
-  # Spot variables
-  priority      = "Spot"
-  max_bid_price = 0.1
-  priority_mix = {
-    low_priority_virtual_machine_scale_set_percentage = 100
-    spot_virtual_machine_scale_set_percentage         = 0
-  }
-  termination_notification = {
-    enabled = true
-    timeout = "PT5M"
-  }
-  eviction_policy = "Deallocate"
+  # Spot variables - Local test only
+  #priority      = "Spot"
+  #max_bid_price = 0.1
+  #priority_mix = {
+  #  low_priority_virtual_machine_scale_set_percentage = 100
+  #  spot_virtual_machine_scale_set_percentage         = 0
+  #}
+  #termination_notification = {
+  #  enabled = true
+  #  timeout = "PT5M"
+  #}
+  #eviction_policy = "Deallocate"
   # Instance Placement
   zone_balance                 = false
   zones                        = ["2"] # Zone redundancy is preferred, changed for max test
