@@ -267,11 +267,12 @@ resource "azurerm_orchestrated_virtual_machine_scale_set" "virtual_machine_scale
 # AVM Required Code
 
 resource "azurerm_management_lock" "this" {
-  count = var.lock.kind != "None" ? 1 : 0
+  count = var.lock != null ? 1 : 0
 
   lock_level = var.lock.kind
-  name       = coalesce(var.lock.name, "lock-${var.name}")
+  name       = coalesce(var.lock.name, "lock-${var.lock.kind}")
   scope      = azurerm_orchestrated_virtual_machine_scale_set.virtual_machine_scale_set.id
+  notes      = var.lock.kind == "CanNotDelete" ? "Cannot delete the resource or its child resources." : "Cannot delete or modify the resource or its child resources."
 }
 
 resource "azurerm_role_assignment" "this" {
