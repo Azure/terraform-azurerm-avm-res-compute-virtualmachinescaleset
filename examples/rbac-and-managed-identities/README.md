@@ -12,13 +12,27 @@ This example demonstrates a standard deployment of VMSS with RBAC and Managed Id
 - role assignments
 
 ```hcl
-/*# This is required for resource modules
+resource "random_integer" "region_index" {
+  max = length(local.test_regions) - 1
+  min = 0
+}
+
+resource "random_integer" "zone_index" {
+  max = length(module.regions.regions_by_name[local.test_regions[random_integer.region_index.result]].zones)
+  min = 1
+}
+
+module "get_valid_sku_for_deployment_region" {
+  source = "../../modules/sku_selector"
+
+  deployment_region = local.test_regions[random_integer.region_index.result]
+}
+
+# This is required for resource modules
 resource "azurerm_resource_group" "this" {
-  location = "eastus"
+  location = local.test_regions[random_integer.region_index.result]
   name     = module.naming.resource_group.name_unique
-  tags = {
-    source = "AVM Sample RBAC and MI Deployment"
-  }
+  tags     = local.tags
 }
 
 resource "azurerm_virtual_network" "this" {
@@ -27,9 +41,7 @@ resource "azurerm_virtual_network" "this" {
   name                = module.naming.virtual_network.name_unique
   resource_group_name = azurerm_resource_group.this.name
   dns_servers         = ["10.0.0.4", "10.0.0.5"]
-  tags = {
-    source = "AVM Sample RBAC and MI Deployment"
-  }
+  tags                = local.tags
 }
 
 resource "azurerm_subnet" "subnet" {
@@ -87,10 +99,8 @@ resource "azurerm_public_ip" "natgwpip" {
   name                = module.naming.public_ip.name_unique
   resource_group_name = azurerm_resource_group.this.name
   sku                 = "Standard"
-  tags = {
-    source = "AVM Sample RBAC and MI Deployment"
-  }
-  zones = ["1", "2", "3"]
+  tags                = local.tags
+  zones               = ["1", "2", "3"]
 }
 
 resource "azurerm_nat_gateway" "this" {
@@ -121,9 +131,7 @@ resource "azurerm_user_assigned_identity" "example_identity" {
   location            = azurerm_resource_group.this.location
   name                = module.naming.user_assigned_identity.name_unique
   resource_group_name = azurerm_resource_group.this.name
-  tags = {
-    source = "AVM Sample RBAC and MI Deployment"
-  }
+  tags                = local.tags
 }
 
 data "azurerm_client_config" "current" {}
@@ -138,7 +146,7 @@ module "terraform_azurerm_avm_res_compute_virtualmachinescaleset" {
   location                    = azurerm_resource_group.this.location
   platform_fault_domain_count = 1
   admin_password              = "P@ssw0rd1234!"
-  sku_name                    = "Standard_D2s_v4"
+  sku_name                    = module.get_valid_sku_for_deployment_region.sku
   instances                   = 2
   extension_protected_setting = {}
   user_data_base64            = null
@@ -187,13 +195,9 @@ module "terraform_azurerm_avm_res_compute_virtualmachinescaleset" {
       description                = "Assign the Reader role to the deployment user on this virtual machine scale set resource scope."
     }
   }
-  tags = {
-    source = "AVM Sample RBAC and MI Deployment"
-  }
+  tags       = local.tags
   depends_on = [azurerm_subnet_nat_gateway_association.this]
 }
-
-*/
 ```
 
 <!-- markdownlint-disable MD033 -->
@@ -203,17 +207,37 @@ The following requirements are needed by this module:
 
 - <a name="requirement_terraform"></a> [terraform](#requirement\_terraform) (>= 1.0.0)
 
-- <a name="requirement_azurerm"></a> [azurerm](#requirement\_azurerm) (>= 3.97.1, < 4.0)
+- <a name="requirement_azurerm"></a> [azurerm](#requirement\_azurerm) (>= 3.100.0, < 4.0)
 
 - <a name="requirement_tls"></a> [tls](#requirement\_tls) (4.0.5)
 
 ## Providers
 
-No providers.
+The following providers are used by this module:
+
+- <a name="provider_azurerm"></a> [azurerm](#provider\_azurerm) (>= 3.100.0, < 4.0)
+
+- <a name="provider_random"></a> [random](#provider\_random)
+
+- <a name="provider_tls"></a> [tls](#provider\_tls) (4.0.5)
 
 ## Resources
 
-No resources.
+The following resources are used by this module:
+
+- [azurerm_nat_gateway.this](https://registry.terraform.io/providers/hashicorp/azurerm/latest/docs/resources/nat_gateway) (resource)
+- [azurerm_nat_gateway_public_ip_association.this](https://registry.terraform.io/providers/hashicorp/azurerm/latest/docs/resources/nat_gateway_public_ip_association) (resource)
+- [azurerm_network_security_group.this](https://registry.terraform.io/providers/hashicorp/azurerm/latest/docs/resources/network_security_group) (resource)
+- [azurerm_public_ip.natgwpip](https://registry.terraform.io/providers/hashicorp/azurerm/latest/docs/resources/public_ip) (resource)
+- [azurerm_resource_group.this](https://registry.terraform.io/providers/hashicorp/azurerm/latest/docs/resources/resource_group) (resource)
+- [azurerm_subnet.subnet](https://registry.terraform.io/providers/hashicorp/azurerm/latest/docs/resources/subnet) (resource)
+- [azurerm_subnet_nat_gateway_association.this](https://registry.terraform.io/providers/hashicorp/azurerm/latest/docs/resources/subnet_nat_gateway_association) (resource)
+- [azurerm_user_assigned_identity.example_identity](https://registry.terraform.io/providers/hashicorp/azurerm/latest/docs/resources/user_assigned_identity) (resource)
+- [azurerm_virtual_network.this](https://registry.terraform.io/providers/hashicorp/azurerm/latest/docs/resources/virtual_network) (resource)
+- [random_integer.region_index](https://registry.terraform.io/providers/hashicorp/random/latest/docs/resources/integer) (resource)
+- [random_integer.zone_index](https://registry.terraform.io/providers/hashicorp/random/latest/docs/resources/integer) (resource)
+- [tls_private_key.example_ssh](https://registry.terraform.io/providers/hashicorp/tls/4.0.5/docs/resources/private_key) (resource)
+- [azurerm_client_config.current](https://registry.terraform.io/providers/hashicorp/azurerm/latest/docs/data-sources/client_config) (data source)
 
 <!-- markdownlint-disable MD013 -->
 ## Required Inputs
@@ -262,11 +286,29 @@ Description: The name of the Virtual Machine Scale Set.
 
 The following Modules are called:
 
+### <a name="module_get_valid_sku_for_deployment_region"></a> [get\_valid\_sku\_for\_deployment\_region](#module\_get\_valid\_sku\_for\_deployment\_region)
+
+Source: ../../modules/sku_selector
+
+Version:
+
 ### <a name="module_naming"></a> [naming](#module\_naming)
 
 Source: Azure/naming/azurerm
 
-Version: 0.4.0
+Version: 0.4.1
+
+### <a name="module_regions"></a> [regions](#module\_regions)
+
+Source: Azure/regions/azurerm
+
+Version: >= 0.4.0
+
+### <a name="module_terraform_azurerm_avm_res_compute_virtualmachinescaleset"></a> [terraform\_azurerm\_avm\_res\_compute\_virtualmachinescaleset](#module\_terraform\_azurerm\_avm\_res\_compute\_virtualmachinescaleset)
+
+Source: ../../
+
+Version:
 
 <!-- markdownlint-disable-next-line MD041 -->
 ## Data Collection

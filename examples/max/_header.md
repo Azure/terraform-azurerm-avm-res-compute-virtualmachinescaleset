@@ -1,6 +1,6 @@
-# A Default Virtual Machine Scale Set Deployment 
+# Max Virtual Machine Scale Set Deployment 
 
-This example demonstrates a standard deployment of VMSS aligned with reliability recommendations from the [Well Architected Framework](https://learn.microsoft.com/en-us/azure/reliability/reliability-virtual-machine-scale-sets?tabs=graph-4%2Cgraph-1%2Cgraph-2%2Cgraph-3%2Cgraph-5%2Cgraph-6%2Cportal).
+This example exercises many of the parameters available in this AVM.  It is not recommended to use this example as a template for you deployment.  Instead use this example to see examples of how to set various variables.
 
 - a Linux VM
 - a virtual network with a subnet
@@ -9,5 +9,6 @@ This example demonstrates a standard deployment of VMSS aligned with reliability
 - an SSH key
 - locking code (commented out)
 - a health extension
-- autoscale
 - availability zones
+- a key vault
+- passing a certificate to a VMSS

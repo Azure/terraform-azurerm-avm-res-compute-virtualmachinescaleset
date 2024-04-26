@@ -1,7 +1,7 @@
 <!-- BEGIN_TF_DOCS -->
-# A Default Virtual Machine Scale Set Deployment
+# Max Virtual Machine Scale Set Deployment
 
-This example demonstrates a standard deployment of VMSS aligned with reliability recommendations from the [Well Architected Framework](https://learn.microsoft.com/en-us/azure/reliability/reliability-virtual-machine-scale-sets?tabs=graph-4%2Cgraph-1%2Cgraph-2%2Cgraph-3%2Cgraph-5%2Cgraph-6%2Cportal).
+This example exercises many of the parameters available in this AVM.  It is not recommended to use this example as a template for you deployment.  Instead use this example to see examples of how to set various variables.
 
 - a Linux VM
 - a virtual network with a subnet
@@ -10,17 +10,32 @@ This example demonstrates a standard deployment of VMSS aligned with reliability
 - an SSH key
 - locking code (commented out)
 - a health extension
-- autoscale
 - availability zones
+- a key vault
+- passing a certificate to a VMSS
 
 ```hcl
+resource "random_integer" "region_index" {
+  max = length(local.test_regions) - 1
+  min = 0
+}
+
+resource "random_integer" "zone_index" {
+  max = length(module.regions.regions_by_name[local.test_regions[random_integer.region_index.result]].zones)
+  min = 1
+}
+
+module "get_valid_sku_for_deployment_region" {
+  source = "../../modules/sku_selector"
+
+  deployment_region = local.test_regions[random_integer.region_index.result]
+}
+
 # This is required for resource modules
 resource "azurerm_resource_group" "this" {
-  location = "westus2"
+  location = local.test_regions[random_integer.region_index.result]
   name     = module.naming.resource_group.name_unique
-  tags = {
-    source = "AVM Sample Default Deployment"
-  }
+  tags     = local.tags
 }
 resource "azurerm_virtual_network" "this" {
   address_space       = ["10.0.0.0/16"]
@@ -28,9 +43,7 @@ resource "azurerm_virtual_network" "this" {
   name                = module.naming.virtual_network.name_unique
   resource_group_name = azurerm_resource_group.this.name
   dns_servers         = ["10.0.0.4", "10.0.0.5"]
-  tags = {
-    source = "AVM Sample Default Deployment"
-  }
+  tags                = local.tags
 }
 resource "azurerm_subnet" "subnet" {
   address_prefixes     = ["10.0.1.0/24"]
@@ -85,18 +98,14 @@ resource "azurerm_public_ip" "natgwpip" {
   name                = module.naming.public_ip.name_unique
   resource_group_name = azurerm_resource_group.this.name
   sku                 = "Standard"
-  tags = {
-    source = "AVM Sample Default Deployment"
-  }
-  zones = ["1", "2", "3"]
+  tags                = local.tags
+  zones               = ["1", "2", "3"]
 }
 resource "azurerm_nat_gateway" "this" {
   location            = azurerm_resource_group.this.location
   name                = module.naming.nat_gateway.name_unique
   resource_group_name = azurerm_resource_group.this.name
-  tags = {
-    source = "AVM Sample Default Deployment"
-  }
+  tags                = local.tags
 }
 resource "azurerm_nat_gateway_public_ip_association" "this" {
   nat_gateway_id       = azurerm_nat_gateway.this.id
@@ -116,18 +125,100 @@ resource "azurerm_storage_account" "this" {
   location                 = azurerm_resource_group.this.location
   name                     = module.naming.storage_account.name_unique
   resource_group_name      = azurerm_resource_group.this.name
-  tags = {
-    source = "AVM Sample Default Deployment"
-  }
+  tags                     = local.tags
 }
 resource "azurerm_proximity_placement_group" "this" {
   location            = azurerm_resource_group.this.location
   name                = module.naming.proximity_placement_group.name_unique
   resource_group_name = azurerm_resource_group.this.name
-  tags = {
-    source = "AVM Sample Default Deployment"
-  }
+  tags                = local.tags
 }
+
+data "azurerm_client_config" "current" {}
+
+#create a keyvault for storing the credential with RBAC for the deployment user
+module "avm_res_keyvault_vault" {
+  source                 = "Azure/avm-res-keyvault-vault/azurerm"
+  version                = "0.5.3"
+  tenant_id              = data.azurerm_client_config.current.tenant_id
+  name                   = module.naming.key_vault.name_unique
+  resource_group_name    = azurerm_resource_group.this.name
+  location               = azurerm_resource_group.this.location
+  enabled_for_deployment = true
+
+  network_acls = {
+    default_action = "Allow"
+    bypass         = "AzureServices"
+  }
+
+  role_assignments = {
+    deployment_user_administrator = {
+      role_definition_id_or_name = "Key Vault Certificates Officer"
+      principal_id               = data.azurerm_client_config.current.object_id
+    }
+  }
+
+  wait_for_rbac_before_secret_operations = {
+    create = "120s"
+  }
+
+  tags = local.tags
+}
+
+resource "time_sleep" "wait_60_seconds" {
+  create_duration = "60s"
+
+  depends_on = [module.avm_res_keyvault_vault]
+}
+
+resource "azurerm_key_vault_certificate" "example" {
+  key_vault_id = module.avm_res_keyvault_vault.resource.id
+  name         = "generated-cert"
+  tags         = local.tags
+
+  certificate_policy {
+    issuer_parameters {
+      name = "Self"
+    }
+    key_properties {
+      exportable = true
+      key_type   = "RSA"
+      reuse_key  = true
+      key_size   = 2048
+    }
+    secret_properties {
+      content_type = "application/x-pkcs12"
+    }
+    lifetime_action {
+      action {
+        action_type = "AutoRenew"
+      }
+      trigger {
+        days_before_expiry = 30
+      }
+    }
+    x509_certificate_properties {
+      key_usage = [
+        "cRLSign",
+        "dataEncipherment",
+        "digitalSignature",
+        "keyAgreement",
+        "keyCertSign",
+        "keyEncipherment",
+      ]
+      subject            = "CN=hello-world"
+      validity_in_months = 12
+      extended_key_usage = ["1.3.6.1.5.5.7.3.1"]
+
+      subject_alternative_names {
+        dns_names = ["internal.contoso.com", "domain.hello.world"]
+      }
+    }
+  }
+
+  depends_on = [time_sleep.wait_60_seconds]
+}
+
 # This is the module call
 module "terraform_azurerm_avm_res_compute_virtualmachinescaleset" {
   source = "../../"
@@ -137,7 +228,7 @@ module "terraform_azurerm_avm_res_compute_virtualmachinescaleset" {
   enable_telemetry            = var.enable_telemetry
   location                    = azurerm_resource_group.this.location
   admin_password              = "P@ssw0rd1234!"
-  sku_name                    = "Standard_D2s_v4"
+  sku_name                    = module.get_valid_sku_for_deployment_region.sku
   instances                   = 2
   platform_fault_domain_count = 1
   user_data_base64            = null
@@ -148,18 +239,18 @@ module "terraform_azurerm_avm_res_compute_virtualmachinescaleset" {
       username   = "azureuser"
     }
   )]
-  # Spot variables
-  priority      = "Spot"
-  max_bid_price = 0.1
-  priority_mix = {
-    low_priority_virtual_machine_scale_set_percentage = 100
-    spot_virtual_machine_scale_set_percentage         = 0
-  }
-  termination_notification = {
-    enabled = true
-    timeout = "PT5M"
-  }
-  eviction_policy = "Deallocate"
+  # Spot variables 
+  #priority      = "Spot"
+  #max_bid_price = 0.1
+  #priority_mix = {
+  #  low_priority_virtual_machine_scale_set_percentage = 100
+  #  spot_virtual_machine_scale_set_percentage         = 0
+  #}
+  #termination_notification = {
+  #  enabled = true
+  #  timeout = "PT5M"
+  #}
+  #eviction_policy = "Deallocate"
   # Instance Placement
   zone_balance                 = false
   zones                        = ["2"] # Zone redundancy is preferred, changed for max test
@@ -222,6 +313,12 @@ module "terraform_azurerm_avm_res_compute_virtualmachinescaleset" {
       computer_name_prefix            = "prefix"
       provision_vm_agent              = true
       admin_ssh_key                   = toset([tls_private_key.example_ssh.id])
+      secret = [{
+        key_vault_id = module.avm_res_keyvault_vault.resource.id
+        certificate = toset([{
+          url = azurerm_key_vault_certificate.example.secret_id
+        }])
+      }]
     }
   }
   source_image_reference = {
@@ -230,9 +327,7 @@ module "terraform_azurerm_avm_res_compute_virtualmachinescaleset" {
     sku       = "22_04-LTS-gen2"
     version   = "latest"
   }
-  tags = {
-    source = "AVM Sample Default Deployment"
-  }
+  tags = local.tags
   # Uncomment the code below to implement a VMSS Lock
   #lock = {
   #  name = "VMSSNoDelete"
@@ -249,7 +344,7 @@ The following requirements are needed by this module:
 
 - <a name="requirement_terraform"></a> [terraform](#requirement\_terraform) (>= 1.0.0)
 
-- <a name="requirement_azurerm"></a> [azurerm](#requirement\_azurerm) (>= 3.85, < 4.0)
+- <a name="requirement_azurerm"></a> [azurerm](#requirement\_azurerm) (>= 3.100.0, < 4.0)
 
 - <a name="requirement_tls"></a> [tls](#requirement\_tls) (4.0.5)
 
@@ -257,7 +352,11 @@ The following requirements are needed by this module:
 
 The following providers are used by this module:
 
-- <a name="provider_azurerm"></a> [azurerm](#provider\_azurerm) (>= 3.85, < 4.0)
+- <a name="provider_azurerm"></a> [azurerm](#provider\_azurerm) (>= 3.100.0, < 4.0)
+
+- <a name="provider_random"></a> [random](#provider\_random)
+
+- <a name="provider_time"></a> [time](#provider\_time)
 
 - <a name="provider_tls"></a> [tls](#provider\_tls) (4.0.5)
 
@@ -265,6 +364,7 @@ The following providers are used by this module:
 
 The following resources are used by this module:
 
+- [azurerm_key_vault_certificate.example](https://registry.terraform.io/providers/hashicorp/azurerm/latest/docs/resources/key_vault_certificate) (resource)
 - [azurerm_nat_gateway.this](https://registry.terraform.io/providers/hashicorp/azurerm/latest/docs/resources/nat_gateway) (resource)
 - [azurerm_nat_gateway_public_ip_association.this](https://registry.terraform.io/providers/hashicorp/azurerm/latest/docs/resources/nat_gateway_public_ip_association) (resource)
 - [azurerm_network_security_group.this](https://registry.terraform.io/providers/hashicorp/azurerm/latest/docs/resources/network_security_group) (resource)
@@ -275,7 +375,11 @@ The following resources are used by this module:
 - [azurerm_subnet.subnet](https://registry.terraform.io/providers/hashicorp/azurerm/latest/docs/resources/subnet) (resource)
 - [azurerm_subnet_nat_gateway_association.this](https://registry.terraform.io/providers/hashicorp/azurerm/latest/docs/resources/subnet_nat_gateway_association) (resource)
 - [azurerm_virtual_network.this](https://registry.terraform.io/providers/hashicorp/azurerm/latest/docs/resources/virtual_network) (resource)
+- [random_integer.region_index](https://registry.terraform.io/providers/hashicorp/random/latest/docs/resources/integer) (resource)
+- [random_integer.zone_index](https://registry.terraform.io/providers/hashicorp/random/latest/docs/resources/integer) (resource)
+- [time_sleep.wait_60_seconds](https://registry.terraform.io/providers/hashicorp/time/latest/docs/resources/sleep) (resource)
 - [tls_private_key.example_ssh](https://registry.terraform.io/providers/hashicorp/tls/4.0.5/docs/resources/private_key) (resource)
+- [azurerm_client_config.current](https://registry.terraform.io/providers/hashicorp/azurerm/latest/docs/data-sources/client_config) (data source)
 
 <!-- markdownlint-disable MD013 -->
 ## Required Inputs
@@ -324,11 +428,29 @@ Description: The name of the Virtual Machine Scale Set.
 
 The following Modules are called:
 
+### <a name="module_avm_res_keyvault_vault"></a> [avm\_res\_keyvault\_vault](#module\_avm\_res\_keyvault\_vault)
+
+Source: Azure/avm-res-keyvault-vault/azurerm
+
+Version: 0.5.3
+
+### <a name="module_get_valid_sku_for_deployment_region"></a> [get\_valid\_sku\_for\_deployment\_region](#module\_get\_valid\_sku\_for\_deployment\_region)
+
+Source: ../../modules/sku_selector
+
+Version:
+
 ### <a name="module_naming"></a> [naming](#module\_naming)
 
 Source: Azure/naming/azurerm
 
-Version: 0.4.0
+Version: 0.4.1
+
+### <a name="module_regions"></a> [regions](#module\_regions)
+
+Source: Azure/regions/azurerm
+
+Version: >= 0.4.0
 
 ### <a name="module_terraform_azurerm_avm_res_compute_virtualmachinescaleset"></a> [terraform\_azurerm\_avm\_res\_compute\_virtualmachinescaleset](#module\_terraform\_azurerm\_avm\_res\_compute\_virtualmachinescaleset)
 

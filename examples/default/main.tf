@@ -1,10 +1,24 @@
-/*# This is required for resource modules
+resource "random_integer" "region_index" {
+  max = length(local.test_regions) - 1
+  min = 0
+}
+
+resource "random_integer" "zone_index" {
+  max = length(module.regions.regions_by_name[local.test_regions[random_integer.region_index.result]].zones)
+  min = 1
+}
+
+module "get_valid_sku_for_deployment_region" {
+  source = "../../modules/sku_selector"
+
+  deployment_region = local.test_regions[random_integer.region_index.result]
+}
+
+# This is required for resource modules
 resource "azurerm_resource_group" "this" {
-  location = "eastus"
+  location = local.test_regions[random_integer.region_index.result]
   name     = module.naming.resource_group.name_unique
-  tags = {
-    source = "AVM Sample Default Deployment"
-  }
+  tags     = local.tags
 }
 
 resource "azurerm_virtual_network" "this" {
@@ -13,9 +27,7 @@ resource "azurerm_virtual_network" "this" {
   name                = module.naming.virtual_network.name_unique
   resource_group_name = azurerm_resource_group.this.name
   dns_servers         = ["10.0.0.4", "10.0.0.5"]
-  tags = {
-    source = "AVM Sample Default Deployment"
-  }
+  tags                = local.tags
 }
 
 resource "azurerm_subnet" "subnet" {
@@ -73,19 +85,15 @@ resource "azurerm_public_ip" "natgwpip" {
   name                = module.naming.public_ip.name_unique
   resource_group_name = azurerm_resource_group.this.name
   sku                 = "Standard"
-  tags = {
-    source = "AVM Sample Default Deployment"
-  }
-  zones = ["1", "2", "3"]
+  tags                = local.tags
+  zones               = ["1", "2", "3"]
 }
 
 resource "azurerm_nat_gateway" "this" {
   location            = azurerm_resource_group.this.location
   name                = module.naming.nat_gateway.name_unique
   resource_group_name = azurerm_resource_group.this.name
-  tags = {
-    source = "AVM Sample Default Deployment"
-  }
+  tags                = local.tags
 }
 
 resource "azurerm_nat_gateway_public_ip_association" "this" {
@@ -114,7 +122,7 @@ module "terraform_azurerm_avm_res_compute_virtualmachinescaleset" {
   platform_fault_domain_count = 1
   admin_password              = "P@ssw0rd1234!"
   instances                   = 2
-  sku_name                    = "Standard_D2s_v4"
+  sku_name                    = module.get_valid_sku_for_deployment_region.sku
   extension_protected_setting = {}
   user_data_base64            = null
   admin_ssh_keys = [(
@@ -154,9 +162,7 @@ module "terraform_azurerm_avm_res_compute_virtualmachinescaleset" {
     failure_suppression_enabled = false
     settings                    = "{\"port\":80,\"protocol\":\"http\",\"requestPath\":\"health\"}"
   }]
-  tags = {
-    source = "AVM Sample Default Deployment"
-  }
+  tags = local.tags
   # Uncomment the code below to implement a VMSS Lock
   #lock = {
   #  name = "VMSSNoDelete"
@@ -164,6 +170,6 @@ module "terraform_azurerm_avm_res_compute_virtualmachinescaleset" {
   #}
   depends_on = [azurerm_subnet_nat_gateway_association.this]
 }
-*/
+
 
 

@@ -1,12 +1,3 @@
-module "regions" {
-  source  = "Azure/regions/azurerm"
-  version = ">= 0.4.0"
-}
-
-locals {
-  test_regions = ["centralus", "eastasia", "eastus2", "westeurope"]
-}
-
 resource "random_integer" "region_index" {
   max = length(local.test_regions) - 1
   min = 0
@@ -27,9 +18,7 @@ module "get_valid_sku_for_deployment_region" {
 resource "azurerm_resource_group" "this" {
   location = local.test_regions[random_integer.region_index.result]
   name     = module.naming.resource_group.name_unique
-  tags = {
-    source = "AVM Sample Default Deployment"
-  }
+  tags     = local.tags
 }
 resource "azurerm_virtual_network" "this" {
   address_space       = ["10.0.0.0/16"]
@@ -37,9 +26,7 @@ resource "azurerm_virtual_network" "this" {
   name                = module.naming.virtual_network.name_unique
   resource_group_name = azurerm_resource_group.this.name
   dns_servers         = ["10.0.0.4", "10.0.0.5"]
-  tags = {
-    source = "AVM Sample Default Deployment"
-  }
+  tags                = local.tags
 }
 resource "azurerm_subnet" "subnet" {
   address_prefixes     = ["10.0.1.0/24"]
@@ -94,18 +81,14 @@ resource "azurerm_public_ip" "natgwpip" {
   name                = module.naming.public_ip.name_unique
   resource_group_name = azurerm_resource_group.this.name
   sku                 = "Standard"
-  tags = {
-    source = "AVM Sample Default Deployment"
-  }
-  zones = ["1", "2", "3"]
+  tags                = local.tags
+  zones               = ["1", "2", "3"]
 }
 resource "azurerm_nat_gateway" "this" {
   location            = azurerm_resource_group.this.location
   name                = module.naming.nat_gateway.name_unique
   resource_group_name = azurerm_resource_group.this.name
-  tags = {
-    source = "AVM Sample Default Deployment"
-  }
+  tags                = local.tags
 }
 resource "azurerm_nat_gateway_public_ip_association" "this" {
   nat_gateway_id       = azurerm_nat_gateway.this.id
@@ -125,18 +108,100 @@ resource "azurerm_storage_account" "this" {
   location                 = azurerm_resource_group.this.location
   name                     = module.naming.storage_account.name_unique
   resource_group_name      = azurerm_resource_group.this.name
-  tags = {
-    source = "AVM Sample Default Deployment"
-  }
+  tags                     = local.tags
 }
 resource "azurerm_proximity_placement_group" "this" {
   location            = azurerm_resource_group.this.location
   name                = module.naming.proximity_placement_group.name_unique
   resource_group_name = azurerm_resource_group.this.name
-  tags = {
-    source = "AVM Sample Default Deployment"
-  }
+  tags                = local.tags
 }
+
+data "azurerm_client_config" "current" {}
+
+#create a keyvault for storing the credential with RBAC for the deployment user
+module "avm_res_keyvault_vault" {
+  source                 = "Azure/avm-res-keyvault-vault/azurerm"
+  version                = "0.5.3"
+  tenant_id              = data.azurerm_client_config.current.tenant_id
+  name                   = module.naming.key_vault.name_unique
+  resource_group_name    = azurerm_resource_group.this.name
+  location               = azurerm_resource_group.this.location
+  enabled_for_deployment = true
+
+  network_acls = {
+    default_action = "Allow"
+    bypass         = "AzureServices"
+  }
+
+  role_assignments = {
+    deployment_user_administrator = {
+      role_definition_id_or_name = "Key Vault Certificates Officer"
+      principal_id               = data.azurerm_client_config.current.object_id
+    }
+  }
+
+  wait_for_rbac_before_secret_operations = {
+    create = "120s"
+  }
+
+  tags = local.tags
+}
+
+resource "time_sleep" "wait_60_seconds" {
+  create_duration = "60s"
+
+  depends_on = [module.avm_res_keyvault_vault]
+}
+
+resource "azurerm_key_vault_certificate" "example" {
+  key_vault_id = module.avm_res_keyvault_vault.resource.id
+  name         = "generated-cert"
+  tags         = local.tags
+
+  certificate_policy {
+    issuer_parameters {
+      name = "Self"
+    }
+    key_properties {
+      exportable = true
+      key_type   = "RSA"
+      reuse_key  = true
+      key_size   = 2048
+    }
+    secret_properties {
+      content_type = "application/x-pkcs12"
+    }
+    lifetime_action {
+      action {
+        action_type = "AutoRenew"
+      }
+      trigger {
+        days_before_expiry = 30
+      }
+    }
+    x509_certificate_properties {
+      key_usage = [
+        "cRLSign",
+        "dataEncipherment",
+        "digitalSignature",
+        "keyAgreement",
+        "keyCertSign",
+        "keyEncipherment",
+      ]
+      subject            = "CN=hello-world"
+      validity_in_months = 12
+      extended_key_usage = ["1.3.6.1.5.5.7.3.1"]
+
+      subject_alternative_names {
+        dns_names = ["internal.contoso.com", "domain.hello.world"]
+      }
+    }
+  }
+
+  depends_on = [time_sleep.wait_60_seconds]
+}
+
 # This is the module call
 module "terraform_azurerm_avm_res_compute_virtualmachinescaleset" {
   source = "../../"
@@ -157,7 +222,7 @@ module "terraform_azurerm_avm_res_compute_virtualmachinescaleset" {
       username   = "azureuser"
     }
   )]
-  # Spot variables - Local test only
+  # Spot variables 
   #priority      = "Spot"
   #max_bid_price = 0.1
   #priority_mix = {
@@ -231,6 +296,12 @@ module "terraform_azurerm_avm_res_compute_virtualmachinescaleset" {
       computer_name_prefix            = "prefix"
       provision_vm_agent              = true
       admin_ssh_key                   = toset([tls_private_key.example_ssh.id])
+      secret = [{
+        key_vault_id = module.avm_res_keyvault_vault.resource.id
+        certificate = toset([{
+          url = azurerm_key_vault_certificate.example.secret_id
+        }])
+      }]
     }
   }
   source_image_reference = {
@@ -239,9 +310,7 @@ module "terraform_azurerm_avm_res_compute_virtualmachinescaleset" {
     sku       = "22_04-LTS-gen2"
     version   = "latest"
   }
-  tags = {
-    source = "AVM Sample Default Deployment"
-  }
+  tags = local.tags
   # Uncomment the code below to implement a VMSS Lock
   #lock = {
   #  name = "VMSSNoDelete"
