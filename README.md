@@ -324,18 +324,21 @@ Default: `null`
 
 ### <a name="input_lock"></a> [lock](#input\_lock)
 
-Description: The lock level to apply to the resources in this pattern. Default is `None`. Possible values are `None`, `CanNotDelete`, and `ReadOnly`.
+Description:   Controls the Resource Lock configuration for this resource. The following properties can be specified:
+
+  - `kind` - (Required) The type of lock. Possible values are `\"CanNotDelete\"` and `\"ReadOnly\"`.
+  - `name` - (Optional) The name of the lock. If not specified, a name will be generated based on the `kind` value. Changing this forces the creation of a new resource.
 
 Type:
 
 ```hcl
 object({
+    kind = string
     name = optional(string, null)
-    kind = optional(string, "None")
   })
 ```
 
-Default: `{}`
+Default: `null`
 
 ### <a name="input_max_bid_price"></a> [max\_bid\_price](#input\_max\_bid\_price)
 
