@@ -1,3 +1,3 @@
 locals {
-  role_definition_resource_substring = "/providers/Microsoft.Authorization/roleDefinitions"
+  role_definition_resource_substring = "providers/Microsoft.Authorization/roleDefinitions"
 }

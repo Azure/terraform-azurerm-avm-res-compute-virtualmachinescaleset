@@ -5,6 +5,7 @@ resource "azurerm_monitor_autoscale_setting" "autoscale" {
   resource_group_name = azurerm_resource_group.this.name
   target_resource_id  = module.terraform_azurerm_avm_res_compute_virtualmachinescaleset.resource_id
   enabled             = true
+  tags                = local.tags
 
   profile {
     name = "autoscale"
@@ -12,7 +13,7 @@ resource "azurerm_monitor_autoscale_setting" "autoscale" {
     capacity {
       default = 2
       maximum = 4
-      minimum = 1
+      minimum = 2
     }
     rule {
       metric_trigger {

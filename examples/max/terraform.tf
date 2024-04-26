@@ -3,11 +3,7 @@ terraform {
   required_providers {
     azurerm = {
       source  = "hashicorp/azurerm"
-      version = ">= 3.85, < 4.0"
-    }
-    time = {
-      source  = "hashicorp/time"
-      version = "0.10.0"
+      version = ">= 3.100.0, < 4.0"
     }
     tls = {
       source  = "hashicorp/tls"
@@ -15,7 +11,6 @@ terraform {
     }
   }
 }
-
 provider "azurerm" {
   features {
     resource_group {
@@ -23,9 +18,13 @@ provider "azurerm" {
     }
   }
 }
-
 # This ensures we have unique CAF compliant names for our resources.
 module "naming" {
   source  = "Azure/naming/azurerm"
-  version = "0.4.0"
+  version = "0.4.1"
+}
+
+module "regions" {
+  source  = "Azure/regions/azurerm"
+  version = ">= 0.4.0"
 }
