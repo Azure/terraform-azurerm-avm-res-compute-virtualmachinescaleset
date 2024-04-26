@@ -480,7 +480,7 @@ variable "os_profile" {
       admin_username                  = string
       computer_name_prefix            = optional(string)
       disable_password_authentication = optional(bool)
-      patch_assessment_mode           = optional(string) 
+      patch_assessment_mode           = optional(string)
       patch_mode                      = optional(string, "AutomaticByPlatform")
       provision_vm_agent              = optional(bool, true)
       admin_ssh_key_id                = optional(set(string))
@@ -496,7 +496,7 @@ variable "os_profile" {
       computer_name_prefix     = optional(string)
       enable_automatic_updates = optional(bool, true)
       hotpatching_enabled      = optional(bool)
-      patch_assessment_mode    = optional(string) 
+      patch_assessment_mode    = optional(string)
       patch_mode               = optional(string, "AutomaticByPlatform")
       provision_vm_agent       = optional(bool, true)
       timezone                 = optional(string)
@@ -670,19 +670,18 @@ variable "proximity_placement_group_id" {
 }
 
 variable "role_assignments" {
-    type = map(object({
-      role_definition_id_or_name             = string
-      principal_id                           = string
-      description                            = optional(string, null)
-      skip_service_principal_aad_check       = optional(bool, false)
-      condition                              = optional(string, null)
-      condition_version                      = optional(string, null)
-      delegated_managed_identity_resource_id = optional(string, null)
-      principal_type                         = optional(string, null)
-    }))
-    default     = {}
-    nullable    = false
-    description = <<DESCRIPTION
+  type = map(object({
+    role_definition_id_or_name             = string
+    principal_id                           = string
+    description                            = optional(string, null)
+    skip_service_principal_aad_check       = optional(bool, false)
+    condition                              = optional(string, null)
+    condition_version                      = optional(string, null)
+    delegated_managed_identity_resource_id = optional(string, null)
+    principal_type                         = optional(string, null)
+  }))
+  default     = {}
+  description = <<DESCRIPTION
   A map of role assignments to create on the <RESOURCE>. The map key is deliberately arbitrary to avoid issues where map keys maybe unknown at plan time.
   
   - `role_definition_id_or_name` - The ID or name of the role definition to assign to the principal.
@@ -696,7 +695,8 @@ variable "role_assignments" {
   
   > Note: only set `skip_service_principal_aad_check` to true if you are assigning a role to a service principal.
   DESCRIPTION
-  }
+  nullable    = false
+}
 
 variable "single_placement_group" {
   type        = bool
@@ -742,9 +742,9 @@ EOT
 
 # AVM interface variables
 variable "tags" {
-    type     = map(string)
-    default  = null
-    description = "(Optional) Tags of the resource."
+  type        = map(string)
+  default     = null
+  description = "(Optional) Tags of the resource."
 }
 
 variable "termination_notification" {
