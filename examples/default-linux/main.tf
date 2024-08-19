@@ -1,22 +1,22 @@
 resource "random_integer" "region_index" {
-  max = length(local.test_regions) - 1
+  max = length(module.regions.regions_by_name) - 1
   min = 0
 }
 
 resource "random_integer" "zone_index" {
-  max = length(module.regions.regions_by_name[local.test_regions[random_integer.region_index.result]].zones)
+  max = length(module.regions.regions_by_name[module.regions.regions[random_integer.region_index.result].name].zones)
   min = 1
 }
 
 module "get_valid_sku_for_deployment_region" {
   source = "../../modules/sku_selector"
 
-  deployment_region = local.test_regions[random_integer.region_index.result]
+  deployment_region = module.regions.regions[random_integer.region_index.result].name
 }
 
 # This is required for resource modules
 resource "azurerm_resource_group" "this" {
-  location = local.test_regions[random_integer.region_index.result]
+  location = module.regions.regions[random_integer.region_index.result].name
   name     = module.naming.resource_group.name_unique
   tags     = local.tags
 }
@@ -26,7 +26,6 @@ resource "azurerm_virtual_network" "this" {
   location            = azurerm_resource_group.this.location
   name                = module.naming.virtual_network.name_unique
   resource_group_name = azurerm_resource_group.this.name
-  dns_servers         = ["10.0.0.4", "10.0.0.5"]
   tags                = local.tags
 }
 
@@ -37,10 +36,10 @@ resource "azurerm_subnet" "subnet" {
   virtual_network_name = azurerm_virtual_network.this.name
 }
 
-# network security group for the subnet with a rule to allow http, https and ssh traffic
-resource "azurerm_network_security_group" "this" {
+# network security group for the nic with a rule to allow http traffic
+resource "azurerm_network_security_group" "nic" {
   location            = azurerm_resource_group.this.location
-  name                = module.naming.network_security_group.name_unique
+  name                = "${module.naming.network_security_group.name_unique}-nic"
   resource_group_name = azurerm_resource_group.this.name
 
   security_rule {
@@ -54,29 +53,30 @@ resource "azurerm_network_security_group" "this" {
     source_address_prefix      = "*"
     source_port_range          = "*"
   }
+}
+
+# network security group for the subnet with a rule to allow http traffic
+resource "azurerm_network_security_group" "subnet" {
+  location            = azurerm_resource_group.this.location
+  name                = "${module.naming.network_security_group.name_unique}-subnet"
+  resource_group_name = azurerm_resource_group.this.name
+
   security_rule {
     access                     = "Allow"
     destination_address_prefix = "*"
-    destination_port_range     = "443"
+    destination_port_range     = "80"
     direction                  = "Inbound"
-    name                       = "allow-https"
-    priority                   = 101
+    name                       = "allow-http"
+    priority                   = 100
     protocol                   = "Tcp"
     source_address_prefix      = "*"
     source_port_range          = "*"
   }
-  #ssh security rule
-  security_rule {
-    access                     = "Allow"
-    destination_address_prefix = "*"
-    destination_port_range     = "22"
-    direction                  = "Inbound"
-    name                       = "allow-ssh"
-    priority                   = 102
-    protocol                   = "Tcp"
-    source_address_prefix      = "*"
-    source_port_range          = "*"
-  }
+}
+
+resource "azurerm_subnet_network_security_group_association" "this" {
+  network_security_group_id = azurerm_network_security_group.subnet.id
+  subnet_id                 = azurerm_subnet.subnet.id
 }
 
 resource "azurerm_public_ip" "natgwpip" {
@@ -94,6 +94,7 @@ resource "azurerm_nat_gateway" "this" {
   name                = module.naming.nat_gateway.name_unique
   resource_group_name = azurerm_resource_group.this.name
   tags                = local.tags
+  zones               = ["1"]
 }
 
 resource "azurerm_nat_gateway_public_ip_association" "this" {
@@ -119,12 +120,14 @@ module "terraform_azurerm_avm_res_compute_virtualmachinescaleset" {
   resource_group_name         = azurerm_resource_group.this.name
   enable_telemetry            = var.enable_telemetry
   location                    = azurerm_resource_group.this.location
-  platform_fault_domain_count = 1
   admin_password              = "P@ssw0rd1234!"
   instances                   = 2
   sku_name                    = module.get_valid_sku_for_deployment_region.sku
   extension_protected_setting = {}
   user_data_base64            = null
+  boot_diagnostics = {
+    storage_account_uri = "" # Enable boot diagnostics
+  }
   admin_ssh_keys = [(
     {
       id         = tls_private_key.example_ssh.id
@@ -133,13 +136,15 @@ module "terraform_azurerm_avm_res_compute_virtualmachinescaleset" {
     }
   )]
   network_interface = [{
-    name = "VMSS-NIC"
+    name                      = "VMSS-NIC"
+    network_security_group_id = azurerm_network_security_group.nic.id
     ip_configuration = [{
       name      = "VMSS-IPConfig"
       subnet_id = azurerm_subnet.subnet.id
     }]
   }]
   os_profile = {
+    custom_data = base64encode(file("custom-data.yaml"))
     linux_configuration = {
       disable_password_authentication = false
       user_data_base64                = base64encode(file("user-data.sh"))
@@ -150,7 +155,7 @@ module "terraform_azurerm_avm_res_compute_virtualmachinescaleset" {
   source_image_reference = {
     publisher = "Canonical"
     offer     = "0001-com-ubuntu-server-jammy"
-    sku       = "22_04-LTS-gen2"
+    sku       = "22_04-LTS-gen2" # Auto guest patching is enabled on this sku.  https://learn.microsoft.com/en-us/azure/virtual-machines/automatic-vm-guest-patching
     version   = "latest"
   }
   extension = [{
@@ -160,7 +165,7 @@ module "terraform_azurerm_avm_res_compute_virtualmachinescaleset" {
     type_handler_version        = "1.0"
     auto_upgrade_minor_version  = true
     failure_suppression_enabled = false
-    settings                    = "{\"port\":80,\"protocol\":\"http\",\"requestPath\":\"health\"}"
+    settings                    = "{\"port\":80,\"protocol\":\"http\",\"requestPath\":\"/index.html\"}"
   }]
   tags = local.tags
   # Uncomment the code below to implement a VMSS Lock

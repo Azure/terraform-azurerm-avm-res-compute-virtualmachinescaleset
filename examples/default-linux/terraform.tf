@@ -28,5 +28,5 @@ module "naming" {
 
 module "regions" {
   source  = "Azure/regions/azurerm"
-  version = ">= 0.4.0"
+  version = "=0.8.1"
 }
