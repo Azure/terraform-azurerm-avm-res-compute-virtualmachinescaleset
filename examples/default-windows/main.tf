@@ -134,12 +134,6 @@ module "terraform_azurerm_avm_res_compute_virtualmachinescaleset" {
   }]
   os_profile = {
     custom_data = base64encode(file("init-script.ps1"))
-    /*custom_data = <<-EOF
-  <powershell>
-    Install-WindowsFeature -name Web-Server -IncludeManagementTools
-    New-Item -Path "C:\inetpub\wwwroot\index.html" -ItemType "file" -Value "<html><body><h1>Healthy</h1></body></html>"
-  </powershell>
-  EOF*/
     windows_configuration = {
       disable_password_authentication = false
       admin_username                  = "azureuser"
@@ -168,14 +162,14 @@ module "terraform_azurerm_avm_res_compute_virtualmachinescaleset" {
     version   = "latest"
   }
   extension = [
- {
+  {
     name                        = "CustomScriptExtension"
     publisher                   = "Microsoft.Compute"
     type                        = "CustomScriptExtension"
     type_handler_version        = "1.10"
     auto_upgrade_minor_version  = true
-    failure_suppression_enabled = false    
-    settings                    = "{\"commandToExecute\": \"powershell -ExecutionPolicy Unrestricted -File %SYSTEMDRIVE%/AzureData/CustomData.bin\"}"
+    failure_suppression_enabled = false
+    settings                    = "{ \"commandToExecute\": \"copy %SYSTEMDRIVE%\\\\AzureData\\\\CustomData.bin c:\\\\init-script.ps1 & powershell -ExecutionPolicy Unrestricted -File %SYSTEMDRIVE%\\\\init-script.ps1\"}"
   },
   {
     name                        = "HealthExtension"
