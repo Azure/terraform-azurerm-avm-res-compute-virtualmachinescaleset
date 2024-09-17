@@ -258,23 +258,6 @@ variable "extensions_time_budget" {
   description = "(Optional) Specifies the time alloted for all extensions to start. The time duration should be between 15 minutes and 120 minutes (inclusive) and should be specified in ISO 8601 format. Defaults to `PT1H30M`."
 }
 
-variable "identity" {
-  type = object({
-    identity_ids = set(string)
-    type         = string
-  })
-  default     = null
-  description = <<-EOT
- - `identity_ids` - (Required) Specifies a set of User Managed Identity IDs to be assigned to this Orchestrated Windows Virtual Machine Scale Set.
- - `type` - (Required) The type of Managed Identity that should be configured on this Orchestrated Windows Virtual Machine Scale Set. Only possible value is `UserAssigned`.
-EOT
-
-  validation {
-    condition     = var.identity == null ? true : contains(["UserAssigned"], var.identity.type)
-    error_message = "The identity type must be 'UserAssigned'."
-  }
-}
-
 variable "instances" {
   type        = number
   default     = null
@@ -309,6 +292,20 @@ variable "lock" {
     condition     = var.lock != null ? contains(["CanNotDelete", "ReadOnly"], var.lock.kind) : true
     error_message = "Lock kind must be either `\"CanNotDelete\"` or `\"ReadOnly\"`."
   }
+}
+
+variable "managed_identities" {
+  type = object({
+    system_assigned            = optional(bool, false)
+    user_assigned_resource_ids = optional(set(string), [])
+  })
+  default     = {}
+  description = <<DESCRIPTION
+Controls the Managed Identity configuration on this resource. The following properties can be specified:
+
+- `user_assigned_resource_ids` - (Optional) Specifies a list of User Assigned Managed Identity resource IDs to be assigned to this resource.
+DESCRIPTION
+  nullable    = false
 }
 
 variable "max_bid_price" {
@@ -588,23 +585,23 @@ Configure the operating system provile.
 EOT
 
   validation {
-    condition     = var.os_profile.linux_configuration == null ? true : var.os_profile.linux_configuration.patch_mode == null ? true : contains(["ImageDefault", "AutomaticByPlatform"], var.os_profile.linux_configuration.patch_mode)
+    condition     = var.os_profile == null ? true : var.os_profile.linux_configuration == null ? true : var.os_profile.linux_configuration.patch_mode == null ? true : contains(["ImageDefault", "AutomaticByPlatform"], var.os_profile.linux_configuration.patch_mode)
     error_message = "Value must be one of: 'ImageDefault' or 'AutomaticByPlatform'"
   }
   validation {
-    condition     = var.os_profile.linux_configuration == null ? true : var.os_profile.linux_configuration.patch_assessment_mode == null ? true : contains(["AutomaticByPlatform", "ImageDefault"], var.os_profile.linux_configuration.patch_assessment_mode)
+    condition     = var.os_profile == null ? true : var.os_profile.linux_configuration == null ? true : var.os_profile.linux_configuration.patch_assessment_mode == null ? true : contains(["AutomaticByPlatform", "ImageDefault"], var.os_profile.linux_configuration.patch_assessment_mode)
     error_message = "Value must be one of: 'AutomaticByPlatform' or 'ImageDefault'"
   }
   validation {
-    condition     = var.os_profile.windows_configuration == null ? true : var.os_profile.windows_configuration.patch_mode == null ? true : contains(["Manual", "AutomaticByOS", "AutomaticByPlatform"], var.os_profile.windows_configuration.patch_mode)
+    condition     = var.os_profile == null ? true : var.os_profile.windows_configuration == null ? true : var.os_profile.windows_configuration.patch_mode == null ? true : contains(["Manual", "AutomaticByOS", "AutomaticByPlatform"], var.os_profile.windows_configuration.patch_mode)
     error_message = "Value must be one of: 'ImageDefault' or 'AutomaticByPlatform'"
   }
   validation {
-    condition     = var.os_profile.windows_configuration == null ? true : var.os_profile.windows_configuration.patch_assessment_mode == null ? true : contains(["AutomaticByPlatform", "ImageDefault"], var.os_profile.windows_configuration.patch_assessment_mode)
+    condition     = var.os_profile == null ? true : var.os_profile.windows_configuration == null ? true : var.os_profile.windows_configuration.patch_assessment_mode == null ? true : contains(["AutomaticByPlatform", "ImageDefault"], var.os_profile.windows_configuration.patch_assessment_mode)
     error_message = "Value must be one of: 'AutomaticByPlatform' or 'ImageDefault'"
   }
   validation {
-    condition = var.os_profile.windows_configuration == null ? true : var.os_profile.windows_configuration.winrm_listener == null ? true : alltrue([
+    condition = var.os_profile == null ? true : var.os_profile.windows_configuration == null ? true : var.os_profile.windows_configuration.winrm_listener == null ? true : alltrue([
       for wl in var.os_profile.windows_configuration.winrm_listener :
       contains(["Http", "Https"], wl.protocol)
     ])
@@ -719,11 +716,6 @@ variable "source_image_id" {
   type        = string
   default     = null
   description = "(Optional) The ID of an Image which each Virtual Machine in this Scale Set should be based on. Possible Image ID types include `Image ID`s, `Shared Image ID`s, `Shared Image Version ID`s, `Community Gallery Image ID`s, `Community Gallery Image Version ID`s, `Shared Gallery Image ID`s and `Shared Gallery Image Version ID`s."
-
-  validation {
-    condition     = var.source_image_id == null ? true : contains(["Image ID", "Shared Image ID", "Shared Image Version ID", "Community Gallery Image ID", "Community Gallery Image Version ID", "Shared Gallery Image ID", "Shared Gallery Image Version ID"], var.source_image_id)
-    error_message = "Value must be one of: 'Image ID', 'Shared Image ID', 'Shared Image Version ID', 'Community Gallery Image ID', 'Community Gallery Image Version ID', 'Shared Gallery Image ID', or 'Shared Gallery Image Version ID'"
-  }
 }
 
 variable "source_image_reference" {

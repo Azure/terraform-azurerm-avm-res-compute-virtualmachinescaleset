@@ -1,6 +1,5 @@
 locals {
   tags = {
-    scenario = "VMSS Default AVM Sample"
+    scenario = "VMSS Default Windows AVM Sample"
   }
-  test_regions = ["centralus", "eastasia", "eastus2"]
 }
