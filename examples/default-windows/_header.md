@@ -6,4 +6,7 @@ This example demonstrates a standard deployment with Windows VMs.  The deploymen
 - a virtual nework with a subnet
 - a NAT gateway
 - a public IP associated to the NAT gateway
-- an SSH key
+- locking code (commented out)
+- a health extension
+- autoscale
+- availability zones

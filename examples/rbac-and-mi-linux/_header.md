@@ -9,3 +9,4 @@ This example demonstrates a standard deployment of VMSS with RBAC and Managed Id
 - an SSH key
 - a managed identity
 - role assignments
+- availability zones
