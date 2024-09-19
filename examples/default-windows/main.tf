@@ -1,3 +1,15 @@
+# This ensures we have unique CAF compliant names for our resources.
+module "naming" {
+  source  = "Azure/naming/azurerm"
+  version = "0.4.1"
+}
+
+module "regions" {
+  source                    = "Azure/avm-utl-regions/azurerm"
+  version                   = "=0.1.0"
+  availability_zones_filter = true
+}
+
 resource "random_integer" "region_index" {
   max = length(module.regions.regions_by_name) - 1
   min = 0
