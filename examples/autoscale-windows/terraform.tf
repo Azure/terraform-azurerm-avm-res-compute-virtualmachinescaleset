@@ -5,13 +5,17 @@ terraform {
       source  = "hashicorp/azurerm"
       version = ">= 3.116.0, < 4.0"
     }
-    modtm = {
-      source  = "Azure/modtm"
-      version = "~> 0.3"
-    }
     random = {
       source  = "hashicorp/random"
       version = ">= 3.6.2"
+    }
+  }
+}
+
+provider "azurerm" {
+  features {
+    resource_group {
+      prevent_deletion_if_contains_resources = false
     }
   }
 }

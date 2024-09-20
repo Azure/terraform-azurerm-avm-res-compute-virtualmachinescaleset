@@ -52,7 +52,6 @@ resource "azurerm_orchestrated_virtual_machine_scale_set" "virtual_machine_scale
       create_option                  = data_disk.value.create_option
       disk_encryption_set_id         = data_disk.value.disk_encryption_set_id
       disk_size_gb                   = data_disk.value.disk_size_gb
-      lun                            = data_disk.value.lun
       ultra_ssd_disk_iops_read_write = data_disk.value.ultra_ssd_disk_iops_read_write
       ultra_ssd_disk_mbps_read_write = data_disk.value.ultra_ssd_disk_mbps_read_write
       write_accelerator_enabled      = data_disk.value.write_accelerator_enabled
@@ -84,10 +83,10 @@ resource "azurerm_orchestrated_virtual_machine_scale_set" "virtual_machine_scale
     }
   }
   dynamic "identity" {
-    for_each = var.identity == null ? [] : [var.identity]
+    for_each = local.managed_identities.user_assigned
 
     content {
-      identity_ids = identity.value.identity_ids
+      identity_ids = identity.value.user_assigned_resource_ids
       type         = identity.value.type
     }
   }
@@ -315,3 +314,4 @@ resource "azurerm_role_assignment" "this" {
   role_definition_name                   = strcontains(lower(each.value.role_definition_id_or_name), lower(local.role_definition_resource_substring)) ? null : each.value.role_definition_id_or_name
   skip_service_principal_aad_check       = each.value.skip_service_principal_aad_check
 }
+

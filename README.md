@@ -12,9 +12,11 @@ The following requirements are needed by this module:
 
 - <a name="requirement_terraform"></a> [terraform](#requirement\_terraform) (>= 1.0.0)
 
-- <a name="requirement_azurerm"></a> [azurerm](#requirement\_azurerm) (>= 3.100.0, < 4.0)
+- <a name="requirement_azurerm"></a> [azurerm](#requirement\_azurerm) (>= 3.116.0, < 4.0)
 
-- <a name="requirement_random"></a> [random](#requirement\_random) (>= 3.6.1)
+- <a name="requirement_modtm"></a> [modtm](#requirement\_modtm) (~> 0.3)
+
+- <a name="requirement_random"></a> [random](#requirement\_random) (>= 3.6.2)
 
 ## Resources
 
@@ -23,10 +25,10 @@ The following resources are used by this module:
 - [azurerm_management_lock.this](https://registry.terraform.io/providers/hashicorp/azurerm/latest/docs/resources/management_lock) (resource)
 - [azurerm_orchestrated_virtual_machine_scale_set.virtual_machine_scale_set](https://registry.terraform.io/providers/hashicorp/azurerm/latest/docs/resources/orchestrated_virtual_machine_scale_set) (resource)
 - [azurerm_role_assignment.this](https://registry.terraform.io/providers/hashicorp/azurerm/latest/docs/resources/role_assignment) (resource)
-- [modtm_telemetry.telemetry](https://registry.terraform.io/providers/hashicorp/modtm/latest/docs/resources/telemetry) (resource)
+- [modtm_telemetry.telemetry](https://registry.terraform.io/providers/Azure/modtm/latest/docs/resources/telemetry) (resource)
 - [random_uuid.telemetry](https://registry.terraform.io/providers/hashicorp/random/latest/docs/resources/uuid) (resource)
 - [azurerm_client_config.telemetry](https://registry.terraform.io/providers/hashicorp/azurerm/latest/docs/data-sources/client_config) (data source)
-- [modtm_module_source.telemetry](https://registry.terraform.io/providers/hashicorp/modtm/latest/docs/data-sources/module_source) (data source)
+- [modtm_module_source.telemetry](https://registry.terraform.io/providers/Azure/modtm/latest/docs/data-sources/module_source) (data source)
 
 <!-- markdownlint-disable MD013 -->
 ## Required Inputs
@@ -38,70 +40,6 @@ The following input variables are required:
 Description: (Optional) Sets the VM password
 
 Type: `string`
-
-### <a name="input_admin_ssh_keys"></a> [admin\_ssh\_keys](#input\_admin\_ssh\_keys)
-
-Description: (Optional) SSH Keys to be used for Linx instances
-- Unique id.  Referenced in the `os_profile` below
-- (Required) The Public Key which should be used for authentication, which needs to be at least 2048-bit and in ssh-rsa format.
-- (Required) The Username for which this Public SSH Key should be configured.
-
-Type:
-
-```hcl
-set(object({
-    id         = string
-    public_key = string
-    username   = string
-  }))
-```
-
-### <a name="input_extension"></a> [extension](#input\_extension)
-
-Description:  - `auto_upgrade_minor_version_enabled` - (Optional) Should the latest version of the Extension be used at Deployment Time, if one is available? This won't auto-update the extension on existing installation. Defaults to `true`.
- - `extensions_to_provision_after_vm_creation` - (Optional) An set of Extension names which Orchestrated Virtual Machine Scale Set should provision after VM creation.
- - `failure_suppression_enabled` - (Optional) Should failures from the extension be suppressed? Possible values are `true` or `false`.
-
-> Note: Operational failures such as not connecting to the VM will not be suppressed regardless of the `failure_suppression_enabled` value.
-
- - `force_extension_execution_on_change` - (Optional) A value which, when different to the previous value can be used to force-run the Extension even if the Extension Configuration hasn't changed.
- - `name` - (Required) The name for the Virtual Machine Scale Set Extension.
-
- > Note: Keys within the `protected_settings` block are notoriously case-sensitive, where the casing required (e.g. TitleCase vs snakeCase) depends on the Extension being used. Please refer to the documentation for the specific Orchestrated Virtual Machine Extension you're looking to use for more information.
-
- - `publisher` - (Required) Specifies the Publisher of the Extension.
- - `settings` - (Optional) A JSON String which specifies Settings for the Extension.
- - `type` - (Required) Specifies the Type of the Extension.
- - `type_handler_version` - (Required) Specifies the version of the extension to use, available versions can be found using the Azure CLI.
-
- ---
- `protected_settings_from_key_vault` block supports the following:
- - `secret_url` - (Required) The URL to the Key Vault Secret which stores the protected settings.
- - `source_vault_id` - (Required) The ID of the source Key Vault.
-
-A Health Extension is deployed by default as per [WAF guidelines](https://learn.microsoft.com/en-us/azure/reliability/reliability-virtual-machine-scale-sets?tabs=graph-4%2Cgraph-1%2Cgraph-2%2Cgraph-3%2Cgraph-5%2Cgraph-6%2Cportal#monitoring).
-
-> Note: `protected_settings_from_key_vault` cannot be used with `protected_settings`
-
-Type:
-
-```hcl
-set(object({
-    auto_upgrade_minor_version_enabled        = optional(bool)
-    extensions_to_provision_after_vm_creation = optional(set(string))
-    failure_suppression_enabled               = optional(bool)
-    force_extension_execution_on_change       = optional(string)
-    name                                      = string
-    publisher                                 = string
-    settings                                  = optional(string)
-    type                                      = string
-    type_handler_version                      = string
-    protected_settings_from_key_vault = optional(object({
-      secret_url      = string
-      source_vault_id = string
-    }), null)
-  }))
-```
 
 ### <a name="input_extension_protected_setting"></a> [extension\_protected\_setting](#input\_extension\_protected\_setting)
 
@@ -120,12 +58,6 @@ Type: `string`
 Description: (Required) The name of the Orchestrated Virtual Machine Scale Set. Changing this forces a new resource to be created.
 
 Type: `string`
-
-### <a name="input_platform_fault_domain_count"></a> [platform\_fault\_domain\_count](#input\_platform\_fault\_domain\_count)
-
-Description: (Required) Specifies the number of fault domains that are used by this Orchestrated Virtual Machine Scale Set. Changing this forces a new resource to be created.
-
-Type: `number`
 
 ### <a name="input_resource_group_name"></a> [resource\_group\_name](#input\_resource\_group\_name)
 
@@ -157,6 +89,25 @@ object({
 
 Default: `null`
 
+### <a name="input_admin_ssh_keys"></a> [admin\_ssh\_keys](#input\_admin\_ssh\_keys)
+
+Description: (Optional) SSH Keys to be used for Linx instances
+- Unique id.  Referenced in the `os_profile` below
+- (Required) The Public Key which should be used for authentication, which needs to be at least 2048-bit and in ssh-rsa format.
+- (Required) The Username for which this Public SSH Key should be configured.
+
+Type:
+
+```hcl
+set(object({
+    id         = string
+    public_key = string
+    username   = string
+  }))
+```
+
+Default: `null`
+
 ### <a name="input_automatic_instance_repair"></a> [automatic\_instance\_repair](#input\_automatic\_instance\_repair)
 
 Description: Description: Enabling automatic instance repair allows VMSS to automatically detect and recover unhealthy VM instances at runtime, ensuring high application availability
@@ -179,7 +130,8 @@ Default:
 
 ```json
 {
-  "enabled": true
+  "enabled": true,
+  "grace_period": "PT30M"
 }
 ```
 
@@ -267,6 +219,55 @@ Type: `string`
 
 Default: `null`
 
+### <a name="input_extension"></a> [extension](#input\_extension)
+
+Description:  - `auto_upgrade_minor_version_enabled` - (Optional) Should the latest version of the Extension be used at Deployment Time, if one is available? This won't auto-update the extension on existing installation. Defaults to `true`.
+ - `extensions_to_provision_after_vm_creation` - (Optional) An set of Extension names which Orchestrated Virtual Machine Scale Set should provision after VM creation.
+ - `failure_suppression_enabled` - (Optional) Should failures from the extension be suppressed? Possible values are `true` or `false`.
+
+> Note: Operational failures such as not connecting to the VM will not be suppressed regardless of the `failure_suppression_enabled` value.
+
+ - `force_extension_execution_on_change` - (Optional) A value which, when different to the previous value can be used to force-run the Extension even if the Extension Configuration hasn't changed.
+ - `name` - (Required) The name for the Virtual Machine Scale Set Extension.
+
+ > Note: Keys within the `protected_settings` block are notoriously case-sensitive, where the casing required (e.g. TitleCase vs snakeCase) depends on the Extension being used. Please refer to the documentation for the specific Orchestrated Virtual Machine Extension you're looking to use for more information.
+
+ - `publisher` - (Required) Specifies the Publisher of the Extension.
+ - `settings` - (Optional) A JSON String which specifies Settings for the Extension.
+ - `type` - (Required) Specifies the Type of the Extension.
+ - `type_handler_version` - (Required) Specifies the version of the extension to use, available versions can be found using the Azure CLI.
+
+ ---
+ `protected_settings_from_key_vault` block supports the following:
+ - `secret_url` - (Required) The URL to the Key Vault Secret which stores the protected settings.
+ - `source_vault_id` - (Required) The ID of the source Key Vault.
+
+A Health Extension is deployed by default as per [WAF guidelines](https://learn.microsoft.com/en-us/azure/reliability/reliability-virtual-machine-scale-sets?tabs=graph-4%2Cgraph-1%2Cgraph-2%2Cgraph-3%2Cgraph-5%2Cgraph-6%2Cportal#monitoring).
+
+> Note: `protected_settings_from_key_vault` cannot be used with `protected_settings`
+
+Type:
+
+```hcl
+set(object({
+    auto_upgrade_minor_version_enabled        = optional(bool)
+    extensions_to_provision_after_vm_creation = optional(set(string))
+    failure_suppression_enabled               = optional(bool)
+    force_extension_execution_on_change       = optional(string)
+    name                                      = string
+    publisher                                 = string
+    settings                                  = optional(string)
+    type                                      = string
+    type_handler_version                      = string
+    protected_settings_from_key_vault = optional(object({
+      secret_url      = string
+      source_vault_id = string
+    }), null)
+  }))
+```
+
+Default: `null`
+
 ### <a name="input_extension_operations_enabled"></a> [extension\_operations\_enabled](#input\_extension\_operations\_enabled)
 
 Description: > Note: `extension_operations_enabled` may only be set to `false` if there are no extensions defined in the `extension` field.
@@ -281,22 +282,6 @@ Default: `null`
 Description: (Optional) Specifies the time alloted for all extensions to start. The time duration should be between 15 minutes and 120 minutes (inclusive) and should be specified in ISO 8601 format. Defaults to `PT1H30M`.
 
 Type: `string`
-
-Default: `null`
-
-### <a name="input_identity"></a> [identity](#input\_identity)
-
-Description: - `identity_ids` - (Required) Specifies a set of User Managed Identity IDs to be assigned to this Orchestrated Windows Virtual Machine Scale Set.
-- `type` - (Required) The type of Managed Identity that should be configured on this Orchestrated Windows Virtual Machine Scale Set. Only possible value is `UserAssigned`.
-
-Type:
-
-```hcl
-object({
-    identity_ids = set(string)
-    type         = string
-  })
-```
 
 Default: `null`
 
@@ -333,6 +318,23 @@ object({
 ```
 
 Default: `null`
+
+### <a name="input_managed_identities"></a> [managed\_identities](#input\_managed\_identities)
+
+Description: Controls the Managed Identity configuration on this resource. The following properties can be specified:
+
+- `user_assigned_resource_ids` - (Optional) Specifies a list of User Assigned Managed Identity resource IDs to be assigned to this resource.
+
+Type:
+
+```hcl
+object({
+    system_assigned            = optional(bool, false)
+    user_assigned_resource_ids = optional(set(string), [])
+  })
+```
+
+Default: `{}`
 
 ### <a name="input_max_bid_price"></a> [max\_bid\_price](#input\_max\_bid\_price)
 
@@ -503,7 +505,7 @@ Description: Configure the operating system provile.
  `windows_configuration` block supports the following:
  - `admin_username` - (Required) The username of the local administrator on each Orchestrated Virtual Machine Scale Set instance. Changing this forces a new resource to be created.
  - `computer_name_prefix` - (Optional) The prefix which should be used for the name of the Virtual Machines in this Scale Set. If unspecified this defaults to the value for the `name` field. If the value of the `name` field is not a valid `computer_name_prefix`, then you must specify `computer_name_prefix`. Changing this forces a new resource to be created.
- - `enable_automatic_updates` - (Optional) Are automatic updates enabled for this Virtual Machine? Defaults to `true`.
+ - `enable_automatic_updates` - (Optional) Are automatic updates enabled for this Virtual Machine? Defaults to `false`.
  - `hotpatching_enabled` - (Optional) Should the VM be patched without requiring a reboot? Possible values are `true` or `false`. Defaults to `false`. For more information about hot patching please see the [product documentation](https://docs.microsoft.com/azure/automanage/automanage-hotpatch).
 
 > Note: Hotpatching can only be enabled if the `patch_mode` is set to `AutomaticByPlatform`, the `provision_vm_agent` is set to `true`, your `source_image_reference` references a hotpatching enabled image, the VM's `sku_name` is set to a [Azure generation 2](https://docs.microsoft.com/azure/virtual-machines/generation-2#generation-2-vm-sizes) VM SKU and the `extension` contains an application health extension.
@@ -558,7 +560,7 @@ object({
     windows_configuration = optional(object({
       admin_username           = string
       computer_name_prefix     = optional(string)
-      enable_automatic_updates = optional(bool, true)
+      enable_automatic_updates = optional(bool, false)
       hotpatching_enabled      = optional(bool)
       patch_assessment_mode    = optional(string)
       patch_mode               = optional(string, "AutomaticByPlatform")
@@ -598,6 +600,14 @@ object({
 ```
 
 Default: `null`
+
+### <a name="input_platform_fault_domain_count"></a> [platform\_fault\_domain\_count](#input\_platform\_fault\_domain\_count)
+
+Description: (Required) Specifies the number of fault domains that are used by this Orchestrated Virtual Machine Scale Set. Changing this forces a new resource to be created.  Setting to 1 enables Max Spreading.  [Spreading options](https://learn.microsoft.com/en-us/azure/reliability/reliability-virtual-machine-scale-sets?tabs=graph-4%2Cgraph-1%2Cgraph-2%2Cgraph-3%2Cgraph-5%2Cgraph-6%2Cportal#spreading-options)
+
+Type: `number`
+
+Default: `1`
 
 ### <a name="input_priority"></a> [priority](#input\_priority)
 
@@ -760,7 +770,7 @@ Description: (Optional) Should the Virtual Machines in this Scale Set be strictl
 
 Type: `bool`
 
-Default: `null`
+Default: `false`
 
 ### <a name="input_zones"></a> [zones](#input\_zones)
 
