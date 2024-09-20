@@ -1,15 +1,18 @@
 <!-- BEGIN_TF_DOCS -->
 # A Default Virtual Machine Scale Set with RBAC and Managed Identities Deployment
 
-This example demonstrates a standard deployment of VMSS with RBAC and Managed Identities.  The deployment includes:
+This example exercises many of the parameters available in this AVM.  It is not recommended to use this example as a template for you deployment.  Instead use this example to see examples of how to set various variables.
 
 - a Linux VM
-- a virtual nework with a subnet
+- a virtual network with a subnet
 - a NAT gateway
 - a public IP associated to the NAT gateway
 - an SSH key
-- a managed identity
-- role assignments
+- locking code (commented out)
+- a health extension
+- availability zones
+- a key vault
+- passing a certificate to a VMSS
 
 ```hcl
 resource "random_integer" "region_index" {
@@ -34,7 +37,6 @@ resource "azurerm_resource_group" "this" {
   name     = module.naming.resource_group.name_unique
   tags     = local.tags
 }
-
 resource "azurerm_virtual_network" "this" {
   address_space       = ["10.0.0.0/16"]
   location            = azurerm_resource_group.this.location
@@ -43,14 +45,12 @@ resource "azurerm_virtual_network" "this" {
   dns_servers         = ["10.0.0.4", "10.0.0.5"]
   tags                = local.tags
 }
-
 resource "azurerm_subnet" "subnet" {
   address_prefixes     = ["10.0.1.0/24"]
   name                 = module.naming.subnet.name_unique
   resource_group_name  = azurerm_resource_group.this.name
   virtual_network_name = azurerm_virtual_network.this.name
 }
-
 # network security group for the subnet with a rule to allow http, https and ssh traffic
 resource "azurerm_network_security_group" "this" {
   location            = azurerm_resource_group.this.location
@@ -92,7 +92,6 @@ resource "azurerm_network_security_group" "this" {
     source_port_range          = "*"
   }
 }
-
 resource "azurerm_public_ip" "natgwpip" {
   allocation_method   = "Static"
   location            = azurerm_resource_group.this.location
@@ -102,34 +101,35 @@ resource "azurerm_public_ip" "natgwpip" {
   tags                = local.tags
   zones               = ["1", "2", "3"]
 }
-
 resource "azurerm_nat_gateway" "this" {
   location            = azurerm_resource_group.this.location
   name                = module.naming.nat_gateway.name_unique
   resource_group_name = azurerm_resource_group.this.name
-  tags = {
-    source = "AVM Sample RBAC and MI Deployment"
-  }
+  tags                = local.tags
 }
-
 resource "azurerm_nat_gateway_public_ip_association" "this" {
   nat_gateway_id       = azurerm_nat_gateway.this.id
   public_ip_address_id = azurerm_public_ip.natgwpip.id
 }
-
 resource "azurerm_subnet_nat_gateway_association" "this" {
   nat_gateway_id = azurerm_nat_gateway.this.id
   subnet_id      = azurerm_subnet.subnet.id
 }
-
 resource "tls_private_key" "example_ssh" {
   algorithm = "RSA"
   rsa_bits  = 4096
 }
-
-resource "azurerm_user_assigned_identity" "example_identity" {
+resource "azurerm_storage_account" "this" {
+  account_replication_type = "LRS"
+  account_tier             = "Standard"
+  location                 = azurerm_resource_group.this.location
+  name                     = module.naming.storage_account.name_unique
+  resource_group_name      = azurerm_resource_group.this.name
+  tags                     = local.tags
+}
+resource "azurerm_proximity_placement_group" "this" {
   location            = azurerm_resource_group.this.location
-  name                = module.naming.user_assigned_identity.name_unique
+  name                = module.naming.proximity_placement_group.name_unique
   resource_group_name = azurerm_resource_group.this.name
   tags                = local.tags
 }
@@ -144,11 +144,10 @@ module "terraform_azurerm_avm_res_compute_virtualmachinescaleset" {
   resource_group_name         = azurerm_resource_group.this.name
   enable_telemetry            = var.enable_telemetry
   location                    = azurerm_resource_group.this.location
-  platform_fault_domain_count = 1
   admin_password              = "P@ssw0rd1234!"
   sku_name                    = module.get_valid_sku_for_deployment_region.sku
   instances                   = 2
-  extension_protected_setting = {}
+  platform_fault_domain_count = 1
   user_data_base64            = null
   admin_ssh_keys = [(
     {
@@ -164,13 +163,42 @@ module "terraform_azurerm_avm_res_compute_virtualmachinescaleset" {
       subnet_id = azurerm_subnet.subnet.id
     }]
   }]
+  # Extensions
+  extension = [{
+    name                        = "CustomScriptExtension"
+    publisher                   = "Microsoft.Azure.Extensions"
+    type                        = "CustomScript"
+    type_handler_version        = "2.0"
+    auto_upgrade_minor_version  = true
+    failure_suppression_enabled = false
+    settings                    = "{\"commandToExecute\":\"echo 'Hello World!' \\u003e /tmp/hello.txt\"}"
+    },
+    {
+      name                                = "HealthExtension"
+      publisher                           = "Microsoft.ManagedServices"
+      type                                = "ApplicationHealthLinux"
+      type_handler_version                = "1.0"
+      auto_upgrade_minor_version          = true
+      failure_suppression_enabled         = false
+      force_extension_execution_on_change = ""
+      settings                            = "{\"port\":80,\"protocol\":\"http\",\"requestPath\":\"health\"}"
+  }]
+  # Extension protected settings
+  extension_protected_setting = {
+    "Custom Script Extension" = " {\r\n \"commandToExecute\": \"echo 'Protected Hello World!' \u003e /tmp/protectedhello.txt\"\r\n }\r\n"
+  }
   os_profile = {
     linux_configuration = {
       disable_password_authentication = false
       user_data_base64                = base64encode(file("user-data.sh"))
       admin_username                  = "azureuser"
       admin_ssh_key                   = toset([tls_private_key.example_ssh.id])
-      provision_vm_agent              = true
+      secret = [{
+        key_vault_id = module.avm_res_keyvault_vault.resource.id
+        certificate = toset([{
+          url = azurerm_key_vault_certificate.example.secret_id
+        }])
+      }]
     }
   }
   source_image_reference = {
@@ -179,23 +207,12 @@ module "terraform_azurerm_avm_res_compute_virtualmachinescaleset" {
     sku       = "22_04-LTS-gen2"
     version   = "latest"
   }
-  extension = [{
-    name                        = "HealthExtension"
-    publisher                   = "Microsoft.ManagedServices"
-    type                        = "ApplicationHealthLinux"
-    type_handler_version        = "1.0"
-    auto_upgrade_minor_version  = true
-    failure_suppression_enabled = false
-    settings                    = "{\"port\":80,\"protocol\":\"http\",\"requestPath\":\"health\"}"
-  }]
-  role_assignments = {
-    role_assignment = {
-      principal_id               = data.azurerm_client_config.current.object_id
-      role_definition_id_or_name = "Reader"
-      description                = "Assign the Reader role to the deployment user on this virtual machine scale set resource scope."
-    }
-  }
-  tags       = local.tags
+  tags = local.tags
+  # Uncomment the code below to implement a VMSS Lock
+  #lock = {
+  #  name = "VMSSNoDelete"
+  #  kind = "CanNotDelete"
+  #}
   depends_on = [azurerm_subnet_nat_gateway_association.this]
 }
 ```
