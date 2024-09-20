@@ -1,15 +1,15 @@
 <!-- BEGIN_TF_DOCS -->
-# A Default Virtual Machine Scale Set with RBAC and Managed Identities Deployment
+# A Default Virtual Machine Scale Set with Windows VMs
 
-This example demonstrates a standard deployment of VMSS with RBAC and Managed Identities.  The deployment includes:
+This example demonstrates a standard deployment with Windows VMs.  The deployment includes:
 
-- a Linux VM
+- a Windows VM
 - a virtual nework with a subnet
 - a NAT gateway
 - a public IP associated to the NAT gateway
-- an SSH key
-- a managed identity
-- role assignments
+- locking code (commented out)
+- a health extension
+- autoscale
 - availability zones
 
 ```hcl
@@ -134,20 +134,6 @@ resource "azurerm_subnet_nat_gateway_association" "this" {
   subnet_id      = azurerm_subnet.subnet.id
 }
 
-resource "tls_private_key" "example_ssh" {
-  algorithm = "RSA"
-  rsa_bits  = 4096
-}
-
-resource "azurerm_user_assigned_identity" "user_identity" {
-  location            = azurerm_resource_group.this.location
-  name                = module.naming.user_assigned_identity.name_unique
-  resource_group_name = azurerm_resource_group.this.name
-  tags                = local.tags
-}
-
-data "azurerm_client_config" "current" {}
-
 # This is the module call
 module "terraform_azurerm_avm_res_compute_virtualmachinescaleset" {
   source = "../../"
@@ -156,64 +142,71 @@ module "terraform_azurerm_avm_res_compute_virtualmachinescaleset" {
   resource_group_name         = azurerm_resource_group.this.name
   enable_telemetry            = var.enable_telemetry
   location                    = azurerm_resource_group.this.location
-  platform_fault_domain_count = 1
   admin_password              = "P@ssw0rd1234!"
   sku_name                    = module.get_valid_sku_for_deployment_region.sku
   instances                   = 2
   extension_protected_setting = {}
+  admin_ssh_keys              = []
   user_data_base64            = null
-  automatic_instance_repair   = null
-  admin_ssh_keys = [(
-    {
-      id         = tls_private_key.example_ssh.id
-      public_key = tls_private_key.example_ssh.public_key_openssh
-      username   = "azureuser"
-    }
-  )]
+  boot_diagnostics = {
+    storage_account_uri = "" # Enable boot diagnostics
+  }
   network_interface = [{
-    name = "VMSS-NIC"
+    name                      = "VMSS-NIC"
+    network_security_group_id = azurerm_network_security_group.nic.id
     ip_configuration = [{
       name      = "VMSS-IPConfig"
       subnet_id = azurerm_subnet.subnet.id
     }]
   }]
   os_profile = {
-    custom_data = base64encode(file("custom-data.yaml"))
-    linux_configuration = {
+    custom_data = base64encode(file("init-script.ps1"))
+    windows_configuration = {
       disable_password_authentication = false
-      user_data_base64                = base64encode(file("user-data.sh"))
       admin_username                  = "azureuser"
-      admin_ssh_key                   = toset([tls_private_key.example_ssh.id])
+      license_type                    = "None"
+      hotpatching_enabled             = false
+      timezone                        = "Pacific Standard Time"
+      provision_vm_agent              = true
+      winrm_listener = [{
+        protocol = "Http"
+      }]
     }
   }
+  data_disk = [{
+    caching                   = "ReadWrite"
+    create_option             = "Empty"
+    disk_size_gb              = 10
+    lun                       = 0
+    managed_disk_type         = "StandardSSD_LRS"
+    storage_account_type      = "StandardSSD_LRS"
+    write_accelerator_enabled = false
+  }]
   source_image_reference = {
-    publisher = "Canonical"
-    offer     = "0001-com-ubuntu-server-jammy"
-    sku       = "22_04-LTS-gen2" # Auto guest patching is enabled on this sku.  https://learn.microsoft.com/en-us/azure/virtual-machines/automatic-vm-guest-patching
+    publisher = "MicrosoftWindowsServer"
+    offer     = "WindowsServer"
+    sku       = "2022-Datacenter"
     version   = "latest"
   }
-  extension = [{
-    name                        = "HealthExtension"
-    publisher                   = "Microsoft.ManagedServices"
-    type                        = "ApplicationHealthLinux"
-    type_handler_version        = "1.0"
-    auto_upgrade_minor_version  = true
-    failure_suppression_enabled = false
-    settings                    = "{\"port\":80,\"protocol\":\"http\",\"requestPath\":\"/index.html\"}"
+  extension = [
+    {
+      name                        = "CustomScriptExtension"
+      publisher                   = "Microsoft.Compute"
+      type                        = "CustomScriptExtension"
+      type_handler_version        = "1.10"
+      auto_upgrade_minor_version  = true
+      failure_suppression_enabled = false
+      settings                    = "{\"commandToExecute\":\"copy %SYSTEMDRIVE%\\\\AzureData\\\\CustomData.bin c:\\\\init-script.ps1 \\u0026 powershell -ExecutionPolicy Unrestricted -File %SYSTEMDRIVE%\\\\init-script.ps1\"}"
+    },
+    {
+      name                        = "HealthExtension"
+      publisher                   = "Microsoft.ManagedServices"
+      type                        = "ApplicationHealthWindows"
+      type_handler_version        = "1.0"
+      auto_upgrade_minor_version  = true
+      failure_suppression_enabled = false
+      settings                    = "{\"port\":80,\"protocol\":\"http\",\"requestPath\":\"index.html\"}"
   }]
-  managed_identities = {
-    system_assigned = false
-    user_assigned_resource_ids = [
-      azurerm_user_assigned_identity.user_identity.id
-    ]
-  }
-  role_assignments = {
-    role_assignment = {
-      principal_id               = data.azurerm_client_config.current.object_id
-      role_definition_id_or_name = "Reader"
-      description                = "Assign the Reader role to the deployment user on this virtual machine scale set resource scope."
-    }
-  }
   tags       = local.tags
   depends_on = [azurerm_subnet_nat_gateway_association.this]
 }
@@ -230,12 +223,11 @@ The following requirements are needed by this module:
 
 - <a name="requirement_random"></a> [random](#requirement\_random) (>= 3.6.2)
 
-- <a name="requirement_tls"></a> [tls](#requirement\_tls) (4.0.6)
-
 ## Resources
 
 The following resources are used by this module:
 
+- [azurerm_monitor_autoscale_setting.autoscale](https://registry.terraform.io/providers/hashicorp/azurerm/latest/docs/resources/monitor_autoscale_setting) (resource)
 - [azurerm_nat_gateway.this](https://registry.terraform.io/providers/hashicorp/azurerm/latest/docs/resources/nat_gateway) (resource)
 - [azurerm_nat_gateway_public_ip_association.this](https://registry.terraform.io/providers/hashicorp/azurerm/latest/docs/resources/nat_gateway_public_ip_association) (resource)
 - [azurerm_network_security_group.nic](https://registry.terraform.io/providers/hashicorp/azurerm/latest/docs/resources/network_security_group) (resource)
@@ -245,12 +237,9 @@ The following resources are used by this module:
 - [azurerm_subnet.subnet](https://registry.terraform.io/providers/hashicorp/azurerm/latest/docs/resources/subnet) (resource)
 - [azurerm_subnet_nat_gateway_association.this](https://registry.terraform.io/providers/hashicorp/azurerm/latest/docs/resources/subnet_nat_gateway_association) (resource)
 - [azurerm_subnet_network_security_group_association.this](https://registry.terraform.io/providers/hashicorp/azurerm/latest/docs/resources/subnet_network_security_group_association) (resource)
-- [azurerm_user_assigned_identity.user_identity](https://registry.terraform.io/providers/hashicorp/azurerm/latest/docs/resources/user_assigned_identity) (resource)
 - [azurerm_virtual_network.this](https://registry.terraform.io/providers/hashicorp/azurerm/latest/docs/resources/virtual_network) (resource)
 - [random_integer.region_index](https://registry.terraform.io/providers/hashicorp/random/latest/docs/resources/integer) (resource)
 - [random_integer.zone_index](https://registry.terraform.io/providers/hashicorp/random/latest/docs/resources/integer) (resource)
-- [tls_private_key.example_ssh](https://registry.terraform.io/providers/hashicorp/tls/4.0.6/docs/resources/private_key) (resource)
-- [azurerm_client_config.current](https://registry.terraform.io/providers/hashicorp/azurerm/latest/docs/data-sources/client_config) (data source)
 
 <!-- markdownlint-disable MD013 -->
 ## Required Inputs
