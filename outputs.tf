@@ -1,6 +1,5 @@
 output "resource" {
   description = "All attributes of the Virtual Machine Scale Set resource."
-  sensitive   = true
   value       = azurerm_orchestrated_virtual_machine_scale_set.virtual_machine_scale_set
 }
 

@@ -4,66 +4,6 @@ variable "admin_password" {
   sensitive   = true
 }
 
-variable "admin_ssh_keys" {
-  type = set(object({
-    id         = string
-    public_key = string
-    username   = string
-  }))
-  description = <<-EOT
-(Optional) SSH Keys to be used for Linx instances
-- Unique id.  Referenced in the `os_profile` below
-- (Required) The Public Key which should be used for authentication, which needs to be at least 2048-bit and in ssh-rsa format.
-- (Required) The Username for which this Public SSH Key should be configured.
-EOT
-  sensitive   = true
-}
-
-variable "extension" {
-  type = set(object({
-    auto_upgrade_minor_version_enabled        = optional(bool)
-    extensions_to_provision_after_vm_creation = optional(set(string))
-    failure_suppression_enabled               = optional(bool)
-    force_extension_execution_on_change       = optional(string)
-    name                                      = string
-    publisher                                 = string
-    settings                                  = optional(string)
-    type                                      = string
-    type_handler_version                      = string
-    protected_settings_from_key_vault = optional(object({
-      secret_url      = string
-      source_vault_id = string
-    }), null)
-  }))
-  description = <<-EOT
- - `auto_upgrade_minor_version_enabled` - (Optional) Should the latest version of the Extension be used at Deployment Time, if one is available? This won't auto-update the extension on existing installation. Defaults to `true`.
- - `extensions_to_provision_after_vm_creation` - (Optional) An set of Extension names which Orchestrated Virtual Machine Scale Set should provision after VM creation.
- - `failure_suppression_enabled` - (Optional) Should failures from the extension be suppressed? Possible values are `true` or `false`.
-
-> Note: Operational failures such as not connecting to the VM will not be suppressed regardless of the `failure_suppression_enabled` value.
-
- - `force_extension_execution_on_change` - (Optional) A value which, when different to the previous value can be used to force-run the Extension even if the Extension Configuration hasn't changed.
- - `name` - (Required) The name for the Virtual Machine Scale Set Extension.
-  
- > Note: Keys within the `protected_settings` block are notoriously case-sensitive, where the casing required (e.g. TitleCase vs snakeCase) depends on the Extension being used. Please refer to the documentation for the specific Orchestrated Virtual Machine Extension you're looking to use for more information.
-
- - `publisher` - (Required) Specifies the Publisher of the Extension.
- - `settings` - (Optional) A JSON String which specifies Settings for the Extension.
- - `type` - (Required) Specifies the Type of the Extension.
- - `type_handler_version` - (Required) Specifies the version of the extension to use, available versions can be found using the Azure CLI.
-
- ---
- `protected_settings_from_key_vault` block supports the following:
- - `secret_url` - (Required) The URL to the Key Vault Secret which stores the protected settings.
- - `source_vault_id` - (Required) The ID of the source Key Vault.
-
-A Health Extension is deployed by default as per [WAF guidelines](https://learn.microsoft.com/en-us/azure/reliability/reliability-virtual-machine-scale-sets?tabs=graph-4%2Cgraph-1%2Cgraph-2%2Cgraph-3%2Cgraph-5%2Cgraph-6%2Cportal#monitoring).
-
-> Note: `protected_settings_from_key_vault` cannot be used with `protected_settings`
-
-EOT
-}
-
 variable "extension_protected_setting" {
   type        = map(string)
   description = "(Optional) A JSON String which specifies Sensitive Settings (such as Passwords) for the Extension."
@@ -80,18 +20,6 @@ variable "name" {
   type        = string
   description = "(Required) The name of the Orchestrated Virtual Machine Scale Set. Changing this forces a new resource to be created."
   nullable    = false
-}
-
-# Must be 1 for VMSS FLexibility
-variable "platform_fault_domain_count" {
-  type        = number
-  description = "(Required) Specifies the number of fault domains that are used by this Orchestrated Virtual Machine Scale Set. Changing this forces a new resource to be created."
-  nullable    = false
-
-  validation {
-    condition     = var.platform_fault_domain_count == 1
-    error_message = "The platform fault domain count must be 1 for Flexible orchestration.  More on this reliability recommendation can be found here: [Spreading options](https://learn.microsoft.com/en-us/azure/reliability/reliability-virtual-machine-scale-sets?tabs=graph-4%2Cgraph-1%2Cgraph-2%2Cgraph-3%2Cgraph-5%2Cgraph-6%2Cportal#spreading-options)"
-  }
 }
 
 variable "resource_group_name" {
@@ -116,13 +44,30 @@ variable "additional_capabilities" {
 EOT
 }
 
+variable "admin_ssh_keys" {
+  type = set(object({
+    id         = string
+    public_key = string
+    username   = string
+  }))
+  default     = null
+  description = <<-EOT
+(Optional) SSH Keys to be used for Linx instances
+- Unique id.  Referenced in the `os_profile` below
+- (Required) The Public Key which should be used for authentication, which needs to be at least 2048-bit and in ssh-rsa format.
+- (Required) The Username for which this Public SSH Key should be configured.
+EOT
+  sensitive   = true
+}
+
 variable "automatic_instance_repair" {
   type = object({
     enabled      = bool
     grace_period = optional(string)
   })
   default = {
-    enabled = true
+    enabled      = true
+    grace_period = "PT30M"
   }
   description = <<-EOT
 Description: Enabling automatic instance repair allows VMSS to automatically detect and recover unhealthy VM instances at runtime, ensuring high application availability
@@ -252,6 +197,52 @@ variable "eviction_policy" {
   }
 }
 
+variable "extension" {
+  type = set(object({
+    auto_upgrade_minor_version_enabled        = optional(bool)
+    extensions_to_provision_after_vm_creation = optional(set(string))
+    failure_suppression_enabled               = optional(bool)
+    force_extension_execution_on_change       = optional(string)
+    name                                      = string
+    publisher                                 = string
+    settings                                  = optional(string)
+    type                                      = string
+    type_handler_version                      = string
+    protected_settings_from_key_vault = optional(object({
+      secret_url      = string
+      source_vault_id = string
+    }), null)
+  }))
+  default     = null
+  description = <<-EOT
+ - `auto_upgrade_minor_version_enabled` - (Optional) Should the latest version of the Extension be used at Deployment Time, if one is available? This won't auto-update the extension on existing installation. Defaults to `true`.
+ - `extensions_to_provision_after_vm_creation` - (Optional) An set of Extension names which Orchestrated Virtual Machine Scale Set should provision after VM creation.
+ - `failure_suppression_enabled` - (Optional) Should failures from the extension be suppressed? Possible values are `true` or `false`.
+
+> Note: Operational failures such as not connecting to the VM will not be suppressed regardless of the `failure_suppression_enabled` value.
+
+ - `force_extension_execution_on_change` - (Optional) A value which, when different to the previous value can be used to force-run the Extension even if the Extension Configuration hasn't changed.
+ - `name` - (Required) The name for the Virtual Machine Scale Set Extension.
+  
+ > Note: Keys within the `protected_settings` block are notoriously case-sensitive, where the casing required (e.g. TitleCase vs snakeCase) depends on the Extension being used. Please refer to the documentation for the specific Orchestrated Virtual Machine Extension you're looking to use for more information.
+
+ - `publisher` - (Required) Specifies the Publisher of the Extension.
+ - `settings` - (Optional) A JSON String which specifies Settings for the Extension.
+ - `type` - (Required) Specifies the Type of the Extension.
+ - `type_handler_version` - (Required) Specifies the version of the extension to use, available versions can be found using the Azure CLI.
+
+ ---
+ `protected_settings_from_key_vault` block supports the following:
+ - `secret_url` - (Required) The URL to the Key Vault Secret which stores the protected settings.
+ - `source_vault_id` - (Required) The ID of the source Key Vault.
+
+A Health Extension is deployed by default as per [WAF guidelines](https://learn.microsoft.com/en-us/azure/reliability/reliability-virtual-machine-scale-sets?tabs=graph-4%2Cgraph-1%2Cgraph-2%2Cgraph-3%2Cgraph-5%2Cgraph-6%2Cportal#monitoring).
+
+> Note: `protected_settings_from_key_vault` cannot be used with `protected_settings`
+
+EOT
+}
+
 variable "extension_operations_enabled" {
   type        = bool
   default     = null
@@ -265,23 +256,6 @@ variable "extensions_time_budget" {
   type        = string
   default     = null
   description = "(Optional) Specifies the time alloted for all extensions to start. The time duration should be between 15 minutes and 120 minutes (inclusive) and should be specified in ISO 8601 format. Defaults to `PT1H30M`."
-}
-
-variable "identity" {
-  type = object({
-    identity_ids = set(string)
-    type         = string
-  })
-  default     = null
-  description = <<-EOT
- - `identity_ids` - (Required) Specifies a set of User Managed Identity IDs to be assigned to this Orchestrated Windows Virtual Machine Scale Set.
- - `type` - (Required) The type of Managed Identity that should be configured on this Orchestrated Windows Virtual Machine Scale Set. Only possible value is `UserAssigned`.
-EOT
-
-  validation {
-    condition     = var.identity == null ? true : contains(["UserAssigned"], var.identity.type)
-    error_message = "The identity type must be 'UserAssigned'."
-  }
 }
 
 variable "instances" {
@@ -318,6 +292,20 @@ variable "lock" {
     condition     = var.lock != null ? contains(["CanNotDelete", "ReadOnly"], var.lock.kind) : true
     error_message = "Lock kind must be either `\"CanNotDelete\"` or `\"ReadOnly\"`."
   }
+}
+
+variable "managed_identities" {
+  type = object({
+    system_assigned            = optional(bool, false)
+    user_assigned_resource_ids = optional(set(string), [])
+  })
+  default     = {}
+  description = <<DESCRIPTION
+Controls the Managed Identity configuration on this resource. The following properties can be specified:
+
+- `user_assigned_resource_ids` - (Optional) Specifies a list of User Assigned Managed Identity resource IDs to be assigned to this resource.
+DESCRIPTION
+  nullable    = false
 }
 
 variable "max_bid_price" {
@@ -498,7 +486,7 @@ variable "os_profile" {
     windows_configuration = optional(object({
       admin_username           = string
       computer_name_prefix     = optional(string)
-      enable_automatic_updates = optional(bool, true)
+      enable_automatic_updates = optional(bool, false)
       hotpatching_enabled      = optional(bool)
       patch_assessment_mode    = optional(string)
       patch_mode               = optional(string, "AutomaticByPlatform")
@@ -562,7 +550,7 @@ Configure the operating system provile.
  `windows_configuration` block supports the following:
  - `admin_username` - (Required) The username of the local administrator on each Orchestrated Virtual Machine Scale Set instance. Changing this forces a new resource to be created.
  - `computer_name_prefix` - (Optional) The prefix which should be used for the name of the Virtual Machines in this Scale Set. If unspecified this defaults to the value for the `name` field. If the value of the `name` field is not a valid `computer_name_prefix`, then you must specify `computer_name_prefix`. Changing this forces a new resource to be created.
- - `enable_automatic_updates` - (Optional) Are automatic updates enabled for this Virtual Machine? Defaults to `true`.
+ - `enable_automatic_updates` - (Optional) Are automatic updates enabled for this Virtual Machine? Defaults to `false`.
  - `hotpatching_enabled` - (Optional) Should the VM be patched without requiring a reboot? Possible values are `true` or `false`. Defaults to `false`. For more information about hot patching please see the [product documentation](https://docs.microsoft.com/azure/automanage/automanage-hotpatch).
 
 > Note: Hotpatching can only be enabled if the `patch_mode` is set to `AutomaticByPlatform`, the `provision_vm_agent` is set to `true`, your `source_image_reference` references a hotpatching enabled image, the VM's `sku_name` is set to a [Azure generation 2](https://docs.microsoft.com/azure/virtual-machines/generation-2#generation-2-vm-sizes) VM SKU and the `extension` contains an application health extension. 
@@ -597,23 +585,23 @@ Configure the operating system provile.
 EOT
 
   validation {
-    condition     = var.os_profile.linux_configuration == null ? true : var.os_profile.linux_configuration.patch_mode == null ? true : contains(["ImageDefault", "AutomaticByPlatform"], var.os_profile.linux_configuration.patch_mode)
+    condition     = var.os_profile == null ? true : var.os_profile.linux_configuration == null ? true : var.os_profile.linux_configuration.patch_mode == null ? true : contains(["ImageDefault", "AutomaticByPlatform"], var.os_profile.linux_configuration.patch_mode)
     error_message = "Value must be one of: 'ImageDefault' or 'AutomaticByPlatform'"
   }
   validation {
-    condition     = var.os_profile.linux_configuration == null ? true : var.os_profile.linux_configuration.patch_assessment_mode == null ? true : contains(["AutomaticByPlatform", "ImageDefault"], var.os_profile.linux_configuration.patch_assessment_mode)
+    condition     = var.os_profile == null ? true : var.os_profile.linux_configuration == null ? true : var.os_profile.linux_configuration.patch_assessment_mode == null ? true : contains(["AutomaticByPlatform", "ImageDefault"], var.os_profile.linux_configuration.patch_assessment_mode)
     error_message = "Value must be one of: 'AutomaticByPlatform' or 'ImageDefault'"
   }
   validation {
-    condition     = var.os_profile.windows_configuration == null ? true : var.os_profile.windows_configuration.patch_mode == null ? true : contains(["Manual", "AutomaticByOS", "AutomaticByPlatform"], var.os_profile.windows_configuration.patch_mode)
+    condition     = var.os_profile == null ? true : var.os_profile.windows_configuration == null ? true : var.os_profile.windows_configuration.patch_mode == null ? true : contains(["Manual", "AutomaticByOS", "AutomaticByPlatform"], var.os_profile.windows_configuration.patch_mode)
     error_message = "Value must be one of: 'ImageDefault' or 'AutomaticByPlatform'"
   }
   validation {
-    condition     = var.os_profile.windows_configuration == null ? true : var.os_profile.windows_configuration.patch_assessment_mode == null ? true : contains(["AutomaticByPlatform", "ImageDefault"], var.os_profile.windows_configuration.patch_assessment_mode)
+    condition     = var.os_profile == null ? true : var.os_profile.windows_configuration == null ? true : var.os_profile.windows_configuration.patch_assessment_mode == null ? true : contains(["AutomaticByPlatform", "ImageDefault"], var.os_profile.windows_configuration.patch_assessment_mode)
     error_message = "Value must be one of: 'AutomaticByPlatform' or 'ImageDefault'"
   }
   validation {
-    condition = var.os_profile.windows_configuration == null ? true : var.os_profile.windows_configuration.winrm_listener == null ? true : alltrue([
+    condition = var.os_profile == null ? true : var.os_profile.windows_configuration == null ? true : var.os_profile.windows_configuration.winrm_listener == null ? true : alltrue([
       for wl in var.os_profile.windows_configuration.winrm_listener :
       contains(["Http", "Https"], wl.protocol)
     ])
@@ -633,6 +621,13 @@ variable "plan" {
  - `product` - (Required) Specifies the product of the image from the marketplace. Changing this forces a new resource to be created.
  - `publisher` - (Required) Specifies the publisher of the image. Changing this forces a new resource to be created.
 EOT
+}
+
+# Must be 1 for VMSS FLexibility
+variable "platform_fault_domain_count" {
+  type        = number
+  default     = 1
+  description = "(Required) Specifies the number of fault domains that are used by this Orchestrated Virtual Machine Scale Set. Changing this forces a new resource to be created.  Setting to 1 enables Max Spreading.  [Spreading options](https://learn.microsoft.com/en-us/azure/reliability/reliability-virtual-machine-scale-sets?tabs=graph-4%2Cgraph-1%2Cgraph-2%2Cgraph-3%2Cgraph-5%2Cgraph-6%2Cportal#spreading-options)"
 }
 
 variable "priority" {
@@ -721,11 +716,6 @@ variable "source_image_id" {
   type        = string
   default     = null
   description = "(Optional) The ID of an Image which each Virtual Machine in this Scale Set should be based on. Possible Image ID types include `Image ID`s, `Shared Image ID`s, `Shared Image Version ID`s, `Community Gallery Image ID`s, `Community Gallery Image Version ID`s, `Shared Gallery Image ID`s and `Shared Gallery Image Version ID`s."
-
-  validation {
-    condition     = var.source_image_id == null ? true : contains(["Image ID", "Shared Image ID", "Shared Image Version ID", "Community Gallery Image ID", "Community Gallery Image Version ID", "Shared Gallery Image ID", "Shared Gallery Image Version ID"], var.source_image_id)
-    error_message = "Value must be one of: 'Image ID', 'Shared Image ID', 'Shared Image Version ID', 'Community Gallery Image ID', 'Community Gallery Image Version ID', 'Shared Gallery Image ID', or 'Shared Gallery Image Version ID'"
-  }
 }
 
 variable "source_image_reference" {
@@ -781,7 +771,7 @@ EOT
 
 variable "zone_balance" {
   type        = bool
-  default     = null
+  default     = false
   description = <<-EOT
 (Optional) Should the Virtual Machines in this Scale Set be strictly evenly distributed across Availability Zones? Defaults to `false`. Changing this forces a new resource to be created.
 
