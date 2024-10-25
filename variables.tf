@@ -45,7 +45,7 @@ EOT
 }
 
 variable "admin_ssh_keys" {
-  type = map(object({
+  type = set(object({
     id         = string
     public_key = string
     username   = string
