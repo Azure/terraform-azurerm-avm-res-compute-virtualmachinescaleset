@@ -35,12 +35,6 @@ The following resources are used by this module:
 
 The following input variables are required:
 
-### <a name="input_admin_password"></a> [admin\_password](#input\_admin\_password)
-
-Description: (Optional) Sets the VM password
-
-Type: `string`
-
 ### <a name="input_extension_protected_setting"></a> [extension\_protected\_setting](#input\_extension\_protected\_setting)
 
 Description: (Optional) A JSON String which specifies Sensitive Settings (such as Passwords) for the Extension.
@@ -86,6 +80,14 @@ object({
     ultra_ssd_enabled = optional(bool)
   })
 ```
+
+Default: `null`
+
+### <a name="input_admin_password"></a> [admin\_password](#input\_admin\_password)
+
+Description: (Optional) Sets the VM password
+
+Type: `string`
 
 Default: `null`
 

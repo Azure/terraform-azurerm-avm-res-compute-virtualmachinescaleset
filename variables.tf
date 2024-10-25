@@ -1,9 +1,3 @@
-variable "admin_password" {
-  type        = string
-  description = "(Optional) Sets the VM password"
-  sensitive   = true
-}
-
 variable "extension_protected_setting" {
   type        = map(string)
   description = "(Optional) A JSON String which specifies Sensitive Settings (such as Passwords) for the Extension."
@@ -42,6 +36,13 @@ variable "additional_capabilities" {
   description = <<-EOT
  - `ultra_ssd_enabled` - (Optional) Should the capacity to enable Data Disks of the `UltraSSD_LRS` storage account type be supported on this Orchestrated Virtual Machine Scale Set? Defaults to `false`. Changing this forces a new resource to be created.
 EOT
+}
+
+variable "admin_password" {
+  type        = string
+  default     = null
+  description = "(Optional) Sets the VM password"
+  sensitive   = true
 }
 
 variable "admin_ssh_keys" {
