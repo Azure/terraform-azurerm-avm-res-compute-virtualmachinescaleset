@@ -2,6 +2,7 @@ variable "admin_password" {
   type        = string
   description = "(Optional) Sets the VM password"
   sensitive   = true
+  default     = null
 }
 
 variable "extension_protected_setting" {
