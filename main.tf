@@ -179,17 +179,21 @@ resource "azurerm_orchestrated_virtual_machine_scale_set" "virtual_machine_scale
           dynamic "admin_ssh_key" {
             for_each = linux_configuration.value.admin_ssh_key_id == null ? [] : linux_configuration.value.admin_ssh_key_id
 
+            # content {
+            #   public_key = lookup(
+            #     { for key in var.admin_ssh_keys : key.id => key.public_key },
+            #     admin_ssh_key.value,
+            #     null
+            #   )
+            #   username = lookup(
+            #     { for key in var.admin_ssh_keys : key.id => key.username },
+            #     admin_ssh_key.value,
+            #     null
+            #   )
+            # }
             content {
-              public_key = lookup(
-                { for key in var.admin_ssh_keys : key.id => key.public_key },
-                admin_ssh_key.value,
-                null
-              )
-              username = lookup(
-                { for key in var.admin_ssh_keys : key.id => key.username },
-                admin_ssh_key.value,
-                null
-              )
+              public_key = var.admin_ssh_keys[admin_ssh_key.value].public_key
+              username   = var.admin_ssh_keys[admin_ssh_key.value].username
             }
           }
           dynamic "secret" {
