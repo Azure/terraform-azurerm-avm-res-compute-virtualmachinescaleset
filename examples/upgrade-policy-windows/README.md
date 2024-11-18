@@ -1,13 +1,12 @@
 <!-- BEGIN_TF_DOCS -->
-# A Default Virtual Machine Scale Set Deployment
+# A Default Virtual Machine Scale Set with Windows VMs
 
-This example demonstrates a standard deployment of VMSS aligned with reliability recommendations from the [Well Architected Framework](https://learn.microsoft.com/en-us/azure/reliability/reliability-virtual-machine-scale-sets?tabs=graph-4%2Cgraph-1%2Cgraph-2%2Cgraph-3%2Cgraph-5%2Cgraph-6%2Cportal).
+This example demonstrates a standard deployment with Windows VMs.  The deployment includes:
 
-- a Linux VM
-- a virtual network with a subnet
+- a Windows VM
+- a virtual nework with a subnet
 - a NAT gateway
 - a public IP associated to the NAT gateway
-- an SSH key
 - locking code (commented out)
 - a health extension
 - upgrade mode set to automatic
@@ -27,8 +26,6 @@ The following requirements are needed by this module:
 
 - <a name="requirement_random"></a> [random](#requirement\_random) (>= 3.6.2)
 
-- <a name="requirement_tls"></a> [tls](#requirement\_tls) (4.0.6)
-
 ## Providers
 
 The following providers are used by this module:
@@ -36,8 +33,6 @@ The following providers are used by this module:
 - <a name="provider_azurerm"></a> [azurerm](#provider\_azurerm) (3.117.0)
 
 - <a name="provider_random"></a> [random](#provider\_random) (3.6.3)
-
-- <a name="provider_tls"></a> [tls](#provider\_tls) (4.0.6)
 
 ## Resources
 
@@ -55,7 +50,6 @@ The following resources are used by this module:
 - [azurerm_virtual_network.this](https://registry.terraform.io/providers/hashicorp/azurerm/latest/docs/resources/virtual_network) (resource)
 - [random_integer.region_index](https://registry.terraform.io/providers/hashicorp/random/latest/docs/resources/integer) (resource)
 - [random_integer.zone_index](https://registry.terraform.io/providers/hashicorp/random/latest/docs/resources/integer) (resource)
-- [tls_private_key.example_ssh](https://registry.terraform.io/providers/hashicorp/tls/4.0.6/docs/resources/private_key) (resource)
 
 <!-- markdownlint-disable MD013 -->
 ## Required Inputs

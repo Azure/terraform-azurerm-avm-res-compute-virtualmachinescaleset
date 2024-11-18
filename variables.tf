@@ -794,11 +794,11 @@ variable "upgrade_policy" {
   type = object({
     upgrade_mode = optional(string, "Manual")
     rolling_upgrade_policy = optional(object({
-      max_batch_instance_percent                 = optional(number)
-      max_unhealthy_instance_percent             = optional(number)
-      max_unhealthy_upgraded_instance_percent    = optional(number)
-      pause_time_between_batches                 = optional(string)
-      maximum_surge_instances_enabled            = optional(bool)
+      max_batch_instance_percent              = optional(number)
+      max_unhealthy_instance_percent          = optional(number)
+      max_unhealthy_upgraded_instance_percent = optional(number)
+      pause_time_between_batches              = optional(string)
+      maximum_surge_instances_enabled         = optional(bool)
     }), {})
   })
   default     = { upgrade_mode = "Manual" }

@@ -317,11 +317,11 @@ resource "azapi_update_resource" "set_update_policy" {
         upgradePolicy = {
           mode = var.upgrade_policy.upgrade_mode
           rollingUpgradePolicy = {
-            maxBatchInstancePercent               = var.upgrade_policy.rolling_upgrade_policy.max_batch_instance_percent
-            maxUnhealthyInstancePercent           = var.upgrade_policy.rolling_upgrade_policy.max_unhealthy_instance_percent
-            maxUnhealthyUpgradedInstancePercent   = var.upgrade_policy.rolling_upgrade_policy.max_unhealthy_upgraded_instance_percent
-            pauseTimeBetweenBatches               = var.upgrade_policy.rolling_upgrade_policy.pause_time_between_batches
-            maxSurge                              = var.upgrade_policy.rolling_upgrade_policy.maximum_surge_instances_enabled
+            maxBatchInstancePercent             = var.upgrade_policy.rolling_upgrade_policy.max_batch_instance_percent
+            maxUnhealthyInstancePercent         = var.upgrade_policy.rolling_upgrade_policy.max_unhealthy_instance_percent
+            maxUnhealthyUpgradedInstancePercent = var.upgrade_policy.rolling_upgrade_policy.max_unhealthy_upgraded_instance_percent
+            pauseTimeBetweenBatches             = var.upgrade_policy.rolling_upgrade_policy.pause_time_between_batches
+            maxSurge                            = var.upgrade_policy.rolling_upgrade_policy.maximum_surge_instances_enabled
           }
         }
       }

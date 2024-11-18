@@ -119,11 +119,6 @@ resource "azurerm_subnet_nat_gateway_association" "this" {
   subnet_id      = azurerm_subnet.subnet.id
 }
 
-resource "tls_private_key" "example_ssh" {
-  algorithm = "RSA"
-  rsa_bits  = 4096
-}
-
 # This is the module call
 module "terraform_azurerm_avm_res_compute_virtualmachinescaleset" {
   source = "../../"
@@ -133,20 +128,14 @@ module "terraform_azurerm_avm_res_compute_virtualmachinescaleset" {
   enable_telemetry            = var.enable_telemetry
   location                    = azurerm_resource_group.this.location
   admin_password              = "P@ssw0rd1234!"
-  instances                   = 2
   sku_name                    = module.get_valid_sku_for_deployment_region.sku
+  instances                   = 2
   extension_protected_setting = {}
+  admin_ssh_keys              = []
   user_data_base64            = null
   boot_diagnostics = {
     storage_account_uri = "" # Enable boot diagnostics
   }
-  admin_ssh_keys = [(
-    {
-      id         = tls_private_key.example_ssh.id
-      public_key = tls_private_key.example_ssh.public_key_openssh
-      username   = "azureuser"
-    }
-  )]
   network_interface = [{
     name                      = "VMSS-NIC"
     network_security_group_id = azurerm_network_security_group.nic.id
@@ -156,40 +145,56 @@ module "terraform_azurerm_avm_res_compute_virtualmachinescaleset" {
     }]
   }]
   os_profile = {
-    custom_data = base64encode(file("custom-data.yaml"))
-    linux_configuration = {
+    custom_data = base64encode(file("init-script.ps1"))
+    windows_configuration = {
       disable_password_authentication = false
-      user_data_base64                = base64encode(file("user-data.sh"))
       admin_username                  = "azureuser"
-      admin_ssh_key                   = toset([tls_private_key.example_ssh.id])
+      license_type                    = "None"
+      hotpatching_enabled             = false
+      timezone                        = "Pacific Standard Time"
+      provision_vm_agent              = true
+      winrm_listener = [{
+        protocol = "Http"
+      }]
     }
   }
+  data_disk = [{
+    caching                   = "ReadWrite"
+    create_option             = "Empty"
+    disk_size_gb              = 10
+    lun                       = 0
+    managed_disk_type         = "StandardSSD_LRS"
+    storage_account_type      = "StandardSSD_LRS"
+    write_accelerator_enabled = false
+  }]
   source_image_reference = {
-    publisher = "Canonical"
-    offer     = "0001-com-ubuntu-server-jammy"
-    sku       = "22_04-LTS-gen2" # Auto guest patching is enabled on this sku.  https://learn.microsoft.com/en-us/azure/virtual-machines/automatic-vm-guest-patching
+    publisher = "MicrosoftWindowsServer"
+    offer     = "WindowsServer"
+    sku       = "2022-Datacenter"
     version   = "latest"
   }
-  extension = [{
-    name                        = "HealthExtension"
-    publisher                   = "Microsoft.ManagedServices"
-    type                        = "ApplicationHealthLinux"
-    type_handler_version        = "1.0"
-    auto_upgrade_minor_version  = true
-    failure_suppression_enabled = false
-    settings                    = "{\"port\":80,\"protocol\":\"http\",\"requestPath\":\"/index.html\"}"
+  extension = [
+    {
+      name                        = "CustomScriptExtension"
+      publisher                   = "Microsoft.Compute"
+      type                        = "CustomScriptExtension"
+      type_handler_version        = "1.10"
+      auto_upgrade_minor_version  = true
+      failure_suppression_enabled = false
+      settings                    = "{\"commandToExecute\":\"copy %SYSTEMDRIVE%\\\\AzureData\\\\CustomData.bin c:\\\\init-script.ps1 \\u0026 powershell -ExecutionPolicy Unrestricted -File %SYSTEMDRIVE%\\\\init-script.ps1\"}"
+    },
+    {
+      name                        = "HealthExtension"
+      publisher                   = "Microsoft.ManagedServices"
+      type                        = "ApplicationHealthWindows"
+      type_handler_version        = "1.0"
+      auto_upgrade_minor_version  = true
+      failure_suppression_enabled = false
+      settings                    = "{\"port\":80,\"protocol\":\"http\",\"requestPath\":\"index.html\"}"
   }]
   upgrade_policy = {
     upgrade_mode = "Automatic"
   }
-  tags = local.tags
-  # Uncomment the code below to implement a VMSS Lock
-  #lock = {
-  #  name = "VMSSNoDelete"
-  #  kind = "CanNotDelete"
-  #}
+  tags       = local.tags
   depends_on = [azurerm_subnet_nat_gateway_association.this]
 }
-
-
-

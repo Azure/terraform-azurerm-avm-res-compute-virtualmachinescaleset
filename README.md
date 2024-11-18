@@ -12,6 +12,8 @@ The following requirements are needed by this module:
 
 - <a name="requirement_terraform"></a> [terraform](#requirement\_terraform) (>= 1.0.0)
 
+- <a name="requirement_azapi"></a> [azapi](#requirement\_azapi) (~>1.15)
+
 - <a name="requirement_azurerm"></a> [azurerm](#requirement\_azurerm) (>= 3.116.0, < 4.0)
 
 - <a name="requirement_modtm"></a> [modtm](#requirement\_modtm) (~> 0.3)
@@ -22,7 +24,7 @@ The following requirements are needed by this module:
 
 The following resources are used by this module:
 
-- [azapi_update_resource.set_update_policy](https://registry.terraform.io/providers/hashicorp/azapi/latest/docs/resources/update_resource) (resource)
+- [azapi_update_resource.set_update_policy](https://registry.terraform.io/providers/Azure/azapi/latest/docs/resources/update_resource) (resource)
 - [azurerm_management_lock.this](https://registry.terraform.io/providers/hashicorp/azurerm/latest/docs/resources/management_lock) (resource)
 - [azurerm_orchestrated_virtual_machine_scale_set.virtual_machine_scale_set](https://registry.terraform.io/providers/hashicorp/azurerm/latest/docs/resources/orchestrated_virtual_machine_scale_set) (resource)
 - [azurerm_role_assignment.this](https://registry.terraform.io/providers/hashicorp/azurerm/latest/docs/resources/role_assignment) (resource)
@@ -784,11 +786,11 @@ Type:
 object({
     upgrade_mode = optional(string, "Manual")
     rolling_upgrade_policy = optional(object({
-      max_batch_instance_percent                 = optional(number)
-      max_unhealthy_instance_percent             = optional(number)
-      max_unhealthy_upgraded_instance_percent    = optional(number)
-      pause_time_between_batches                 = optional(string)
-      maximum_surge_instances_enabled            = optional(bool)
+      max_batch_instance_percent              = optional(number)
+      max_unhealthy_instance_percent          = optional(number)
+      max_unhealthy_upgraded_instance_percent = optional(number)
+      pause_time_between_batches              = optional(string)
+      maximum_surge_instances_enabled         = optional(bool)
     }), {})
   })
 ```
