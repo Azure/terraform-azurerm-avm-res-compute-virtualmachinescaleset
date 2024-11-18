@@ -789,3 +789,29 @@ Specifies a list of Availability Zones in which this Orchestrated Virtual Machin
 > Note: Due to a limitation of the Azure API at this time only one Availability Zone can be defined.
 EOT
 }
+
+variable "upgrade_policy" {
+  type = object({
+    upgrade_mode = optional(string, "Manual")
+    rolling_upgrade_policy = optional(object({
+      max_batch_instance_percent                 = optional(number)
+      max_unhealthy_instance_percent             = optional(number)
+      max_unhealthy_upgraded_instance_percent    = optional(number)
+      pause_time_between_batches                 = optional(string)
+      maximum_surge_instances_enabled            = optional(bool)
+    }), {})
+  })
+  default     = { upgrade_mode = "Manual" }
+  description = <<-EOT
+Defines the upgrade policy of the VMSS. Defaults to `{ upgrade_mode = "Manual" }`
+
+- `upgrade_mode`: (Optional) Specifies how Upgrades (e.g. changing the Image/SKU) should be performed to Virtual Machine Instances. Possible values are Automatic, Manual and Rolling. Defaults to Manual.
+- `rollingUpgradePolicy`: (Optional) Required if upgrade_mode is Rolling. An object use to set rolling upgrade parameters. Defaults to null.
+  - `max_batch_instance_percent`: (Required) The maximum percent of total virtual machine instances that will be upgraded simultaneously by the rolling upgrade in one batch. As this is a maximum, unhealthy instances in previous or future batches can cause the percentage of instances in a batch to decrease to ensure higher reliability.
+  - `max_unhealthy_instance_percent`: (Required) The maximum percentage of the total virtual machine instances in the scale set that can be simultaneously unhealthy, either as a result of being upgraded, or by being found in an unhealthy state by the virtual machine health checks before the rolling upgrade aborts. This constraint will be checked prior to starting any batch.
+  - `max_unhealthy_upgraded_instance_percent`: (Required) The maximum percentage of upgraded virtual machine instances that can be found to be in an unhealthy state. This check will happen after each batch is upgraded. If this percentage is ever exceeded, the rolling update aborts.
+  - `pause_time_between_batches`: (Required) The wait time between completing the update for all virtual machines in one batch and starting the next batch. The time duration should be specified in ISO 8601 format.
+  - `maximum_surge_instances_enabled`: (Required) Create new virtual machines to upgrade the scale set, rather than updating the existing virtual machines. Existing virtual machines will be deleted once the new virtual machines are created for each batch. Possible values are true or false.
+> Note
+EOT
+}
