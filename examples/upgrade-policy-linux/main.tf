@@ -182,6 +182,16 @@ module "terraform_azurerm_avm_res_compute_virtualmachinescaleset" {
   upgrade_policy = {
     upgrade_mode = "Automatic"
   }
+  # upgrade_policy = {
+  #   upgrade_mode = "Rolling"
+  #   rolling_upgrade_policy = {
+  #     max_batch_instance_percent              = 20
+  #     max_unhealthy_instance_percent          = 20
+  #     max_unhealthy_upgraded_instance_percent = 20
+  #     pause_time_between_batches              = "PT0S"
+  #     maximum_surge_instances_enabled         = true
+  #   }
+  # }
   tags = local.tags
   # Uncomment the code below to implement a VMSS Lock
   #lock = {

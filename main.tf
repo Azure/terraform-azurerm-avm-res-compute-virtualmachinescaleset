@@ -299,17 +299,20 @@ resource "azurerm_orchestrated_virtual_machine_scale_set" "virtual_machine_scale
 }
 
 resource "azapi_update_resource" "set_update_policy" {
-
   type = "Microsoft.Compute/virtualMachineScaleSets@2024-07-01"
+
   body = merge(
-    var.upgrade_policy.upgrade_mode!= "Rolling" ? { # `Manual` or `Automatic`
+    # Only include upgradePolicy if it's not "Rolling"
+    var.upgrade_policy.upgrade_mode != "Rolling" ? {
       properties = {
         upgradePolicy = {
           mode = var.upgrade_policy.upgrade_mode
         }
       }
     } : {},
-    var.upgrade_policy.upgrade_mode, "Manual" == "Rolling" ? {
+
+    # If the upgrade mode is "Rolling", include the rolling upgrade policy settings
+    var.upgrade_policy.upgrade_mode == "Rolling" ? {
       properties = {
         upgradePolicy = {
           mode = var.upgrade_policy.upgrade_mode
@@ -324,6 +327,7 @@ resource "azapi_update_resource" "set_update_policy" {
       }
     } : {}
   )
+
   resource_id = azurerm_orchestrated_virtual_machine_scale_set.virtual_machine_scale_set.id
 }
 
