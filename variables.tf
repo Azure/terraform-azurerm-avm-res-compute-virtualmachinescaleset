@@ -106,7 +106,7 @@ variable "data_disk" {
     create_option                  = optional(string)
     disk_encryption_set_id         = optional(string)
     disk_size_gb                   = number
-    lun                            = number
+    lun                            = optional(number)
     storage_account_type           = string
     ultra_ssd_disk_iops_read_write = optional(number)
     ultra_ssd_disk_mbps_read_write = optional(number)

@@ -47,6 +47,7 @@ resource "azurerm_orchestrated_virtual_machine_scale_set" "virtual_machine_scale
     for_each = var.data_disk == null ? [] : var.data_disk
 
     content {
+      lun                            = data_disk.value.lun
       caching                        = data_disk.value.caching
       storage_account_type           = data_disk.value.storage_account_type
       create_option                  = data_disk.value.create_option
