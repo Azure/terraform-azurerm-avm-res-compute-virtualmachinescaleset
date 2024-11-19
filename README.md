@@ -169,8 +169,8 @@ Description:  - `caching` - (Required) The type of Caching which should be used 
 
 > Note: Disk Encryption Sets are in Public Preview in a limited set of regions.
 
- - `disk_size_gb` - (Required) The size of the Data Disk which should be created.
- - `lun` - (Required) The Logical Unit Number of the Data Disk, which must be unique within the Virtual Machine.
+ - `disk_size_gb` - (Optional) The size of the Data Disk which should be created.
+ - `lun` - (Optional) The Logical Unit Number of the Data Disk, which must be unique within the Virtual Machine.
  - `storage_account_type` - (Required) The Type of Storage Account which should back this Data Disk. Possible values include `Standard_LRS`, `StandardSSD_LRS`, `StandardSSD_ZRS`, `Premium_LRS`, `PremiumV2_LRS`, `Premium_ZRS` and `UltraSSD_LRS`.
  - `ultra_ssd_disk_iops_read_write` - (Optional) Specifies the Read-Write IOPS for this Data Disk. Only settable when `storage_account_type` is `PremiumV2_LRS` or `UltraSSD_LRS`.
  - `ultra_ssd_disk_mbps_read_write` - (Optional) Specifies the bandwidth in MB per second for this Data Disk. Only settable when `storage_account_type` is `PremiumV2_LRS` or `UltraSSD_LRS`.
@@ -183,8 +183,8 @@ set(object({
     caching                        = string
     create_option                  = optional(string)
     disk_encryption_set_id         = optional(string)
-    disk_size_gb                   = number
-    lun                            = number
+    disk_size_gb                   = optional(number)
+    lun                            = optional(number)
     storage_account_type           = string
     ultra_ssd_disk_iops_read_write = optional(number)
     ultra_ssd_disk_mbps_read_write = optional(number)
