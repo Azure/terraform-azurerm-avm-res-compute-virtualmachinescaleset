@@ -47,12 +47,12 @@ resource "azurerm_orchestrated_virtual_machine_scale_set" "virtual_machine_scale
     for_each = var.data_disk == null ? [] : var.data_disk
 
     content {
-      lun                            = data_disk.value.lun
       caching                        = data_disk.value.caching
       storage_account_type           = data_disk.value.storage_account_type
       create_option                  = data_disk.value.create_option
       disk_encryption_set_id         = data_disk.value.disk_encryption_set_id
       disk_size_gb                   = data_disk.value.disk_size_gb
+      lun                            = data_disk.value.lun
       ultra_ssd_disk_iops_read_write = data_disk.value.ultra_ssd_disk_iops_read_write
       ultra_ssd_disk_mbps_read_write = data_disk.value.ultra_ssd_disk_mbps_read_write
       write_accelerator_enabled      = data_disk.value.write_accelerator_enabled
