@@ -770,26 +770,6 @@ variable "timeouts" {
 EOT
 }
 
-variable "zone_balance" {
-  type        = bool
-  default     = false
-  description = <<-EOT
-(Optional) Should the Virtual Machines in this Scale Set be strictly evenly distributed across Availability Zones? Defaults to `false`. Changing this forces a new resource to be created.
-
-> Note: This can only be set to `true` when one or more `zones` are configured.
-EOT
-}
-
-variable "zones" {
-  type        = set(string)
-  default     = ["1", "2", "3"]
-  description = <<-EOT
-Specifies a list of Availability Zones in which this Orchestrated Virtual Machine should be located. Changing this forces a new Orchestrated Virtual Machine to be created.  Defaulted to 3 zones as per this reliability guidance: [Deploy Virtual Machine Scale Sets across availability zones with Virtual Machine Scale Sets Flex](https://learn.microsoft.com/en-us/azure/reliability/reliability-virtual-machine-scale-sets?tabs=graph-4%2Cgraph-1%2Cgraph-2%2Cgraph-3%2Cgraph-5%2Cgraph-6%2Cportal#-deploy-virtual-machine-scale-sets-across-availability-zones-with-virtual-machine-scale-sets-flex)
-
-> Note: Due to a limitation of the Azure API at this time only one Availability Zone can be defined.
-EOT
-}
-
 variable "upgrade_policy" {
   type = object({
     upgrade_mode = optional(string, "Manual")
@@ -813,5 +793,25 @@ Defines the upgrade policy of the VMSS. Defaults to `{ upgrade_mode = "Manual" }
   - `pause_time_between_batches`: (Required) The wait time between completing the update for all virtual machines in one batch and starting the next batch. The time duration should be specified in ISO 8601 format.
   - `maximum_surge_instances_enabled`: (Required) Create new virtual machines to upgrade the scale set, rather than updating the existing virtual machines. Existing virtual machines will be deleted once the new virtual machines are created for each batch. Possible values are true or false.
 > Note
+EOT
+}
+
+variable "zone_balance" {
+  type        = bool
+  default     = false
+  description = <<-EOT
+(Optional) Should the Virtual Machines in this Scale Set be strictly evenly distributed across Availability Zones? Defaults to `false`. Changing this forces a new resource to be created.
+
+> Note: This can only be set to `true` when one or more `zones` are configured.
+EOT
+}
+
+variable "zones" {
+  type        = set(string)
+  default     = ["1", "2", "3"]
+  description = <<-EOT
+Specifies a list of Availability Zones in which this Orchestrated Virtual Machine should be located. Changing this forces a new Orchestrated Virtual Machine to be created.  Defaulted to 3 zones as per this reliability guidance: [Deploy Virtual Machine Scale Sets across availability zones with Virtual Machine Scale Sets Flex](https://learn.microsoft.com/en-us/azure/reliability/reliability-virtual-machine-scale-sets?tabs=graph-4%2Cgraph-1%2Cgraph-2%2Cgraph-3%2Cgraph-5%2Cgraph-6%2Cportal#-deploy-virtual-machine-scale-sets-across-availability-zones-with-virtual-machine-scale-sets-flex)
+
+> Note: Due to a limitation of the Azure API at this time only one Availability Zone can be defined.
 EOT
 }

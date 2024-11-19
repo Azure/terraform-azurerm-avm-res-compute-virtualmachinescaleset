@@ -300,7 +300,6 @@ resource "azurerm_orchestrated_virtual_machine_scale_set" "virtual_machine_scale
 
 resource "azapi_update_resource" "set_update_policy" {
   type = "Microsoft.Compute/virtualMachineScaleSets@2024-07-01"
-
   body = merge(
     # Only include upgradePolicy if it's not "Rolling"
     var.upgrade_policy.upgrade_mode != "Rolling" ? {
@@ -327,7 +326,6 @@ resource "azapi_update_resource" "set_update_policy" {
       }
     } : {}
   )
-
   resource_id = azurerm_orchestrated_virtual_machine_scale_set.virtual_machine_scale_set.id
 }
 
