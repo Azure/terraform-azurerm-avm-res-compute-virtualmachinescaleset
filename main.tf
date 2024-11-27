@@ -301,7 +301,6 @@ resource "azurerm_orchestrated_virtual_machine_scale_set" "virtual_machine_scale
 resource "azapi_update_resource" "set_update_policy" {
   type = "Microsoft.Compute/virtualMachineScaleSets@2024-07-01"
   body = merge(
-    # Only include upgradePolicy if it's not "Rolling"
     var.upgrade_policy.upgrade_mode != "Rolling" ? {
       properties = {
         upgradePolicy = {
@@ -309,17 +308,17 @@ resource "azapi_update_resource" "set_update_policy" {
         }
       }
     } : {},
-
-    # If the upgrade mode is "Rolling", include the rolling upgrade policy settings
     var.upgrade_policy.upgrade_mode == "Rolling" ? {
       properties = {
         upgradePolicy = {
           mode = var.upgrade_policy.upgrade_mode
           rollingUpgradePolicy = {
+            enableCrossZoneUpgrade              = var.upgrade_policy.rolling_upgrade_policy.cross_zone_upgrades_enabled
             maxBatchInstancePercent             = var.upgrade_policy.rolling_upgrade_policy.max_batch_instance_percent
             maxUnhealthyInstancePercent         = var.upgrade_policy.rolling_upgrade_policy.max_unhealthy_instance_percent
             maxUnhealthyUpgradedInstancePercent = var.upgrade_policy.rolling_upgrade_policy.max_unhealthy_upgraded_instance_percent
             pauseTimeBetweenBatches             = var.upgrade_policy.rolling_upgrade_policy.pause_time_between_batches
+            prioritizeUnhealthyInstances        = var.upgrade_policy.rolling_upgrade_policy.prioritize_unhealthy_instances_enabled
             maxSurge                            = var.upgrade_policy.rolling_upgrade_policy.maximum_surge_instances_enabled
           }
         }

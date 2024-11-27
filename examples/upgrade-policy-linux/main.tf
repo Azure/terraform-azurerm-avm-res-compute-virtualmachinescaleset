@@ -28,7 +28,7 @@ module "get_valid_sku_for_deployment_region" {
 
 # This is required for resource modules
 resource "azurerm_resource_group" "this" {
-  location = module.regions.regions[random_integer.region_index.result].name
+  location = "southeastasia"
   name     = module.naming.resource_group.name_unique
   tags     = local.tags
 }
@@ -133,8 +133,8 @@ module "terraform_azurerm_avm_res_compute_virtualmachinescaleset" {
   enable_telemetry            = var.enable_telemetry
   location                    = azurerm_resource_group.this.location
   admin_password              = "P@ssw0rd1234!"
-  instances                   = 2
-  sku_name                    = module.get_valid_sku_for_deployment_region.sku
+  instances                   = 1
+  sku_name                    = "Standard_B1ms"
   extension_protected_setting = {}
   user_data_base64            = null
   boot_diagnostics = {
