@@ -12,6 +12,8 @@ The following requirements are needed by this module:
 
 - <a name="requirement_terraform"></a> [terraform](#requirement\_terraform) (>= 1.0.0)
 
+- <a name="requirement_azapi"></a> [azapi](#requirement\_azapi) (~>1.15)
+
 - <a name="requirement_azurerm"></a> [azurerm](#requirement\_azurerm) (>= 3.116.0, < 4.0)
 
 - <a name="requirement_modtm"></a> [modtm](#requirement\_modtm) (~> 0.3)
@@ -22,6 +24,7 @@ The following requirements are needed by this module:
 
 The following resources are used by this module:
 
+- [azapi_update_resource.set_update_policy](https://registry.terraform.io/providers/Azure/azapi/latest/docs/resources/update_resource) (resource)
 - [azurerm_management_lock.this](https://registry.terraform.io/providers/hashicorp/azurerm/latest/docs/resources/management_lock) (resource)
 - [azurerm_orchestrated_virtual_machine_scale_set.virtual_machine_scale_set](https://registry.terraform.io/providers/hashicorp/azurerm/latest/docs/resources/orchestrated_virtual_machine_scale_set) (resource)
 - [azurerm_role_assignment.this](https://registry.terraform.io/providers/hashicorp/azurerm/latest/docs/resources/role_assignment) (resource)
@@ -763,6 +766,45 @@ object({
 ```
 
 Default: `null`
+
+### <a name="input_upgrade_policy"></a> [upgrade\_policy](#input\_upgrade\_policy)
+
+Description: Defines the upgrade policy of the VMSS. Defaults to `{ upgrade_mode = "Manual" }`
+
+- `upgrade_mode` - (Optional) Specifies how Upgrades (e.g. changing the Image/SKU) should be performed to Virtual Machine Instances. Possible values are Automatic, Manual and Rolling. Defaults to Manual.
+- `rolling_upgrade_policy` - (Optional) Required if upgrade\_mode is Rolling. An object use to set rolling upgrade parameters. Defaults to null.
+  - `cross_zone_upgrades_enable` - (Optional) Should the Virtual Machine Scale Set ignore the Azure Zone boundaries when constructing upgrade batches? Possible values are true or false.
+  - `max_batch_instance_percent` - (Required) The maximum percent of total virtual machine instances that will be upgraded simultaneously by the rolling upgrade in one batch. As this is a maximum, unhealthy instances in previous or future batches can cause the percentage of instances in a batch to decrease to ensure higher reliability.
+  - `max_unhealthy_instance_percent` - (Required) The maximum percentage of the total virtual machine instances in the scale set that can be simultaneously unhealthy, either as a result of being upgraded, or by being found in an unhealthy state by the virtual machine health checks before the rolling upgrade aborts. This constraint will be checked prior to starting any batch.
+  - `max_unhealthy_upgraded_instance_percent`- (Required) The maximum percentage of upgraded virtual machine instances that can be found to be in an unhealthy state. This check will happen after each batch is upgraded. If this percentage is ever exceeded, the rolling update aborts.
+  - `pause_time_between_batches`- (Required) The wait time between completing the update for all virtual machines in one batch and starting the next batch. The time duration should be specified in ISO 8601 format.
+  - `prioritize_unhealthy_instances_enabled` - (Optional) Upgrade all unhealthy instances in a scale set before any healthy instances. Possible values are true or false.
+  - `maximum_surge_instances_enabled`- (Required) Create new virtual machines to upgrade the scale set, rather than updating the existing virtual machines. Existing virtual machines will be deleted once the new virtual machines are created for each batch. Possible values are true or false.
+
+Type:
+
+```hcl
+object({
+    upgrade_mode = optional(string, "Manual")
+    rolling_upgrade_policy = optional(object({
+      cross_zone_upgrades_enabled             = optional(bool)
+      max_batch_instance_percent              = optional(number)
+      max_unhealthy_instance_percent          = optional(number)
+      max_unhealthy_upgraded_instance_percent = optional(number)
+      pause_time_between_batches              = optional(string)
+      prioritize_unhealthy_instances_enabled  = optional(bool)
+      maximum_surge_instances_enabled         = optional(bool)
+    }), {})
+  })
+```
+
+Default:
+
+```json
+{
+  "upgrade_mode": "Manual"
+}
+```
 
 ### <a name="input_zone_balance"></a> [zone\_balance](#input\_zone\_balance)
 
