@@ -25,11 +25,15 @@ The following requirements are needed by this module:
 The following resources are used by this module:
 
 - [azapi_update_resource.set_update_policy](https://registry.terraform.io/providers/Azure/azapi/latest/docs/resources/update_resource) (resource)
+- [azurerm_key_vault_secret.admin_password](https://registry.terraform.io/providers/hashicorp/azurerm/latest/docs/resources/key_vault_secret) (resource)
+- [azurerm_key_vault_secret.admin_ssh_key](https://registry.terraform.io/providers/hashicorp/azurerm/latest/docs/resources/key_vault_secret) (resource)
 - [azurerm_management_lock.this](https://registry.terraform.io/providers/hashicorp/azurerm/latest/docs/resources/management_lock) (resource)
 - [azurerm_orchestrated_virtual_machine_scale_set.virtual_machine_scale_set](https://registry.terraform.io/providers/hashicorp/azurerm/latest/docs/resources/orchestrated_virtual_machine_scale_set) (resource)
 - [azurerm_role_assignment.this](https://registry.terraform.io/providers/hashicorp/azurerm/latest/docs/resources/role_assignment) (resource)
 - [modtm_telemetry.telemetry](https://registry.terraform.io/providers/Azure/modtm/latest/docs/resources/telemetry) (resource)
+- [random_password.admin_password](https://registry.terraform.io/providers/hashicorp/random/latest/docs/resources/password) (resource)
 - [random_uuid.telemetry](https://registry.terraform.io/providers/hashicorp/random/latest/docs/resources/uuid) (resource)
+- [tls_private_key.this](https://registry.terraform.io/providers/hashicorp/tls/latest/docs/resources/private_key) (resource)
 - [azurerm_client_config.telemetry](https://registry.terraform.io/providers/hashicorp/azurerm/latest/docs/data-sources/client_config) (data source)
 - [modtm_module_source.telemetry](https://registry.terraform.io/providers/Azure/modtm/latest/docs/data-sources/module_source) (data source)
 
@@ -97,15 +101,28 @@ Default: `null`
 ### <a name="input_admin_ssh_keys"></a> [admin\_ssh\_keys](#input\_admin\_ssh\_keys)
 
 Description: (Optional) SSH Keys to be used for Linx instances
-- Unique id.  Referenced in the `os_profile` below
 - (Required) The Public Key which should be used for authentication, which needs to be at least 2048-bit and in ssh-rsa format.
 - (Required) The Username for which this Public SSH Key should be configured.
+
+Example Input:
+
+```hcl
+admin_ssh_keys = [
+  {
+    public_key = "<base64 string for the key>"
+    username   = "exampleuser"
+  },
+  {
+    public_key = "<base64 string for the next user key>"
+    username   = "examleuser2"
+  }
+]
+```
 
 Type:
 
 ```hcl
-set(object({
-    id         = string
+list(object({
     public_key = string
     username   = string
   }))
@@ -287,6 +304,39 @@ Default: `null`
 Description: (Optional) Specifies the time alloted for all extensions to start. The time duration should be between 15 minutes and 120 minutes (inclusive) and should be specified in ISO 8601 format. Defaults to `PT1H30M`.
 
 Type: `string`
+
+Default: `null`
+
+### <a name="input_generate_admin_password_or_ssh_key"></a> [generate\_admin\_password\_or\_ssh\_key](#input\_generate\_admin\_password\_or\_ssh\_key)
+
+Description: Set this value to true if the deployment should create a strong password for the admin user. If `os_type` is Linux, this will generate and store an SSH key as the default. However, setting `disable_password_authentication` to `false` will generate and store a password value instead of an ssh key.
+
+Type: `bool`
+
+Default: `true`
+
+### <a name="input_generated_secrets_key_vault_secret_config"></a> [generated\_secrets\_key\_vault\_secret\_config](#input\_generated\_secrets\_key\_vault\_secret\_config)
+
+Description: For simplicity this module provides the option to use an auto-generated admin user password or SSH key.  That password or key is then stored in a key vault provided in the `admin_credential_key_vault_resource_id` input. This variable allows the user to override the configuration for the key vault secret which stores the generated password or ssh key. The object details are:
+
+- `name` - (Optional) - The name to use for the key vault secret that stores the auto-generated ssh key or password
+- `expiration_date_length_in_days` - (Optional) - This value sets the number of days from the installation date to set the key vault expiration value. It defaults to `45` days.  This value will not be overridden in subsequent runs. If you need to maintain this virtual machine resource for a long period, generate and/or use your own password or ssh key.
+- `content_type` - (Optional) - This value sets the secret content type.  Defaults to `text/plain`
+- `not_before_date` - (Optional) - The UTC datetime (Y-m-d'T'H:M:S'Z) date before which this key is not valid.  Defaults to null.
+- `tags` - (Optional) - Specific tags to assign to this secret resource
+
+Type:
+
+```hcl
+object({
+    key_vault_resource_id          = string
+    name                           = optional(string, null)
+    expiration_date_length_in_days = optional(number, 45)
+    content_type                   = optional(string, "text/plain")
+    not_before_date                = optional(string, null)
+    tags                           = optional(map(string), {})
+  })
+```
 
 Default: `null`
 
@@ -492,8 +542,6 @@ Description: Configure the operating system provile.
  - `provision_vm_agent` - (Optional) Should the Azure VM Agent be provisioned on each Virtual Machine in the Scale Set? Defaults to `true`. Changing this value forces a new resource to be created.
 
  ---
- `admin_ssh_key_id` Set of ids which reference the `admin_ssh_keys` sensitive variable
-
  > Note: The Azure VM Agent only allows creating SSH Keys at the path `/home/{username}/.ssh/authorized_keys` - as such this public key will be written to the authorized keys file.
 
  ---
@@ -554,7 +602,6 @@ object({
       patch_assessment_mode           = optional(string)
       patch_mode                      = optional(string, "AutomaticByPlatform")
       provision_vm_agent              = optional(bool, true)
-      admin_ssh_key_id                = optional(set(string))
       secret = optional(set(object({
         key_vault_id = string
         certificate = set(object({

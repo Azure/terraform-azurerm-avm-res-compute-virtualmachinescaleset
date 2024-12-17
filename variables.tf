@@ -46,19 +46,31 @@ variable "admin_password" {
 }
 
 variable "admin_ssh_keys" {
-  type = set(object({
-    id         = string
+  type = list(object({
     public_key = string
     username   = string
   }))
   default     = null
   description = <<-EOT
 (Optional) SSH Keys to be used for Linx instances
-- Unique id.  Referenced in the `os_profile` below
 - (Required) The Public Key which should be used for authentication, which needs to be at least 2048-bit and in ssh-rsa format.
 - (Required) The Username for which this Public SSH Key should be configured.
+
+Example Input:
+
+```hcl
+admin_ssh_keys = [
+  {
+    public_key = "<base64 string for the key>"
+    username   = "exampleuser"
+  },
+  {
+    public_key = "<base64 string for the next user key>"
+    username   = "examleuser2"
+  }
+]
+```
 EOT
-  sensitive   = true
 }
 
 variable "automatic_instance_repair" {
@@ -257,6 +269,33 @@ variable "extensions_time_budget" {
   type        = string
   default     = null
   description = "(Optional) Specifies the time alloted for all extensions to start. The time duration should be between 15 minutes and 120 minutes (inclusive) and should be specified in ISO 8601 format. Defaults to `PT1H30M`."
+}
+
+variable "generate_admin_password_or_ssh_key" {
+  type        = bool
+  default     = true
+  description = "Set this value to true if the deployment should create a strong password for the admin user. If `os_type` is Linux, this will generate and store an SSH key as the default. However, setting `disable_password_authentication` to `false` will generate and store a password value instead of an ssh key."
+}
+
+variable "generated_secrets_key_vault_secret_config" {
+  type = object({
+    key_vault_resource_id          = string
+    name                           = optional(string, null)
+    expiration_date_length_in_days = optional(number, 45)
+    content_type                   = optional(string, "text/plain")
+    not_before_date                = optional(string, null)
+    tags                           = optional(map(string), {})
+  })
+  default     = null
+  description = <<DESCRIPTION
+For simplicity this module provides the option to use an auto-generated admin user password or SSH key.  That password or key is then stored in a key vault provided in the `admin_credential_key_vault_resource_id` input. This variable allows the user to override the configuration for the key vault secret which stores the generated password or ssh key. The object details are:
+
+- `name` - (Optional) - The name to use for the key vault secret that stores the auto-generated ssh key or password
+- `expiration_date_length_in_days` - (Optional) - This value sets the number of days from the installation date to set the key vault expiration value. It defaults to `45` days.  This value will not be overridden in subsequent runs. If you need to maintain this virtual machine resource for a long period, generate and/or use your own password or ssh key.
+- `content_type` - (Optional) - This value sets the secret content type.  Defaults to `text/plain`
+- `not_before_date` - (Optional) - The UTC datetime (Y-m-d'T'H:M:S'Z) date before which this key is not valid.  Defaults to null.
+- `tags` - (Optional) - Specific tags to assign to this secret resource
+DESCRIPTION
 }
 
 variable "instances" {
@@ -476,7 +515,6 @@ variable "os_profile" {
       patch_assessment_mode           = optional(string)
       patch_mode                      = optional(string, "AutomaticByPlatform")
       provision_vm_agent              = optional(bool, true)
-      admin_ssh_key_id                = optional(set(string))
       secret = optional(set(object({
         key_vault_id = string
         certificate = set(object({
@@ -533,8 +571,6 @@ Configure the operating system provile.
  - `provision_vm_agent` - (Optional) Should the Azure VM Agent be provisioned on each Virtual Machine in the Scale Set? Defaults to `true`. Changing this value forces a new resource to be created.
 
  ---
- `admin_ssh_key_id` Set of ids which reference the `admin_ssh_keys` sensitive variable
- 
  > Note: The Azure VM Agent only allows creating SSH Keys at the path `/home/{username}/.ssh/authorized_keys` - as such this public key will be written to the authorized keys file.
 
  ---

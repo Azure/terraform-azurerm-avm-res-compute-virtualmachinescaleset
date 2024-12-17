@@ -138,16 +138,17 @@ resource "azurerm_subnet_nat_gateway_association" "this" {
 module "terraform_azurerm_avm_res_compute_virtualmachinescaleset" {
   source = "../../"
   # source             = "Azure/avm-res-compute-virtualmachinescaleset/azurerm"
-  name                        = module.naming.virtual_machine_scale_set.name_unique
-  resource_group_name         = azurerm_resource_group.this.name
-  enable_telemetry            = var.enable_telemetry
-  location                    = azurerm_resource_group.this.location
-  admin_password              = "P@ssw0rd1234!"
-  sku_name                    = module.get_valid_sku_for_deployment_region.sku
-  instances                   = 2
-  extension_protected_setting = {}
-  admin_ssh_keys              = []
-  user_data_base64            = null
+  name                               = module.naming.virtual_machine_scale_set.name_unique
+  resource_group_name                = azurerm_resource_group.this.name
+  enable_telemetry                   = var.enable_telemetry
+  location                           = azurerm_resource_group.this.location
+  generate_admin_password_or_ssh_key = false
+  admin_password                     = "P@ssw0rd1234!"
+  sku_name                           = module.get_valid_sku_for_deployment_region.sku
+  instances                          = 2
+  extension_protected_setting        = {}
+  admin_ssh_keys                     = []
+  user_data_base64                   = null
   boot_diagnostics = {
     storage_account_uri = "" # Enable boot diagnostics
   }
