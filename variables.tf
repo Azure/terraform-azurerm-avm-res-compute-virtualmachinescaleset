@@ -46,13 +46,15 @@ variable "admin_password" {
 }
 
 variable "admin_ssh_keys" {
-  type = list(object({
+  type = set(object({
+    id         = string
     public_key = string
     username   = string
   }))
   default     = null
   description = <<-EOT
 (Optional) SSH Keys to be used for Linx instances
+- (Required) Unique id.  Referenced in the `os_profile` below
 - (Required) The Public Key which should be used for authentication, which needs to be at least 2048-bit and in ssh-rsa format.
 - (Required) The Username for which this Public SSH Key should be configured.
 
@@ -61,16 +63,19 @@ Example Input:
 ```hcl
 admin_ssh_keys = [
   {
+    id         = "my_ssh_keys_01"
     public_key = "<base64 string for the key>"
     username   = "exampleuser"
   },
   {
+    id         = "my_ssh_keys_02"
     public_key = "<base64 string for the next user key>"
     username   = "examleuser2"
   }
 ]
 ```
 EOT
+  sensitive   = true
 }
 
 variable "automatic_instance_repair" {
@@ -509,12 +514,13 @@ variable "os_profile" {
   type = object({
     custom_data = optional(string)
     linux_configuration = optional(object({
-      admin_username                  = string
+      admin_username                  = optional(string, "azureuser")
       computer_name_prefix            = optional(string)
       disable_password_authentication = optional(bool)
       patch_assessment_mode           = optional(string)
       patch_mode                      = optional(string, "AutomaticByPlatform")
       provision_vm_agent              = optional(bool, true)
+      admin_ssh_key_id                = optional(set(string))
       secret = optional(set(object({
         key_vault_id = string
         certificate = set(object({
@@ -523,7 +529,7 @@ variable "os_profile" {
       })))
     }))
     windows_configuration = optional(object({
-      admin_username           = string
+      admin_username           = optional(string, "azureuser")
       computer_name_prefix     = optional(string)
       enable_automatic_updates = optional(bool, false)
       hotpatching_enabled      = optional(bool)
@@ -554,7 +560,7 @@ Configure the operating system provile.
 
  ---
  `linux_configuration` block supports the following:
- - `admin_username` - (Required) The username of the local administrator on each Orchestrated Virtual Machine Scale Set instance. Changing this forces a new resource to be created.
+ - `admin_username` - (Optional) The username of the local administrator on each Orchestrated Virtual Machine Scale Set instance. Changing this forces a new resource to be created. Defaults to `azureuser`.
  - `computer_name_prefix` - (Optional) The prefix which should be used for the name of the Virtual Machines in this Scale Set. If unspecified this defaults to the value for the name field. If the value of the name field is not a valid `computer_name_prefix`, then you must specify `computer_name_prefix`. Changing this forces a new resource to be created.
  - `disable_password_authentication` - (Optional) When an `admin_password` is specified `disable_password_authentication` must be set to `false`. Defaults to `true`.
 
@@ -571,6 +577,8 @@ Configure the operating system provile.
  - `provision_vm_agent` - (Optional) Should the Azure VM Agent be provisioned on each Virtual Machine in the Scale Set? Defaults to `true`. Changing this value forces a new resource to be created.
 
  ---
+  `admin_ssh_key_id` Set of ids which reference the `admin_ssh_keys` sensitive variable
+
  > Note: The Azure VM Agent only allows creating SSH Keys at the path `/home/{username}/.ssh/authorized_keys` - as such this public key will be written to the authorized keys file.
 
  ---
@@ -585,7 +593,7 @@ Configure the operating system provile.
 
 ---
  `windows_configuration` block supports the following:
- - `admin_username` - (Required) The username of the local administrator on each Orchestrated Virtual Machine Scale Set instance. Changing this forces a new resource to be created.
+ - `admin_username` - (Optional) The username of the local administrator on each Orchestrated Virtual Machine Scale Set instance. Changing this forces a new resource to be created. Defaults to `azureuser`.
  - `computer_name_prefix` - (Optional) The prefix which should be used for the name of the Virtual Machines in this Scale Set. If unspecified this defaults to the value for the `name` field. If the value of the `name` field is not a valid `computer_name_prefix`, then you must specify `computer_name_prefix`. Changing this forces a new resource to be created.
  - `enable_automatic_updates` - (Optional) Are automatic updates enabled for this Virtual Machine? Defaults to `false`.
  - `hotpatching_enabled` - (Optional) Should the VM be patched without requiring a reboot? Possible values are `true` or `false`. Defaults to `false`. For more information about hot patching please see the [product documentation](https://docs.microsoft.com/azure/automanage/automanage-hotpatch).

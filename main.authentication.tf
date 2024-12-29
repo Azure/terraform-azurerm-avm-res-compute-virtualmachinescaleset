@@ -11,7 +11,7 @@
 #Windows, Password auth disabled (no action), no gen password - false
 #Windows, password auth enabled (noaction), no gen password - false
 resource "random_password" "admin_password" {
-  count = ((try(var.os_profile.windows_configuration, {}) != {} && var.generate_admin_password_or_ssh_key == true) ? 1 : ((try(var.os_profile.linux_configuration, {}) != {}) && var.generate_admin_password_or_ssh_key == true && var.os_profile.linux_configuration.disable_password_authentication == false ? 1 : 0))
+  count = (((var.os_profile.windows_configuration != null) && (var.generate_admin_password_or_ssh_key == true)) || (((var.generate_admin_password_or_ssh_key == true) && (var.os_profile.linux_configuration != null) && (try(var.os_profile.linux_configuration.disable_password_authentication, false) == false)))) ? 1 : 0
 
   length           = 22
   min_lower        = 2
@@ -25,8 +25,7 @@ resource "random_password" "admin_password" {
 #store the initial password in the secrets key vault
 #Requires that the deployment user has key vault secrets write access
 resource "azurerm_key_vault_secret" "admin_password" {
-  count = (((var.generate_admin_password_or_ssh_key == true) && (try(var.os_profile.windows_configuration, {}) != {}) && (var.generated_secrets_key_vault_secret_config != null)) ||
-  ((var.generate_admin_password_or_ssh_key == true) && (try(var.os_profile.linux_configuration, {}) != {}) && (var.os_profile.linux_configuration.disable_password_authentication == false) && (var.generated_secrets_key_vault_secret_config != null))) ? 1 : 0
+  count = (((var.generate_admin_password_or_ssh_key == true) && (var.os_profile.windows_configuration != null) && (var.generated_secrets_key_vault_secret_config != null)) || ((var.generate_admin_password_or_ssh_key == true) && (var.os_profile.linux_configuration != null) && (try(var.os_profile.linux_configuration.disable_password_authentication, false) == false) && (var.generated_secrets_key_vault_secret_config != null))) ? 1 : 0
 
   key_vault_id    = var.generated_secrets_key_vault_secret_config.key_vault_resource_id
   name            = coalesce(var.generated_secrets_key_vault_secret_config.name, try("${var.name}-${var.os_profile.linux_configuration.admin_username}-password", "${var.name}-${var.os_profile.windows_configuration.admin_username}-password"))
@@ -44,7 +43,7 @@ resource "azurerm_key_vault_secret" "admin_password" {
 ####Admin SSH key generation related resources
 #create an ssh key for the admin user in linux
 resource "tls_private_key" "this" {
-  count = ((var.generate_admin_password_or_ssh_key == true) && (try(var.os_profile.linux_configuration, {}) != {}) && (var.os_profile.linux_configuration.disable_password_authentication == true)) ? 1 : 0
+  count = ((var.generate_admin_password_or_ssh_key == true) && (var.os_profile.linux_configuration != null) && (try(var.os_profile.linux_configuration.disable_password_authentication, false) == true)) ? 1 : 0
 
   algorithm = "RSA"
   rsa_bits  = 4096
@@ -52,7 +51,7 @@ resource "tls_private_key" "this" {
 
 #Store the created ssh key in the secrets key vault
 resource "azurerm_key_vault_secret" "admin_ssh_key" {
-  count = ((var.generate_admin_password_or_ssh_key == true) && (try(var.os_profile.linux_configuration, {}) != {}) && (var.os_profile.linux_configuration.disable_password_authentication == true) && (var.generated_secrets_key_vault_secret_config != null)) ? 1 : 0
+  count = ((var.generate_admin_password_or_ssh_key == true) && (var.os_profile.linux_configuration != null) && (try(var.os_profile.linux_configuration.disable_password_authentication, false) == true) && (var.generated_secrets_key_vault_secret_config != null)) ? 1 : 0
 
   key_vault_id    = var.generated_secrets_key_vault_secret_config.key_vault_resource_id
   name            = coalesce(var.generated_secrets_key_vault_secret_config.name, try("${var.name}-${var.os_profile.linux_configuration.admin_username}-ssh-private-key", "${var.name}-${var.os_profile.windows_configuration.admin_username}-ssh-private-key"))
