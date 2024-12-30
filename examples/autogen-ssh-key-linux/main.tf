@@ -208,5 +208,5 @@ module "terraform_azurerm_avm_res_compute_virtualmachinescaleset" {
   #  name = "VMSSNoDelete"
   #  kind = "CanNotDelete"
   #}
-  depends_on = [azurerm_subnet_nat_gateway_association.this]
+  depends_on = [azurerm_subnet_nat_gateway_association.this, module.avm_res_keyvault_vault]
 }

@@ -231,5 +231,5 @@ module "terraform_azurerm_avm_res_compute_virtualmachinescaleset" {
       settings                    = "{\"port\":80,\"protocol\":\"http\",\"requestPath\":\"index.html\"}"
   }]
   tags       = local.tags
-  depends_on = [azurerm_subnet_nat_gateway_association.this]
+  depends_on = [azurerm_subnet_nat_gateway_association.this, module.avm_res_keyvault_vault]
 }
