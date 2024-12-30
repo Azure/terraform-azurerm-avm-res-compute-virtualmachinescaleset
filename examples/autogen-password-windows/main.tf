@@ -6,9 +6,11 @@ module "naming" {
 
 module "regions" {
   source                    = "Azure/avm-utl-regions/azurerm"
-  version                   = "0.3.0"
+  version                   = "=0.1.0"
   availability_zones_filter = true
 }
+
+data "azurerm_client_config" "current" {}
 
 resource "random_integer" "region_index" {
   max = length(module.regions.regions_by_name) - 1
@@ -119,6 +121,38 @@ resource "azurerm_subnet_nat_gateway_association" "this" {
   subnet_id      = azurerm_subnet.subnet.id
 }
 
+module "avm_res_keyvault_vault" {
+  source                      = "Azure/avm-res-keyvault-vault/azurerm"
+  version                     = "=0.9.1"
+  tenant_id                   = data.azurerm_client_config.current.tenant_id
+  name                        = module.naming.key_vault.name_unique
+  resource_group_name         = azurerm_resource_group.this.name
+  location                    = azurerm_resource_group.this.location
+  enabled_for_disk_encryption = true
+  network_acls = {
+    default_action = "Allow"
+    bypass         = "AzureServices"
+  }
+
+  role_assignments = {
+    deployment_user_secrets = { #give the deployment user access to secrets
+      role_definition_id_or_name = "Key Vault Secrets Officer"
+      principal_id               = data.azurerm_client_config.current.object_id
+    }
+  }
+
+  wait_for_rbac_before_key_operations = {
+    create = "60s"
+  }
+
+  wait_for_rbac_before_secret_operations = {
+    create = "60s"
+  }
+
+  tags = local.tags
+
+}
+
 # This is the module call
 module "terraform_azurerm_avm_res_compute_virtualmachinescaleset" {
   source = "../../"
@@ -127,13 +161,14 @@ module "terraform_azurerm_avm_res_compute_virtualmachinescaleset" {
   resource_group_name                = azurerm_resource_group.this.name
   enable_telemetry                   = var.enable_telemetry
   location                           = azurerm_resource_group.this.location
-  generate_admin_password_or_ssh_key = false
-  admin_password                     = "P@ssw0rd1234!"
+  generate_admin_password_or_ssh_key = true
   sku_name                           = module.get_valid_sku_for_deployment_region.sku
   instances                          = 2
   extension_protected_setting        = {}
   admin_ssh_keys                     = []
   user_data_base64                   = null
+  license_type                       = "None"
+
   boot_diagnostics = {
     storage_account_uri = "" # Enable boot diagnostics
   }
@@ -148,16 +183,18 @@ module "terraform_azurerm_avm_res_compute_virtualmachinescaleset" {
   os_profile = {
     custom_data = base64encode(file("init-script.ps1"))
     windows_configuration = {
-      disable_password_authentication = false
-      admin_username                  = "azureuser"
-      license_type                    = "None"
-      hotpatching_enabled             = false
-      timezone                        = "Pacific Standard Time"
-      provision_vm_agent              = true
+      admin_username      = "azureuser"
+      hotpatching_enabled = false
+      timezone            = "Pacific Standard Time"
+      provision_vm_agent  = true
       winrm_listener = [{
         protocol = "Http"
       }]
     }
+  }
+  generated_secrets_key_vault_secret_config = {
+    key_vault_resource_id = module.avm_res_keyvault_vault.resource_id
+    name                  = "azureuser-password-example"
   }
   data_disk = [{
     caching                   = "ReadWrite"
@@ -193,9 +230,6 @@ module "terraform_azurerm_avm_res_compute_virtualmachinescaleset" {
       failure_suppression_enabled = false
       settings                    = "{\"port\":80,\"protocol\":\"http\",\"requestPath\":\"index.html\"}"
   }]
-  upgrade_policy = {
-    upgrade_mode = "Automatic"
-  }
   tags       = local.tags
-  depends_on = [azurerm_subnet_nat_gateway_association.this]
+  depends_on = [azurerm_subnet_nat_gateway_association.this, module.avm_res_keyvault_vault]
 }
