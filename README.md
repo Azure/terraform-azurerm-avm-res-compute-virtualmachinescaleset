@@ -20,6 +20,8 @@ The following requirements are needed by this module:
 
 - <a name="requirement_random"></a> [random](#requirement\_random) (>= 3.6.2)
 
+- <a name="requirement_tls"></a> [tls](#requirement\_tls) (>= 3.1)
+
 ## Resources
 
 The following resources are used by this module:
@@ -313,7 +315,7 @@ Default: `null`
 
 ### <a name="input_generate_admin_password_or_ssh_key"></a> [generate\_admin\_password\_or\_ssh\_key](#input\_generate\_admin\_password\_or\_ssh\_key)
 
-Description: Set this value to true if the deployment should create a strong password for the admin user. If `os_type` is Linux, this will generate and store an SSH key as the default. However, setting `disable_password_authentication` to `false` will generate and store a password value instead of an ssh key.
+Description: Set this value to true if the deployment should create a strong password for the admin user. If `os_type` is Linux, this will generate and store an SSH key as the default. However, setting `disable_password_authentication` to `false` will generate and store a password value instead of an ssh key. Defaults to `true`
 
 Type: `bool`
 

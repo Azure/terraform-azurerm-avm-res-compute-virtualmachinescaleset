@@ -185,7 +185,7 @@ module "terraform_azurerm_avm_res_compute_virtualmachinescaleset" {
   }
   generated_secrets_key_vault_secret_config = {
     key_vault_resource_id = module.avm_res_keyvault_vault.resource_id
-    name                  = "azureuser-password-example"
+    name                  = "azureuser-ssh-key-example"
   }
   source_image_reference = {
     publisher = "Canonical"

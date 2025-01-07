@@ -279,7 +279,8 @@ variable "extensions_time_budget" {
 variable "generate_admin_password_or_ssh_key" {
   type        = bool
   default     = true
-  description = "Set this value to true if the deployment should create a strong password for the admin user. If `os_type` is Linux, this will generate and store an SSH key as the default. However, setting `disable_password_authentication` to `false` will generate and store a password value instead of an ssh key."
+  description = "Set this value to true if the deployment should create a strong password for the admin user. If `os_type` is Linux, this will generate and store an SSH key as the default. However, setting `disable_password_authentication` to `false` will generate and store a password value instead of an ssh key. Defaults to `true`"
+  nullable    = false
 }
 
 variable "generated_secrets_key_vault_secret_config" {
