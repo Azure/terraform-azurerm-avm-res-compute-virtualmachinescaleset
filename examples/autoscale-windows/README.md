@@ -21,7 +21,7 @@ module "naming" {
 
 module "regions" {
   source                    = "Azure/avm-utl-regions/azurerm"
-  version                   = "=0.1.0"
+  version                   = "0.3.0"
   availability_zones_filter = true
 }
 
@@ -220,7 +220,7 @@ The following requirements are needed by this module:
 
 - <a name="requirement_terraform"></a> [terraform](#requirement\_terraform) (>= 1.0.0)
 
-- <a name="requirement_azurerm"></a> [azurerm](#requirement\_azurerm) (>= 3.116.0, < 4.0)
+- <a name="requirement_azurerm"></a> [azurerm](#requirement\_azurerm) (>= 3.116.0, < 5.0)
 
 - <a name="requirement_random"></a> [random](#requirement\_random) (>= 3.6.2)
 
@@ -309,7 +309,7 @@ Version: 0.4.1
 
 Source: Azure/avm-utl-regions/azurerm
 
-Version: =0.1.0
+Version: 0.3.0
 
 ### <a name="module_terraform_azurerm_avm_res_compute_virtualmachinescaleset"></a> [terraform\_azurerm\_avm\_res\_compute\_virtualmachinescaleset](#module\_terraform\_azurerm\_avm\_res\_compute\_virtualmachinescaleset)
 
