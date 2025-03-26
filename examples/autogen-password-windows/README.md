@@ -23,7 +23,7 @@ module "naming" {
 
 module "regions" {
   source                    = "Azure/avm-utl-regions/azurerm"
-  version                   = "=0.1.0"
+  version                   = "0.3.0"
   availability_zones_filter = true
 }
 
@@ -140,7 +140,7 @@ resource "azurerm_subnet_nat_gateway_association" "this" {
 
 module "avm_res_keyvault_vault" {
   source                      = "Azure/avm-res-keyvault-vault/azurerm"
-  version                     = "=0.9.1"
+  version                     = "0.9.1"
   tenant_id                   = data.azurerm_client_config.current.tenant_id
   name                        = module.naming.key_vault.name_unique
   resource_group_name         = azurerm_resource_group.this.name
@@ -259,7 +259,7 @@ The following requirements are needed by this module:
 
 - <a name="requirement_terraform"></a> [terraform](#requirement\_terraform) (>= 1.0.0)
 
-- <a name="requirement_azurerm"></a> [azurerm](#requirement\_azurerm) (>= 3.116.0, < 4.0)
+- <a name="requirement_azurerm"></a> [azurerm](#requirement\_azurerm) (~> 4.0)
 
 - <a name="requirement_random"></a> [random](#requirement\_random) (>= 3.6.2)
 
@@ -336,7 +336,7 @@ The following Modules are called:
 
 Source: Azure/avm-res-keyvault-vault/azurerm
 
-Version: =0.9.1
+Version: 0.9.1
 
 ### <a name="module_get_valid_sku_for_deployment_region"></a> [get\_valid\_sku\_for\_deployment\_region](#module\_get\_valid\_sku\_for\_deployment\_region)
 
@@ -354,7 +354,7 @@ Version: 0.4.1
 
 Source: Azure/avm-utl-regions/azurerm
 
-Version: =0.1.0
+Version: 0.3.0
 
 ### <a name="module_terraform_azurerm_avm_res_compute_virtualmachinescaleset"></a> [terraform\_azurerm\_avm\_res\_compute\_virtualmachinescaleset](#module\_terraform\_azurerm\_avm\_res\_compute\_virtualmachinescaleset)
 
