@@ -166,11 +166,11 @@ resource "azurerm_orchestrated_virtual_machine_scale_set" "virtual_machine_scale
       custom_data = os_profile.value.custom_data
 
       dynamic "linux_configuration" {
-        for_each = os_profile.value.linux_configuration == null ? [] : [os_profile.value.linux_configuration]
+        for_each = os_profile.value.linux_configuration != null ? [os_profile.value.linux_configuration] : []
 
         content {
           admin_username                  = linux_configuration.value.admin_username
-          admin_password                  = var.admin_password
+          admin_password                  = (linux_configuration.value.disable_password_authentication ? null : local.admin_password_linux)
           computer_name_prefix            = linux_configuration.value.computer_name_prefix
           disable_password_authentication = linux_configuration.value.disable_password_authentication
           patch_assessment_mode           = linux_configuration.value.patch_assessment_mode
@@ -178,16 +178,16 @@ resource "azurerm_orchestrated_virtual_machine_scale_set" "virtual_machine_scale
           provision_vm_agent              = linux_configuration.value.provision_vm_agent
 
           dynamic "admin_ssh_key" {
-            for_each = linux_configuration.value.admin_ssh_key_id == null ? [] : linux_configuration.value.admin_ssh_key_id
+            for_each = local.admin_ssh_key_id == null ? [] : local.admin_ssh_key_id
 
             content {
               public_key = lookup(
-                { for key in var.admin_ssh_keys : key.id => key.public_key },
+                { for key in local.admin_ssh_keys : key.id => key.public_key },
                 admin_ssh_key.value,
                 null
               )
               username = lookup(
-                { for key in var.admin_ssh_keys : key.id => key.username },
+                { for key in local.admin_ssh_keys : key.id => key.username },
                 admin_ssh_key.value,
                 null
               )
@@ -211,10 +211,10 @@ resource "azurerm_orchestrated_virtual_machine_scale_set" "virtual_machine_scale
         }
       }
       dynamic "windows_configuration" {
-        for_each = os_profile.value.windows_configuration == null ? [] : [os_profile.value.windows_configuration]
+        for_each = os_profile.value.windows_configuration != null ? [os_profile.value.windows_configuration] : []
 
         content {
-          admin_password           = var.admin_password
+          admin_password           = local.admin_password_windows
           admin_username           = windows_configuration.value.admin_username
           computer_name_prefix     = windows_configuration.value.computer_name_prefix
           enable_automatic_updates = windows_configuration.value.enable_automatic_updates

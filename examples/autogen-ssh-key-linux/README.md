@@ -1,16 +1,20 @@
 <!-- BEGIN_TF_DOCS -->
-# A Default Virtual Machine Scale Set with Windows VMs
+# Linux Virtual Machine Scale Set Deployment with auto generated SSH key stored in keyvault.
 
-This example demonstrates a standard deployment with Windows VMs.  The deployment includes:
+This example demonstrates a standard deployment of VMSS aligned with reliability recommendations from the [Well Architected Framework](https://learn.microsoft.com/en-us/azure/reliability/reliability-virtual-machine-scale-sets?tabs=graph-4%2Cgraph-1%2Cgraph-2%2Cgraph-3%2Cgraph-5%2Cgraph-6%2Cportal).
 
-- a Windows VM
-- a virtual nework with a subnet
+**Note: This configuration example shows the use of an auto-generated SSH key stored in keyvault for Linux VMSS.
+
+- a Linux VM
+- a virtual network with a subnet
 - a NAT gateway
 - a public IP associated to the NAT gateway
+- a randomly generated SSH key
 - locking code (commented out)
 - a health extension
 - autoscale
 - availability zones
+- A keyvault for storing the ssh public key
 
 ```hcl
 # This ensures we have unique CAF compliant names for our resources.
@@ -24,6 +28,8 @@ module "regions" {
   version                   = "0.3.0"
   availability_zones_filter = true
 }
+
+data "azurerm_client_config" "current" {}
 
 resource "random_integer" "region_index" {
   max = length(module.regions.regions_by_name) - 1
@@ -134,6 +140,38 @@ resource "azurerm_subnet_nat_gateway_association" "this" {
   subnet_id      = azurerm_subnet.subnet.id
 }
 
+module "avm_res_keyvault_vault" {
+  source                      = "Azure/avm-res-keyvault-vault/azurerm"
+  version                     = "0.9.1"
+  tenant_id                   = data.azurerm_client_config.current.tenant_id
+  name                        = module.naming.key_vault.name_unique
+  resource_group_name         = azurerm_resource_group.this.name
+  location                    = azurerm_resource_group.this.location
+  enabled_for_disk_encryption = true
+  network_acls = {
+    default_action = "Allow"
+    bypass         = "AzureServices"
+  }
+
+  role_assignments = {
+    deployment_user_secrets = { #give the deployment user access to secrets
+      role_definition_id_or_name = "Key Vault Secrets Officer"
+      principal_id               = data.azurerm_client_config.current.object_id
+    }
+  }
+
+  wait_for_rbac_before_key_operations = {
+    create = "60s"
+  }
+
+  wait_for_rbac_before_secret_operations = {
+    create = "60s"
+  }
+
+  tags = local.tags
+
+}
+
 # This is the module call
 module "terraform_azurerm_avm_res_compute_virtualmachinescaleset" {
   source = "../../"
@@ -142,12 +180,10 @@ module "terraform_azurerm_avm_res_compute_virtualmachinescaleset" {
   resource_group_name                = azurerm_resource_group.this.name
   enable_telemetry                   = var.enable_telemetry
   location                           = azurerm_resource_group.this.location
-  generate_admin_password_or_ssh_key = false
-  admin_password                     = "P@ssw0rd1234!"
-  sku_name                           = module.get_valid_sku_for_deployment_region.sku
+  generate_admin_password_or_ssh_key = true
   instances                          = 2
+  sku_name                           = module.get_valid_sku_for_deployment_region.sku
   extension_protected_setting        = {}
-  admin_ssh_keys                     = []
   user_data_base64                   = null
   boot_diagnostics = {
     storage_account_uri = "" # Enable boot diagnostics
@@ -161,55 +197,37 @@ module "terraform_azurerm_avm_res_compute_virtualmachinescaleset" {
     }]
   }]
   os_profile = {
-    custom_data = base64encode(file("init-script.ps1"))
-    windows_configuration = {
-      disable_password_authentication = false
+    linux_configuration = {
+      disable_password_authentication = true
       admin_username                  = "azureuser"
-      license_type                    = "None"
-      hotpatching_enabled             = false
-      timezone                        = "Pacific Standard Time"
-      provision_vm_agent              = true
-      winrm_listener = [{
-        protocol = "Http"
-      }]
     }
   }
-  data_disk = [{
-    caching                   = "ReadWrite"
-    create_option             = "Empty"
-    disk_size_gb              = 10
-    lun                       = 0
-    managed_disk_type         = "StandardSSD_LRS"
-    storage_account_type      = "StandardSSD_LRS"
-    write_accelerator_enabled = false
-  }]
+  generated_secrets_key_vault_secret_config = {
+    key_vault_resource_id = module.avm_res_keyvault_vault.resource_id
+    name                  = "azureuser-ssh-key-example"
+  }
   source_image_reference = {
-    publisher = "MicrosoftWindowsServer"
-    offer     = "WindowsServer"
-    sku       = "2022-Datacenter"
+    publisher = "Canonical"
+    offer     = "0001-com-ubuntu-server-jammy"
+    sku       = "22_04-LTS-gen2" # Auto guest patching is enabled on this sku.  https://learn.microsoft.com/en-us/azure/virtual-machines/automatic-vm-guest-patching
     version   = "latest"
   }
-  extension = [
-    {
-      name                        = "CustomScriptExtension"
-      publisher                   = "Microsoft.Compute"
-      type                        = "CustomScriptExtension"
-      type_handler_version        = "1.10"
-      auto_upgrade_minor_version  = true
-      failure_suppression_enabled = false
-      settings                    = "{\"commandToExecute\":\"copy %SYSTEMDRIVE%\\\\AzureData\\\\CustomData.bin c:\\\\init-script.ps1 \\u0026 powershell -ExecutionPolicy Unrestricted -File %SYSTEMDRIVE%\\\\init-script.ps1\"}"
-    },
-    {
-      name                        = "HealthExtension"
-      publisher                   = "Microsoft.ManagedServices"
-      type                        = "ApplicationHealthWindows"
-      type_handler_version        = "1.0"
-      auto_upgrade_minor_version  = true
-      failure_suppression_enabled = false
-      settings                    = "{\"port\":80,\"protocol\":\"http\",\"requestPath\":\"index.html\"}"
+  extension = [{
+    name                        = "HealthExtension"
+    publisher                   = "Microsoft.ManagedServices"
+    type                        = "ApplicationHealthLinux"
+    type_handler_version        = "1.0"
+    auto_upgrade_minor_version  = true
+    failure_suppression_enabled = false
+    settings                    = "{\"port\":80,\"protocol\":\"http\",\"requestPath\":\"/index.html\"}"
   }]
-  tags       = local.tags
-  depends_on = [azurerm_subnet_nat_gateway_association.this]
+  tags = local.tags
+  # Uncomment the code below to implement a VMSS Lock
+  #lock = {
+  #  name = "VMSSNoDelete"
+  #  kind = "CanNotDelete"
+  #}
+  depends_on = [azurerm_subnet_nat_gateway_association.this, module.avm_res_keyvault_vault]
 }
 ```
 
@@ -218,7 +236,7 @@ module "terraform_azurerm_avm_res_compute_virtualmachinescaleset" {
 
 The following requirements are needed by this module:
 
-- <a name="requirement_terraform"></a> [terraform](#requirement\_terraform) (>= 1.9, < 2.0)
+- <a name="requirement_terraform"></a> [terraform](#requirement\_terraform) (>= 1.0.0)
 
 - <a name="requirement_azurerm"></a> [azurerm](#requirement\_azurerm) (~> 4.0)
 
@@ -228,7 +246,6 @@ The following requirements are needed by this module:
 
 The following resources are used by this module:
 
-- [azurerm_monitor_autoscale_setting.autoscale](https://registry.terraform.io/providers/hashicorp/azurerm/latest/docs/resources/monitor_autoscale_setting) (resource)
 - [azurerm_nat_gateway.this](https://registry.terraform.io/providers/hashicorp/azurerm/latest/docs/resources/nat_gateway) (resource)
 - [azurerm_nat_gateway_public_ip_association.this](https://registry.terraform.io/providers/hashicorp/azurerm/latest/docs/resources/nat_gateway_public_ip_association) (resource)
 - [azurerm_network_security_group.nic](https://registry.terraform.io/providers/hashicorp/azurerm/latest/docs/resources/network_security_group) (resource)
@@ -241,6 +258,7 @@ The following resources are used by this module:
 - [azurerm_virtual_network.this](https://registry.terraform.io/providers/hashicorp/azurerm/latest/docs/resources/virtual_network) (resource)
 - [random_integer.region_index](https://registry.terraform.io/providers/hashicorp/random/latest/docs/resources/integer) (resource)
 - [random_integer.zone_index](https://registry.terraform.io/providers/hashicorp/random/latest/docs/resources/integer) (resource)
+- [azurerm_client_config.current](https://registry.terraform.io/providers/hashicorp/azurerm/latest/docs/data-sources/client_config) (data source)
 
 <!-- markdownlint-disable MD013 -->
 ## Required Inputs
@@ -292,6 +310,12 @@ Description: The name of the Virtual Machine Scale Set.
 ## Modules
 
 The following Modules are called:
+
+### <a name="module_avm_res_keyvault_vault"></a> [avm\_res\_keyvault\_vault](#module\_avm\_res\_keyvault\_vault)
+
+Source: Azure/avm-res-keyvault-vault/azurerm
+
+Version: 0.9.1
 
 ### <a name="module_get_valid_sku_for_deployment_region"></a> [get\_valid\_sku\_for\_deployment\_region](#module\_get\_valid\_sku\_for\_deployment\_region)
 
