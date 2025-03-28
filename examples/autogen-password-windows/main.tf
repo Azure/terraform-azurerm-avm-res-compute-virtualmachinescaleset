@@ -22,10 +22,24 @@ resource "random_integer" "zone_index" {
   min = 1
 }
 
-module "get_valid_sku_for_deployment_region" {
-  source = "../../modules/sku_selector"
+module "valid_deployment_region_filter" {
+  for_each = toset([for region in module.regions.regions : region.name])
+  source   = "../../modules/sku_selector"
 
-  deployment_region = module.regions.regions[random_integer.region_index.result].name
+  deployment_region = each.value
+}
+
+locals {
+  valid_regions = [for region in module.valid_deployment_region_filter : region if length(region.valid_skus) > 0]
+}
+
+resource "random_integer" "sku_index" {
+  max = length(local.valid_regions[random_integer.region_index.result].valid_skus) - 1
+  min = 0
+}
+
+locals {
+  sku = local.valid_regions[random_integer.region_index.result].valid_skus[random_integer.sku_index.result]
 }
 
 # This is required for resource modules
@@ -162,7 +176,7 @@ module "terraform_azurerm_avm_res_compute_virtualmachinescaleset" {
   enable_telemetry                   = var.enable_telemetry
   location                           = azurerm_resource_group.this.location
   generate_admin_password_or_ssh_key = true
-  sku_name                           = module.get_valid_sku_for_deployment_region.sku
+  sku_name                           = local.sku
   instances                          = 2
   extension_protected_setting        = {}
   admin_ssh_keys                     = []
@@ -220,7 +234,7 @@ module "terraform_azurerm_avm_res_compute_virtualmachinescaleset" {
       auto_upgrade_minor_version  = true
       failure_suppression_enabled = false
       settings = jsonencode({
-        commandToExecute = "copy %SYSTEMDRIVE%\\\\AzureData\\\\CustomData.bin c:\\\\init-script.ps1 \\u0026 powershell -ExecutionPolicy Unrestricted -File %SYSTEMDRIVE%\\\\init-script.ps1"
+        commandToExecute = "copy %SYSTEMDRIVE%\\AzureData\\CustomData.bin c:\\init-script.ps1 \u0026 powershell -ExecutionPolicy Unrestricted -File %SYSTEMDRIVE%\\init-script.ps1"
       })
     },
     {

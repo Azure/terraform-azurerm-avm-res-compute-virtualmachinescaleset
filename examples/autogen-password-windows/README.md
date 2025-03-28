@@ -39,10 +39,24 @@ resource "random_integer" "zone_index" {
   min = 1
 }
 
-module "get_valid_sku_for_deployment_region" {
-  source = "../../modules/sku_selector"
+module "valid_deployment_region_filter" {
+  for_each = toset([for region in module.regions.regions : region.name])
+  source   = "../../modules/sku_selector"
 
-  deployment_region = module.regions.regions[random_integer.region_index.result].name
+  deployment_region = each.value
+}
+
+locals {
+  valid_regions = [for region in module.valid_deployment_region_filter : region if length(region.valid_skus) > 0]
+}
+
+resource "random_integer" "sku_index" {
+  max = length(local.valid_regions[random_integer.region_index.result].valid_skus) - 1
+  min = 0
+}
+
+locals {
+  sku = local.valid_regions[random_integer.region_index.result].valid_skus[random_integer.sku_index.result]
 }
 
 # This is required for resource modules
@@ -179,7 +193,7 @@ module "terraform_azurerm_avm_res_compute_virtualmachinescaleset" {
   enable_telemetry                   = var.enable_telemetry
   location                           = azurerm_resource_group.this.location
   generate_admin_password_or_ssh_key = true
-  sku_name                           = module.get_valid_sku_for_deployment_region.sku
+  sku_name                           = local.sku
   instances                          = 2
   extension_protected_setting        = {}
   admin_ssh_keys                     = []
@@ -237,7 +251,7 @@ module "terraform_azurerm_avm_res_compute_virtualmachinescaleset" {
       auto_upgrade_minor_version  = true
       failure_suppression_enabled = false
       settings = jsonencode({
-        commandToExecute = "copy %SYSTEMDRIVE%\\\\AzureData\\\\CustomData.bin c:\\\\init-script.ps1 \\u0026 powershell -ExecutionPolicy Unrestricted -File %SYSTEMDRIVE%\\\\init-script.ps1"
+        commandToExecute = "copy %SYSTEMDRIVE%\\AzureData\\CustomData.bin c:\\init-script.ps1 \u0026 powershell -ExecutionPolicy Unrestricted -File %SYSTEMDRIVE%\\init-script.ps1"
       })
     },
     {
@@ -284,6 +298,7 @@ The following resources are used by this module:
 - [azurerm_subnet_network_security_group_association.this](https://registry.terraform.io/providers/hashicorp/azurerm/latest/docs/resources/subnet_network_security_group_association) (resource)
 - [azurerm_virtual_network.this](https://registry.terraform.io/providers/hashicorp/azurerm/latest/docs/resources/virtual_network) (resource)
 - [random_integer.region_index](https://registry.terraform.io/providers/hashicorp/random/latest/docs/resources/integer) (resource)
+- [random_integer.sku_index](https://registry.terraform.io/providers/hashicorp/random/latest/docs/resources/integer) (resource)
 - [random_integer.zone_index](https://registry.terraform.io/providers/hashicorp/random/latest/docs/resources/integer) (resource)
 - [azurerm_client_config.current](https://registry.terraform.io/providers/hashicorp/azurerm/latest/docs/data-sources/client_config) (data source)
 
@@ -344,12 +359,6 @@ Source: Azure/avm-res-keyvault-vault/azurerm
 
 Version: 0.9.1
 
-### <a name="module_get_valid_sku_for_deployment_region"></a> [get\_valid\_sku\_for\_deployment\_region](#module\_get\_valid\_sku\_for\_deployment\_region)
-
-Source: ../../modules/sku_selector
-
-Version:
-
 ### <a name="module_naming"></a> [naming](#module\_naming)
 
 Source: Azure/naming/azurerm
@@ -365,6 +374,12 @@ Version: 0.3.0
 ### <a name="module_terraform_azurerm_avm_res_compute_virtualmachinescaleset"></a> [terraform\_azurerm\_avm\_res\_compute\_virtualmachinescaleset](#module\_terraform\_azurerm\_avm\_res\_compute\_virtualmachinescaleset)
 
 Source: ../../
+
+Version:
+
+### <a name="module_valid_deployment_region_filter"></a> [valid\_deployment\_region\_filter](#module\_valid\_deployment\_region\_filter)
+
+Source: ../../modules/sku_selector
 
 Version:
 

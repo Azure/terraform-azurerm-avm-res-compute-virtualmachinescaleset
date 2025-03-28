@@ -35,10 +35,24 @@ resource "random_integer" "zone_index" {
   min = 1
 }
 
-module "get_valid_sku_for_deployment_region" {
-  source = "../../modules/sku_selector"
+module "valid_deployment_region_filter" {
+  for_each = toset([for region in module.regions.regions : region.name])
+  source   = "../../modules/sku_selector"
 
-  deployment_region = module.regions.regions[random_integer.region_index.result].name
+  deployment_region = each.value
+}
+
+locals {
+  valid_regions = [for region in module.valid_deployment_region_filter : region if length(region.valid_skus) > 0]
+}
+
+resource "random_integer" "sku_index" {
+  max = length(local.valid_regions[random_integer.region_index.result].valid_skus) - 1
+  min = 0
+}
+
+locals {
+  sku = local.valid_regions[random_integer.region_index.result].valid_skus[random_integer.sku_index.result]
 }
 
 # This is required for resource modules
@@ -159,7 +173,7 @@ module "terraform_azurerm_avm_res_compute_virtualmachinescaleset" {
   platform_fault_domain_count        = 1
   generate_admin_password_or_ssh_key = false
   admin_password                     = "P@ssw0rd1234!"
-  sku_name                           = module.get_valid_sku_for_deployment_region.sku
+  sku_name                           = local.sku
   instances                          = 2
   extension_protected_setting        = {}
   user_data_base64                   = null
@@ -249,6 +263,7 @@ The following resources are used by this module:
 - [azurerm_user_assigned_identity.user_identity](https://registry.terraform.io/providers/hashicorp/azurerm/latest/docs/resources/user_assigned_identity) (resource)
 - [azurerm_virtual_network.this](https://registry.terraform.io/providers/hashicorp/azurerm/latest/docs/resources/virtual_network) (resource)
 - [random_integer.region_index](https://registry.terraform.io/providers/hashicorp/random/latest/docs/resources/integer) (resource)
+- [random_integer.sku_index](https://registry.terraform.io/providers/hashicorp/random/latest/docs/resources/integer) (resource)
 - [random_integer.zone_index](https://registry.terraform.io/providers/hashicorp/random/latest/docs/resources/integer) (resource)
 - [tls_private_key.example_ssh](https://registry.terraform.io/providers/hashicorp/tls/4.0.6/docs/resources/private_key) (resource)
 - [azurerm_client_config.current](https://registry.terraform.io/providers/hashicorp/azurerm/latest/docs/data-sources/client_config) (data source)
@@ -304,12 +319,6 @@ Description: The name of the Virtual Machine Scale Set.
 
 The following Modules are called:
 
-### <a name="module_get_valid_sku_for_deployment_region"></a> [get\_valid\_sku\_for\_deployment\_region](#module\_get\_valid\_sku\_for\_deployment\_region)
-
-Source: ../../modules/sku_selector
-
-Version:
-
 ### <a name="module_naming"></a> [naming](#module\_naming)
 
 Source: Azure/naming/azurerm
@@ -325,6 +334,12 @@ Version: 0.3.0
 ### <a name="module_terraform_azurerm_avm_res_compute_virtualmachinescaleset"></a> [terraform\_azurerm\_avm\_res\_compute\_virtualmachinescaleset](#module\_terraform\_azurerm\_avm\_res\_compute\_virtualmachinescaleset)
 
 Source: ../../
+
+Version:
+
+### <a name="module_valid_deployment_region_filter"></a> [valid\_deployment\_region\_filter](#module\_valid\_deployment\_region\_filter)
+
+Source: ../../modules/sku_selector
 
 Version:
 

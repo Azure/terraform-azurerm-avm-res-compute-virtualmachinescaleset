@@ -26,20 +26,34 @@ module "regions" {
   availability_zones_filter = true
 }
 
+module "valid_deployment_region_filter" {
+  for_each = toset([for region in module.regions.regions : region.name])
+  source   = "../../modules/sku_selector"
+
+  deployment_region = each.value
+}
+
+locals {
+  valid_regions = [for region in module.valid_deployment_region_filter : region if length(region.valid_skus) > 0]
+}
+
 resource "random_integer" "region_index" {
-  max = length(module.regions.regions_by_name) - 1
+  max = length(local.valid_regions) - 1
   min = 0
 }
 
 resource "random_integer" "zone_index" {
-  max = length(module.regions.regions_by_name[module.regions.regions[random_integer.region_index.result].name].zones)
+  max = length(module.regions.regions_by_name[local.valid_regions[random_integer.region_index.result].deployment_region].zones)
   min = 1
 }
 
-module "get_valid_sku_for_deployment_region" {
-  source = "../../modules/sku_selector"
+resource "random_integer" "sku_index" {
+  max = length(local.valid_regions[random_integer.region_index.result].valid_skus) - 1
+  min = 0
+}
 
-  deployment_region = module.regions.regions[random_integer.region_index.result].name
+locals {
+  sku = local.valid_regions[random_integer.region_index.result].valid_skus[random_integer.sku_index.result]
 }
 
 # This is required for resource modules
@@ -151,7 +165,7 @@ module "terraform_azurerm_avm_res_compute_virtualmachinescaleset" {
   generate_admin_password_or_ssh_key = false
   admin_password                     = "P@ssw0rd1234!"
   instances                          = 2
-  sku_name                           = module.get_valid_sku_for_deployment_region.sku
+  sku_name                           = local.sku
   extension_protected_setting        = {}
   user_data_base64                   = null
   boot_diagnostics = {
@@ -194,7 +208,11 @@ module "terraform_azurerm_avm_res_compute_virtualmachinescaleset" {
     type_handler_version        = "1.0"
     auto_upgrade_minor_version  = true
     failure_suppression_enabled = false
-    settings                    = "{\"port\":80,\"protocol\":\"http\",\"requestPath\":\"/index.html\"}"
+    settings = jsonencode({
+      port        = 80
+      protocol    = "http"
+      requestPath = "/index.html"
+    })
   }]
   tags = local.tags
   # Uncomment the code below to implement a VMSS Lock
@@ -237,6 +255,7 @@ The following resources are used by this module:
 - [azurerm_subnet_network_security_group_association.this](https://registry.terraform.io/providers/hashicorp/azurerm/latest/docs/resources/subnet_network_security_group_association) (resource)
 - [azurerm_virtual_network.this](https://registry.terraform.io/providers/hashicorp/azurerm/latest/docs/resources/virtual_network) (resource)
 - [random_integer.region_index](https://registry.terraform.io/providers/hashicorp/random/latest/docs/resources/integer) (resource)
+- [random_integer.sku_index](https://registry.terraform.io/providers/hashicorp/random/latest/docs/resources/integer) (resource)
 - [random_integer.zone_index](https://registry.terraform.io/providers/hashicorp/random/latest/docs/resources/integer) (resource)
 - [tls_private_key.example_ssh](https://registry.terraform.io/providers/hashicorp/tls/4.0.6/docs/resources/private_key) (resource)
 
@@ -291,12 +310,6 @@ Description: The name of the Virtual Machine Scale Set.
 
 The following Modules are called:
 
-### <a name="module_get_valid_sku_for_deployment_region"></a> [get\_valid\_sku\_for\_deployment\_region](#module\_get\_valid\_sku\_for\_deployment\_region)
-
-Source: ../../modules/sku_selector
-
-Version:
-
 ### <a name="module_naming"></a> [naming](#module\_naming)
 
 Source: Azure/naming/azurerm
@@ -312,6 +325,12 @@ Version: 0.3.0
 ### <a name="module_terraform_azurerm_avm_res_compute_virtualmachinescaleset"></a> [terraform\_azurerm\_avm\_res\_compute\_virtualmachinescaleset](#module\_terraform\_azurerm\_avm\_res\_compute\_virtualmachinescaleset)
 
 Source: ../../
+
+Version:
+
+### <a name="module_valid_deployment_region_filter"></a> [valid\_deployment\_region\_filter](#module\_valid\_deployment\_region\_filter)
+
+Source: ../../modules/sku_selector
 
 Version:
 
