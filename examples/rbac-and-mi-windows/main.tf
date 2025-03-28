@@ -11,19 +11,37 @@ module "regions" {
 }
 
 resource "random_integer" "region_index" {
-  max = length(module.regions.regions_by_name) - 1
+  max = length(local.regions) - 1
   min = 0
 }
 
 resource "random_integer" "zone_index" {
-  max = length(module.regions.regions_by_name[module.regions.regions[random_integer.region_index.result].name].zones)
+  max = length(module.regions.regions_by_name[local.regions[random_integer.region_index.result].name].zones)
   min = 1
 }
 
-module "get_valid_sku_for_deployment_region" {
-  source = "../../modules/sku_selector"
+locals {
+  regions = chunklist(module.regions.regions, 10)[0]
+}
 
-  deployment_region = module.regions.regions[random_integer.region_index.result].name
+module "valid_deployment_region_filter" {
+  for_each = toset([for region in local.regions : region.name])
+  source   = "../../modules/sku_selector"
+
+  deployment_region = each.value
+}
+
+locals {
+  valid_regions = [for region in module.valid_deployment_region_filter : region if length(region.valid_skus) > 0]
+}
+
+resource "random_integer" "sku_index" {
+  max = length(local.valid_regions[random_integer.region_index.result].valid_skus) - 1
+  min = 0
+}
+
+locals {
+  sku = local.valid_regions[random_integer.region_index.result].valid_skus[random_integer.sku_index.result]
 }
 
 # This is required for resource modules
@@ -132,17 +150,18 @@ data "azurerm_client_config" "current" {}
 module "terraform_azurerm_avm_res_compute_virtualmachinescaleset" {
   source = "../../"
   # source             = "Azure/avm-res-compute-virtualmachinescaleset/azurerm"
-  name                        = module.naming.virtual_machine_scale_set.name_unique
-  resource_group_name         = azurerm_resource_group.this.name
-  enable_telemetry            = var.enable_telemetry
-  location                    = azurerm_resource_group.this.location
-  platform_fault_domain_count = 1
-  admin_password              = "P@ssw0rd1234!"
-  sku_name                    = module.get_valid_sku_for_deployment_region.sku
-  instances                   = 2
-  extension_protected_setting = {}
-  user_data_base64            = null
-  automatic_instance_repair   = null
+  name                               = module.naming.virtual_machine_scale_set.name_unique
+  resource_group_name                = azurerm_resource_group.this.name
+  enable_telemetry                   = var.enable_telemetry
+  location                           = azurerm_resource_group.this.location
+  platform_fault_domain_count        = 1
+  generate_admin_password_or_ssh_key = false
+  admin_password                     = "P@ssw0rd1234!"
+  sku_name                           = local.sku
+  instances                          = 2
+  extension_protected_setting        = {}
+  user_data_base64                   = null
+  automatic_instance_repair          = null
   network_interface = [{
     name = "VMSS-NIC"
     ip_configuration = [{

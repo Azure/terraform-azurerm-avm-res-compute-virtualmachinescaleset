@@ -31,8 +31,3 @@ locals {
     length(try(location.capabilities, [])) > 1    #avoid skus where the capabilities list isn't defined
   ]
 }
-
-resource "random_integer" "deploy_sku" {
-  max = length(local.deploy_skus) - 1
-  min = 0
-}

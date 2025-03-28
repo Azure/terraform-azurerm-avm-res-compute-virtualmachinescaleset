@@ -27,19 +27,37 @@ module "regions" {
 }
 
 resource "random_integer" "region_index" {
-  max = length(module.regions.regions_by_name) - 1
+  max = length(local.regions) - 1
   min = 0
 }
 
 resource "random_integer" "zone_index" {
-  max = length(module.regions.regions_by_name[module.regions.regions[random_integer.region_index.result].name].zones)
+  max = length(module.regions.regions_by_name[local.regions[random_integer.region_index.result].name].zones)
   min = 1
 }
 
-module "get_valid_sku_for_deployment_region" {
-  source = "../../modules/sku_selector"
+locals {
+  regions = chunklist(module.regions.regions, 10)[0]
+}
 
-  deployment_region = module.regions.regions[random_integer.region_index.result].name
+module "valid_deployment_region_filter" {
+  for_each = toset([for region in local.regions : region.name])
+  source   = "../../modules/sku_selector"
+
+  deployment_region = each.value
+}
+
+locals {
+  valid_regions = [for region in module.valid_deployment_region_filter : region if length(region.valid_skus) > 0]
+}
+
+resource "random_integer" "sku_index" {
+  max = length(local.valid_regions[random_integer.region_index.result].valid_skus) - 1
+  min = 0
+}
+
+locals {
+  sku = local.valid_regions[random_integer.region_index.result].valid_skus[random_integer.sku_index.result]
 }
 
 # This is required for resource modules
@@ -139,16 +157,17 @@ resource "azurerm_subnet_nat_gateway_association" "this" {
 module "terraform_azurerm_avm_res_compute_virtualmachinescaleset" {
   source = "../../"
   # source             = "Azure/avm-res-compute-virtualmachinescaleset/azurerm"
-  name                        = module.naming.virtual_machine_scale_set.name_unique
-  resource_group_name         = azurerm_resource_group.this.name
-  enable_telemetry            = var.enable_telemetry
-  location                    = azurerm_resource_group.this.location
-  admin_password              = "P@ssw0rd1234!"
-  sku_name                    = module.get_valid_sku_for_deployment_region.sku
-  instances                   = 2
-  extension_protected_setting = {}
-  admin_ssh_keys              = []
-  user_data_base64            = null
+  name                               = module.naming.virtual_machine_scale_set.name_unique
+  resource_group_name                = azurerm_resource_group.this.name
+  enable_telemetry                   = var.enable_telemetry
+  location                           = azurerm_resource_group.this.location
+  generate_admin_password_or_ssh_key = false
+  admin_password                     = "P@ssw0rd1234!"
+  sku_name                           = local.sku
+  instances                          = 2
+  extension_protected_setting        = {}
+  admin_ssh_keys                     = []
+  user_data_base64                   = null
   boot_diagnostics = {
     storage_account_uri = "" # Enable boot diagnostics
   }
@@ -242,6 +261,7 @@ The following resources are used by this module:
 - [azurerm_subnet_network_security_group_association.this](https://registry.terraform.io/providers/hashicorp/azurerm/latest/docs/resources/subnet_network_security_group_association) (resource)
 - [azurerm_virtual_network.this](https://registry.terraform.io/providers/hashicorp/azurerm/latest/docs/resources/virtual_network) (resource)
 - [random_integer.region_index](https://registry.terraform.io/providers/hashicorp/random/latest/docs/resources/integer) (resource)
+- [random_integer.sku_index](https://registry.terraform.io/providers/hashicorp/random/latest/docs/resources/integer) (resource)
 - [random_integer.zone_index](https://registry.terraform.io/providers/hashicorp/random/latest/docs/resources/integer) (resource)
 
 <!-- markdownlint-disable MD013 -->
@@ -295,12 +315,6 @@ Description: The name of the Virtual Machine Scale Set.
 
 The following Modules are called:
 
-### <a name="module_get_valid_sku_for_deployment_region"></a> [get\_valid\_sku\_for\_deployment\_region](#module\_get\_valid\_sku\_for\_deployment\_region)
-
-Source: ../../modules/sku_selector
-
-Version:
-
 ### <a name="module_naming"></a> [naming](#module\_naming)
 
 Source: Azure/naming/azurerm
@@ -316,6 +330,12 @@ Version: 0.3.0
 ### <a name="module_terraform_azurerm_avm_res_compute_virtualmachinescaleset"></a> [terraform\_azurerm\_avm\_res\_compute\_virtualmachinescaleset](#module\_terraform\_azurerm\_avm\_res\_compute\_virtualmachinescaleset)
 
 Source: ../../
+
+Version:
+
+### <a name="module_valid_deployment_region_filter"></a> [valid\_deployment\_region\_filter](#module\_valid\_deployment\_region\_filter)
+
+Source: ../../modules/sku_selector
 
 Version:
 

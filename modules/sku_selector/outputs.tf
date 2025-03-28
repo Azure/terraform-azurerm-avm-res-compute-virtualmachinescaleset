@@ -1,9 +1,14 @@
+output "deployment_region" {
+  description = "The selected region for deployment"
+  value       = var.deployment_region
+}
+
 output "resource_id" {
   description = "Dummy variable to meet linting requirements"
   value       = ""
 }
 
-output "sku" {
+output "valid_skus" {
   description = "sku"
-  value       = try(local.deploy_skus[random_integer.deploy_sku.result].name, "no_current_valid_skus")
+  value       = local.deploy_skus[*].name
 }

@@ -10,6 +10,8 @@ module "regions" {
   availability_zones_filter = true
 }
 
+data "azurerm_client_config" "current" {}
+
 resource "random_integer" "region_index" {
   max = length(local.regions) - 1
   min = 0
@@ -137,9 +139,36 @@ resource "azurerm_subnet_nat_gateway_association" "this" {
   subnet_id      = azurerm_subnet.subnet.id
 }
 
-resource "tls_private_key" "example_ssh" {
-  algorithm = "RSA"
-  rsa_bits  = 4096
+module "avm_res_keyvault_vault" {
+  source                      = "Azure/avm-res-keyvault-vault/azurerm"
+  version                     = "0.9.1"
+  tenant_id                   = data.azurerm_client_config.current.tenant_id
+  name                        = module.naming.key_vault.name_unique
+  resource_group_name         = azurerm_resource_group.this.name
+  location                    = azurerm_resource_group.this.location
+  enabled_for_disk_encryption = true
+  network_acls = {
+    default_action = "Allow"
+    bypass         = "AzureServices"
+  }
+
+  role_assignments = {
+    deployment_user_secrets = { #give the deployment user access to secrets
+      role_definition_id_or_name = "Key Vault Secrets Officer"
+      principal_id               = data.azurerm_client_config.current.object_id
+    }
+  }
+
+  wait_for_rbac_before_key_operations = {
+    create = "60s"
+  }
+
+  wait_for_rbac_before_secret_operations = {
+    create = "60s"
+  }
+
+  tags = local.tags
+
 }
 
 # This is the module call
@@ -150,8 +179,7 @@ module "terraform_azurerm_avm_res_compute_virtualmachinescaleset" {
   resource_group_name                = azurerm_resource_group.this.name
   enable_telemetry                   = var.enable_telemetry
   location                           = azurerm_resource_group.this.location
-  generate_admin_password_or_ssh_key = false
-  admin_password                     = "P@ssw0rd1234!"
+  generate_admin_password_or_ssh_key = true
   instances                          = 2
   sku_name                           = local.sku
   extension_protected_setting        = {}
@@ -159,13 +187,6 @@ module "terraform_azurerm_avm_res_compute_virtualmachinescaleset" {
   boot_diagnostics = {
     storage_account_uri = "" # Enable boot diagnostics
   }
-  admin_ssh_keys = [(
-    {
-      id         = tls_private_key.example_ssh.id
-      public_key = tls_private_key.example_ssh.public_key_openssh
-      username   = "azureuser"
-    }
-  )]
   network_interface = [{
     name                      = "VMSS-NIC"
     network_security_group_id = azurerm_network_security_group.nic.id
@@ -175,12 +196,14 @@ module "terraform_azurerm_avm_res_compute_virtualmachinescaleset" {
     }]
   }]
   os_profile = {
-    custom_data = base64encode(file("custom-data.yaml"))
     linux_configuration = {
-      disable_password_authentication = false
-      user_data_base64                = base64encode(file("user-data.sh"))
+      disable_password_authentication = true
       admin_username                  = "azureuser"
     }
+  }
+  generated_secrets_key_vault_secret_config = {
+    key_vault_resource_id = module.avm_res_keyvault_vault.resource_id
+    name                  = "azureuser-ssh-key-example"
   }
   source_image_reference = {
     publisher = "Canonical"
@@ -197,9 +220,11 @@ module "terraform_azurerm_avm_res_compute_virtualmachinescaleset" {
     failure_suppression_enabled = false
     settings                    = "{\"port\":80,\"protocol\":\"http\",\"requestPath\":\"/index.html\"}"
   }]
-  tags       = local.tags
-  depends_on = [azurerm_subnet_nat_gateway_association.this]
+  tags = local.tags
+  # Uncomment the code below to implement a VMSS Lock
+  #lock = {
+  #  name = "VMSSNoDelete"
+  #  kind = "CanNotDelete"
+  #}
+  depends_on = [azurerm_subnet_nat_gateway_association.this, module.avm_res_keyvault_vault]
 }
-
-
-

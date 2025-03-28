@@ -37,11 +37,6 @@ locals {
     length(try(location.capabilities, [])) > 1    #avoid skus where the capabilities list isn't defined
   ]
 }
-
-resource "random_integer" "deploy_sku" {
-  max = length(local.deploy_skus) - 1
-  min = 0
-}
 ```
 
 <!-- markdownlint-disable MD033 -->
@@ -55,13 +50,10 @@ The following requirements are needed by this module:
 
 - <a name="requirement_azurerm"></a> [azurerm](#requirement\_azurerm) (~> 4.0)
 
-- <a name="requirement_random"></a> [random](#requirement\_random) (~> 3.6)
-
 ## Resources
 
 The following resources are used by this module:
 
-- [random_integer.deploy_sku](https://registry.terraform.io/providers/hashicorp/random/latest/docs/resources/integer) (resource)
 - [azapi_resource_list.example](https://registry.terraform.io/providers/Azure/azapi/latest/docs/data-sources/resource_list) (data source)
 - [azurerm_subscription.current](https://registry.terraform.io/providers/hashicorp/azurerm/latest/docs/data-sources/subscription) (data source)
 
@@ -84,11 +76,15 @@ No optional inputs.
 
 The following outputs are exported:
 
+### <a name="output_deployment_region"></a> [deployment\_region](#output\_deployment\_region)
+
+Description: The selected region for deployment
+
 ### <a name="output_resource_id"></a> [resource\_id](#output\_resource\_id)
 
 Description: Dummy variable to meet linting requirements
 
-### <a name="output_sku"></a> [sku](#output\_sku)
+### <a name="output_valid_skus"></a> [valid\_skus](#output\_valid\_skus)
 
 Description: sku
 
