@@ -30,17 +30,21 @@ module "regions" {
 data "azurerm_client_config" "current" {}
 
 resource "random_integer" "region_index" {
-  max = length(module.regions.regions_by_name) - 1
+  max = length(local.regions) - 1
   min = 0
 }
 
 resource "random_integer" "zone_index" {
-  max = length(module.regions.regions_by_name[module.regions.regions[random_integer.region_index.result].name].zones)
+  max = length(module.regions.regions_by_name[local.regions[random_integer.region_index.result].name].zones)
   min = 1
 }
 
+locals {
+  regions = chunklist(module.regions.regions, 10)[0]
+}
+
 module "valid_deployment_region_filter" {
-  for_each = toset([for region in module.regions.regions : region.name])
+  for_each = toset([for region in local.regions : region.name])
   source   = "../../modules/sku_selector"
 
   deployment_region = each.value
