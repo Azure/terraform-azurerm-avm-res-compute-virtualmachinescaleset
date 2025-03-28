@@ -236,7 +236,9 @@ module "terraform_azurerm_avm_res_compute_virtualmachinescaleset" {
       type_handler_version        = "1.10"
       auto_upgrade_minor_version  = true
       failure_suppression_enabled = false
-      settings                    = "{\"commandToExecute\":\"copy %SYSTEMDRIVE%\\\\AzureData\\\\CustomData.bin c:\\\\init-script.ps1 \\u0026 powershell -ExecutionPolicy Unrestricted -File %SYSTEMDRIVE%\\\\init-script.ps1\"}"
+      settings = jsonencode({
+        commandToExecute = "copy %SYSTEMDRIVE%\\\\AzureData\\\\CustomData.bin c:\\\\init-script.ps1 \\u0026 powershell -ExecutionPolicy Unrestricted -File %SYSTEMDRIVE%\\\\init-script.ps1"
+      })
     },
     {
       name                        = "HealthExtension"
@@ -245,7 +247,11 @@ module "terraform_azurerm_avm_res_compute_virtualmachinescaleset" {
       type_handler_version        = "1.0"
       auto_upgrade_minor_version  = true
       failure_suppression_enabled = false
-      settings                    = "{\"port\":80,\"protocol\":\"http\",\"requestPath\":\"index.html\"}"
+      settings = jsonencode({
+        port        = 80
+        protocol    = "http"
+        requestPath = "index.html"
+      })
   }]
   tags       = local.tags
   depends_on = [azurerm_subnet_nat_gateway_association.this, module.avm_res_keyvault_vault]
