@@ -10,8 +10,12 @@ module "regions" {
   availability_zones_filter = true
 }
 
+locals {
+  regions = chunklist(module.regions.regions, 10)[0]
+}
+
 module "valid_deployment_region_filter" {
-  for_each = toset([for region in module.regions.regions : region.name])
+  for_each = toset([for region in local.regions : region.name])
   source   = "../../modules/sku_selector"
 
   deployment_region = each.value
