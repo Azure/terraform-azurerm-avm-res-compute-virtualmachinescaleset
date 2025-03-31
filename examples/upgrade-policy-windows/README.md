@@ -27,7 +27,7 @@ module "regions" {
 }
 
 resource "random_integer" "region_index" {
-  max = length(module.regions.regizzons_by_name) - 1
+  max = length(module.regions.regions_by_name) - 1
   min = 0
 }
 
