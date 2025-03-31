@@ -237,7 +237,7 @@ module "terraform_azurerm_avm_res_compute_virtualmachinescaleset" {
       auto_upgrade_minor_version  = true
       failure_suppression_enabled = false
       settings = jsonencode({
-        commandToExecute = "copy %SYSTEMDRIVE%\\\\AzureData\\\\CustomData.bin c:\\\\init-script.ps1 \\u0026 powershell -ExecutionPolicy Unrestricted -File %SYSTEMDRIVE%\\\\init-script.ps1"
+        commandToExecute = "copy %SYSTEMDRIVE%\\AzureData\\CustomData.bin c:\\init-script.ps1 \u0026 powershell -ExecutionPolicy Unrestricted -File %SYSTEMDRIVE%\\init-script.ps1"
       })
     },
     {
