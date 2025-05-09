@@ -17,6 +17,7 @@ resource "azurerm_orchestrated_virtual_machine_scale_set" "virtual_machine_scale
   sku_name                      = var.sku_name
   source_image_id               = var.source_image_id
   tags                          = var.tags
+  upgrade_mode                  = var.upgrade_policy.upgrade_mode
   user_data_base64              = var.user_data_base64
   zone_balance                  = var.zone_balance
   zones                         = var.zones
@@ -269,6 +270,19 @@ resource "azurerm_orchestrated_virtual_machine_scale_set" "virtual_machine_scale
       regular_percentage_above_base = priority_mix.value.regular_percentage_above_base
     }
   }
+  dynamic "rolling_upgrade_policy" {
+    for_each = var.upgrade_policy.upgrade_mode == "Rolling" ? [var.upgrade_policy.rolling_upgrade_policy] : []
+
+    content {
+      max_batch_instance_percent              = rolling_upgrade_policy.value.max_batch_instance_percent
+      max_unhealthy_instance_percent          = rolling_upgrade_policy.value.max_unhealthy_instance_percent
+      max_unhealthy_upgraded_instance_percent = rolling_upgrade_policy.value.max_unhealthy_upgraded_instance_percent
+      pause_time_between_batches              = rolling_upgrade_policy.value.pause_time_between_batches
+      cross_zone_upgrades_enabled             = rolling_upgrade_policy.value.cross_zone_upgrades_enabled
+      maximum_surge_instances_enabled         = rolling_upgrade_policy.value.maximum_surge_instances_enabled
+      prioritize_unhealthy_instances_enabled  = rolling_upgrade_policy.value.prioritize_unhealthy_instances_enabled
+    }
+  }
   dynamic "source_image_reference" {
     for_each = var.source_image_reference == null ? [] : [var.source_image_reference]
 
@@ -297,36 +311,6 @@ resource "azurerm_orchestrated_virtual_machine_scale_set" "virtual_machine_scale
       update = timeouts.value.update
     }
   }
-}
-
-resource "azapi_update_resource" "set_update_policy" {
-  type = "Microsoft.Compute/virtualMachineScaleSets@2024-07-01"
-  body = merge(
-    var.upgrade_policy.upgrade_mode != "Rolling" ? {
-      properties = {
-        upgradePolicy = {
-          mode = var.upgrade_policy.upgrade_mode
-        }
-      }
-    } : {},
-    var.upgrade_policy.upgrade_mode == "Rolling" ? {
-      properties = {
-        upgradePolicy = {
-          mode = var.upgrade_policy.upgrade_mode
-          rollingUpgradePolicy = {
-            enableCrossZoneUpgrade              = var.upgrade_policy.rolling_upgrade_policy.cross_zone_upgrades_enabled
-            maxBatchInstancePercent             = var.upgrade_policy.rolling_upgrade_policy.max_batch_instance_percent
-            maxUnhealthyInstancePercent         = var.upgrade_policy.rolling_upgrade_policy.max_unhealthy_instance_percent
-            maxUnhealthyUpgradedInstancePercent = var.upgrade_policy.rolling_upgrade_policy.max_unhealthy_upgraded_instance_percent
-            pauseTimeBetweenBatches             = var.upgrade_policy.rolling_upgrade_policy.pause_time_between_batches
-            prioritizeUnhealthyInstances        = var.upgrade_policy.rolling_upgrade_policy.prioritize_unhealthy_instances_enabled
-            maxSurge                            = var.upgrade_policy.rolling_upgrade_policy.maximum_surge_instances_enabled
-          }
-        }
-      }
-    } : {}
-  )
-  resource_id = azurerm_orchestrated_virtual_machine_scale_set.virtual_machine_scale_set.id
 }
 
 
