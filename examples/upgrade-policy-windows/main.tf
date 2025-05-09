@@ -5,8 +5,9 @@ module "naming" {
 }
 
 module "regions" {
-  source                    = "Azure/avm-utl-regions/azurerm"
-  version                   = "0.3.0"
+  source  = "Azure/avm-utl-regions/azurerm"
+  version = "0.3.0"
+
   availability_zones_filter = true
 }
 
@@ -122,20 +123,48 @@ resource "azurerm_subnet_nat_gateway_association" "this" {
 # This is the module call
 module "terraform_azurerm_avm_res_compute_virtualmachinescaleset" {
   source = "../../"
-  # source             = "Azure/avm-res-compute-virtualmachinescaleset/azurerm"
-  name                        = module.naming.virtual_machine_scale_set.name_unique
-  resource_group_name         = azurerm_resource_group.this.name
-  enable_telemetry            = var.enable_telemetry
-  location                    = azurerm_resource_group.this.location
-  admin_password              = "P@ssw0rd1234!"
-  sku_name                    = module.get_valid_sku_for_deployment_region.sku
-  instances                   = 2
+
   extension_protected_setting = {}
-  admin_ssh_keys              = []
-  user_data_base64            = null
+  location                    = azurerm_resource_group.this.location
+  # source             = "Azure/avm-res-compute-virtualmachinescaleset/azurerm"
+  name                = module.naming.virtual_machine_scale_set.name_unique
+  resource_group_name = azurerm_resource_group.this.name
+  user_data_base64    = null
+  admin_password      = "P@ssw0rd1234!"
+  admin_ssh_keys      = []
   boot_diagnostics = {
     storage_account_uri = "" # Enable boot diagnostics
   }
+  data_disk = [{
+    caching                   = "ReadWrite"
+    create_option             = "Empty"
+    disk_size_gb              = 10
+    lun                       = 0
+    managed_disk_type         = "StandardSSD_LRS"
+    storage_account_type      = "StandardSSD_LRS"
+    write_accelerator_enabled = false
+  }]
+  enable_telemetry = var.enable_telemetry
+  extension = [
+    {
+      name                        = "CustomScriptExtension"
+      publisher                   = "Microsoft.Compute"
+      type                        = "CustomScriptExtension"
+      type_handler_version        = "1.10"
+      auto_upgrade_minor_version  = true
+      failure_suppression_enabled = false
+      settings                    = "{\"commandToExecute\":\"copy %SYSTEMDRIVE%\\\\AzureData\\\\CustomData.bin c:\\\\init-script.ps1 \\u0026 powershell -ExecutionPolicy Unrestricted -File %SYSTEMDRIVE%\\\\init-script.ps1\"}"
+    },
+    {
+      name                        = "HealthExtension"
+      publisher                   = "Microsoft.ManagedServices"
+      type                        = "ApplicationHealthWindows"
+      type_handler_version        = "1.0"
+      auto_upgrade_minor_version  = true
+      failure_suppression_enabled = false
+      settings                    = "{\"port\":80,\"protocol\":\"http\",\"requestPath\":\"index.html\"}"
+  }]
+  instances = 2
   network_interface = [{
     name                      = "VMSS-NIC"
     network_security_group_id = azurerm_network_security_group.nic.id
@@ -158,43 +187,17 @@ module "terraform_azurerm_avm_res_compute_virtualmachinescaleset" {
       }]
     }
   }
-  data_disk = [{
-    caching                   = "ReadWrite"
-    create_option             = "Empty"
-    disk_size_gb              = 10
-    lun                       = 0
-    managed_disk_type         = "StandardSSD_LRS"
-    storage_account_type      = "StandardSSD_LRS"
-    write_accelerator_enabled = false
-  }]
+  sku_name = module.get_valid_sku_for_deployment_region.sku
   source_image_reference = {
     publisher = "MicrosoftWindowsServer"
     offer     = "WindowsServer"
     sku       = "2022-Datacenter"
     version   = "latest"
   }
-  extension = [
-    {
-      name                        = "CustomScriptExtension"
-      publisher                   = "Microsoft.Compute"
-      type                        = "CustomScriptExtension"
-      type_handler_version        = "1.10"
-      auto_upgrade_minor_version  = true
-      failure_suppression_enabled = false
-      settings                    = "{\"commandToExecute\":\"copy %SYSTEMDRIVE%\\\\AzureData\\\\CustomData.bin c:\\\\init-script.ps1 \\u0026 powershell -ExecutionPolicy Unrestricted -File %SYSTEMDRIVE%\\\\init-script.ps1\"}"
-    },
-    {
-      name                        = "HealthExtension"
-      publisher                   = "Microsoft.ManagedServices"
-      type                        = "ApplicationHealthWindows"
-      type_handler_version        = "1.0"
-      auto_upgrade_minor_version  = true
-      failure_suppression_enabled = false
-      settings                    = "{\"port\":80,\"protocol\":\"http\",\"requestPath\":\"index.html\"}"
-  }]
+  tags = local.tags
   upgrade_policy = {
     upgrade_mode = "Automatic"
   }
-  tags       = local.tags
+
   depends_on = [azurerm_subnet_nat_gateway_association.this]
 }

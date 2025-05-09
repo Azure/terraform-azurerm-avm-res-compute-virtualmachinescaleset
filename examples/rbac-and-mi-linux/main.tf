@@ -5,8 +5,9 @@ module "naming" {
 }
 
 module "regions" {
-  source                    = "Azure/avm-utl-regions/azurerm"
-  version                   = "0.3.0"
+  source  = "Azure/avm-utl-regions/azurerm"
+  version = "0.3.0"
+
   availability_zones_filter = true
 }
 
@@ -136,18 +137,14 @@ data "azurerm_client_config" "current" {}
 # This is the module call
 module "terraform_azurerm_avm_res_compute_virtualmachinescaleset" {
   source = "../../"
-  # source             = "Azure/avm-res-compute-virtualmachinescaleset/azurerm"
-  name                        = module.naming.virtual_machine_scale_set.name_unique
-  resource_group_name         = azurerm_resource_group.this.name
-  enable_telemetry            = var.enable_telemetry
-  location                    = azurerm_resource_group.this.location
-  platform_fault_domain_count = 1
-  admin_password              = "P@ssw0rd1234!"
-  sku_name                    = module.get_valid_sku_for_deployment_region.sku
-  instances                   = 2
+
   extension_protected_setting = {}
-  user_data_base64            = null
-  automatic_instance_repair   = null
+  location                    = azurerm_resource_group.this.location
+  # source             = "Azure/avm-res-compute-virtualmachinescaleset/azurerm"
+  name                = module.naming.virtual_machine_scale_set.name_unique
+  resource_group_name = azurerm_resource_group.this.name
+  user_data_base64    = null
+  admin_password      = "P@ssw0rd1234!"
   admin_ssh_keys = [(
     {
       id         = tls_private_key.example_ssh.id
@@ -155,6 +152,24 @@ module "terraform_azurerm_avm_res_compute_virtualmachinescaleset" {
       username   = "azureuser"
     }
   )]
+  automatic_instance_repair = null
+  enable_telemetry          = var.enable_telemetry
+  extension = [{
+    name                        = "HealthExtension"
+    publisher                   = "Microsoft.ManagedServices"
+    type                        = "ApplicationHealthLinux"
+    type_handler_version        = "1.0"
+    auto_upgrade_minor_version  = true
+    failure_suppression_enabled = false
+    settings                    = "{\"port\":80,\"protocol\":\"http\",\"requestPath\":\"/index.html\"}"
+  }]
+  instances = 2
+  managed_identities = {
+    system_assigned = false
+    user_assigned_resource_ids = [
+      azurerm_user_assigned_identity.user_identity.id
+    ]
+  }
   network_interface = [{
     name = "VMSS-NIC"
     ip_configuration = [{
@@ -171,27 +186,7 @@ module "terraform_azurerm_avm_res_compute_virtualmachinescaleset" {
       admin_ssh_key                   = toset([tls_private_key.example_ssh.id])
     }
   }
-  source_image_reference = {
-    publisher = "Canonical"
-    offer     = "0001-com-ubuntu-server-jammy"
-    sku       = "22_04-LTS-gen2" # Auto guest patching is enabled on this sku.  https://learn.microsoft.com/en-us/azure/virtual-machines/automatic-vm-guest-patching
-    version   = "latest"
-  }
-  extension = [{
-    name                        = "HealthExtension"
-    publisher                   = "Microsoft.ManagedServices"
-    type                        = "ApplicationHealthLinux"
-    type_handler_version        = "1.0"
-    auto_upgrade_minor_version  = true
-    failure_suppression_enabled = false
-    settings                    = "{\"port\":80,\"protocol\":\"http\",\"requestPath\":\"/index.html\"}"
-  }]
-  managed_identities = {
-    system_assigned = false
-    user_assigned_resource_ids = [
-      azurerm_user_assigned_identity.user_identity.id
-    ]
-  }
+  platform_fault_domain_count = 1
   role_assignments = {
     role_assignment = {
       principal_id               = data.azurerm_client_config.current.object_id
@@ -199,6 +194,14 @@ module "terraform_azurerm_avm_res_compute_virtualmachinescaleset" {
       description                = "Assign the Reader role to the deployment user on this virtual machine scale set resource scope."
     }
   }
-  tags       = local.tags
+  sku_name = module.get_valid_sku_for_deployment_region.sku
+  source_image_reference = {
+    publisher = "Canonical"
+    offer     = "0001-com-ubuntu-server-jammy"
+    sku       = "22_04-LTS-gen2" # Auto guest patching is enabled on this sku.  https://learn.microsoft.com/en-us/azure/virtual-machines/automatic-vm-guest-patching
+    version   = "latest"
+  }
+  tags = local.tags
+
   depends_on = [azurerm_subnet_nat_gateway_association.this]
 }
