@@ -268,11 +268,11 @@ variable "instances" {
 variable "license_type" {
   type        = string
   default     = null
-  description = "(Optional) Specifies the type of on-premise license (also known as Azure Hybrid Use Benefit) which should be used for this Orchestrated Virtual Machine Scale Set. Possible values are `None`, `Windows_Client` and `Windows_Server`."
+  description = "(Optional) For Linux virtual machine specifies the BYOL Type for this Virtual Machine Scale Set, possible values are `RHEL_BYOS` and `SLES_BYOS`. For Windows virtual machine scale set specifies the type of on-premise license (also known as [Azure Hybrid Use Benefit](https://docs.microsoft.com/windows-server/get-started/azure-hybrid-benefit)) which should be used for this Virtual Machine, possible values are `None`, `Windows_Client` and `Windows_Server`."
 
   validation {
-    condition     = var.license_type == null ? true : contains(["None", "Windows_Client", "Windows_Server"], var.license_type)
-    error_message = "The license type must be one of: 'None', 'Windows_Client', or 'Windows_Server'."
+    condition     = var.license_type == null ? true : contains(["None", "Windows_Client", "Windows_Server", "RHEL_BYOS", "SLES_BYOS"], var.license_type)
+    error_message = "The license type must be one of: 'None', 'Windows_Client', 'Windows_Server', 'RHEL_BYOS', 'SLES_BYOS'."
   }
 }
 
