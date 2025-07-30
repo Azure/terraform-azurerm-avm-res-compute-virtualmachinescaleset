@@ -136,12 +136,11 @@ module "terraform_azurerm_avm_res_compute_virtualmachinescaleset" {
   extension_protected_setting = {}
   location                    = azurerm_resource_group.this.location
   # source             = "Azure/avm-res-compute-virtualmachinescaleset/azurerm"
-  name                      = module.naming.virtual_machine_scale_set.name_unique
-  resource_group_name       = azurerm_resource_group.this.name
-  user_data_base64          = null
-  admin_password            = "P@ssw0rd1234!"
-  automatic_instance_repair = null
-  enable_telemetry          = var.enable_telemetry
+  name                = module.naming.virtual_machine_scale_set.name_unique
+  resource_group_name = azurerm_resource_group.this.name
+  user_data_base64    = null
+  admin_password      = "P@ssw0rd1234!"
+  enable_telemetry    = var.enable_telemetry
   extension = [
     {
       name                        = "CustomScriptExtension"
