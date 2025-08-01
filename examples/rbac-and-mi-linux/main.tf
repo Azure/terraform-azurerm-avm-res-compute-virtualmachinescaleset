@@ -152,8 +152,7 @@ module "terraform_azurerm_avm_res_compute_virtualmachinescaleset" {
       username   = "azureuser"
     }
   )]
-  automatic_instance_repair = null
-  enable_telemetry          = var.enable_telemetry
+  enable_telemetry = var.enable_telemetry
   extension = [{
     name                        = "HealthExtension"
     publisher                   = "Microsoft.ManagedServices"

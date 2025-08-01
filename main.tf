@@ -9,7 +9,7 @@ resource "azurerm_orchestrated_virtual_machine_scale_set" "virtual_machine_scale
   extension_operations_enabled  = var.extension_operations_enabled
   extensions_time_budget        = var.extensions_time_budget
   instances                     = var.instances
-  license_type                  = var.license_type
+  license_type                  = var.os_profile.linux_configuration != null ? "None" : var.license_type # azurerm as of v4.36.0 does not support setting linux licenses
   max_bid_price                 = var.max_bid_price
   priority                      = var.priority
   proximity_placement_group_id  = var.proximity_placement_group_id
@@ -311,7 +311,29 @@ resource "azurerm_orchestrated_virtual_machine_scale_set" "virtual_machine_scale
       update = timeouts.value.update
     }
   }
+
+  lifecycle {
+    ignore_changes = [
+      # Ignore changes to license_type
+      # azurerm as of v4.36.0 does not support setting linux licenses
+      # license type will be set with azapi_update_resource
+      license_type
+    ]
+  }
 }
+
+resource "azapi_update_resource" "set_vmss_license" {
+  resource_id = azurerm_orchestrated_virtual_machine_scale_set.virtual_machine_scale_set.id
+  type        = "Microsoft.Compute/virtualMachineScaleSets@2024-07-01"
+  body = {
+    properties = {
+      virtualMachineProfile = {
+        licenseType = var.license_type
+      }
+    }
+  }
+}
+
 
 
 # AVM Required Code
