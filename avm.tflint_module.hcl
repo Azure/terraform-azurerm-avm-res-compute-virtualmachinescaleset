@@ -73,7 +73,7 @@ rule "terraform_naming_convention" {
 }
 
 rule "terraform_required_providers" {
-  enabled = false
+  enabled = true
 }
 
 rule "terraform_required_version" {

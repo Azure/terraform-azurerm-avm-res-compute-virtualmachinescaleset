@@ -6,6 +6,8 @@ Major version Zero (0.y.z) is for initial development. Anything MAY change at an
 
 > Note: This AVM will only deploy Azure Virtual Machine Scale Sets in Orchestrated mode.  Please see this reliability guidance for more information:  [Deploy VMs with flexible orchestration mode](https://learn.microsoft.com/en-us/azure/reliability/reliability-virtual-machine-scale-sets?tabs=graph-4%2Cgraph-1%2Cgraph-2%2Cgraph-3%2Cgraph-5%2Cgraph-6%2Cportal#-deploy-vms-with-flexible-orchestration-mode)
 
+AzureRM version constrained to less than 4.37 due to issue with underlying provider.  See: [azurerm\_orchestrated\_virtual\_machine\_scale\_set new variable network\_api\_version inconsistent plan error](https://github.com/hashicorp/terraform-provider-azurerm/issues/30274)
+
 <!-- markdownlint-disable MD033 -->
 ## Requirements
 
@@ -15,7 +17,7 @@ The following requirements are needed by this module:
 
 - <a name="requirement_azapi"></a> [azapi](#requirement\_azapi) (~> 2.0)
 
-- <a name="requirement_azurerm"></a> [azurerm](#requirement\_azurerm) (~> 4.26, != 4.37.0, != 4.38.0, != 4.38.1)
+- <a name="requirement_azurerm"></a> [azurerm](#requirement\_azurerm) (>= 4.0, < 4.37)
 
 - <a name="requirement_modtm"></a> [modtm](#requirement\_modtm) (~> 0.3)
 
