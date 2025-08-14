@@ -9,7 +9,7 @@ resource "azurerm_orchestrated_virtual_machine_scale_set" "virtual_machine_scale
   extension_operations_enabled  = var.extension_operations_enabled
   extensions_time_budget        = var.extensions_time_budget
   instances                     = var.instances
-  license_type                  = var.os_profile.linux_configuration != null ? "None" : var.license_type # azurerm as of v4.36.0 does not support setting linux licenses
+  license_type                  = (try(var.os_profile.linux_configuration, null) != null) ? "None" : var.license_type # azurerm as of v4.36.0 does not support setting linux licenses
   max_bid_price                 = var.max_bid_price
   priority                      = var.priority
   proximity_placement_group_id  = var.proximity_placement_group_id
