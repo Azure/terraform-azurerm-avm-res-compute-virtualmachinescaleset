@@ -152,29 +152,32 @@ module "terraform_azurerm_avm_res_compute_virtualmachinescaleset" {
   extension_protected_setting = {}
   location                    = azurerm_resource_group.this.location
   # source             = "Azure/avm-res-compute-virtualmachinescaleset/azurerm"
-  name                = module.naming.virtual_machine_scale_set.name_unique
-  resource_group_name = azurerm_resource_group.this.name
-  user_data_base64    = null
-  admin_password      = "P@ssw0rd1234!"
-  enable_telemetry    = var.enable_telemetry
+  name                   = module.naming.virtual_machine_scale_set.name_unique
+  resource_group_name    = azurerm_resource_group.this.name
+  user_data_base64       = null
+  admin_password         = "P@ssw0rd1234!"
+  admin_password_version = "1"
+  custom_data            = base64encode(file("init-script.ps1"))
+  custom_data_version    = "1"
+  enable_telemetry       = var.enable_telemetry
   extension = [
     {
-      name                        = "CustomScriptExtension"
-      publisher                   = "Microsoft.Compute"
-      type                        = "CustomScriptExtension"
-      type_handler_version        = "1.10"
-      auto_upgrade_minor_version  = true
-      failure_suppression_enabled = false
-      settings                    = "{\"commandToExecute\":\"copy %SYSTEMDRIVE%\\\\AzureData\\\\CustomData.bin c:\\\\init-script.ps1 \\u0026 powershell -ExecutionPolicy Unrestricted -File %SYSTEMDRIVE%\\\\init-script.ps1\"}"
+      name                               = "CustomScriptExtension"
+      publisher                          = "Microsoft.Compute"
+      type                               = "CustomScriptExtension"
+      type_handler_version               = "1.10"
+      auto_upgrade_minor_version_enabled = true
+      failure_suppression_enabled        = false
+      settings                           = "{\"commandToExecute\":\"copy %SYSTEMDRIVE%\\\\AzureData\\\\CustomData.bin c:\\\\init-script.ps1 \\u0026 powershell -ExecutionPolicy Unrestricted -File %SYSTEMDRIVE%\\\\init-script.ps1\"}"
     },
     {
-      name                        = "HealthExtension"
-      publisher                   = "Microsoft.ManagedServices"
-      type                        = "ApplicationHealthWindows"
-      type_handler_version        = "1.0"
-      auto_upgrade_minor_version  = true
-      failure_suppression_enabled = false
-      settings                    = "{\"port\":80,\"protocol\":\"http\",\"requestPath\":\"index.html\"}"
+      name                               = "HealthExtension"
+      publisher                          = "Microsoft.ManagedServices"
+      type                               = "ApplicationHealthWindows"
+      type_handler_version               = "1.0"
+      auto_upgrade_minor_version_enabled = true
+      failure_suppression_enabled        = false
+      settings                           = "{\"port\":80,\"protocol\":\"http\",\"requestPath\":\"index.html\"}"
   }]
   instances = 2
   managed_identities = {
@@ -191,7 +194,6 @@ module "terraform_azurerm_avm_res_compute_virtualmachinescaleset" {
     }]
   }]
   os_profile = {
-    custom_data = base64encode(file("init-script.ps1"))
     windows_configuration = {
       disable_password_authentication = false
       admin_username                  = "azureuser"
@@ -272,7 +274,7 @@ If it is set to false, then no telemetry will be collected.
 
 Type: `bool`
 
-Default: `true`
+Default: `false`
 
 ## Outputs
 
@@ -289,10 +291,6 @@ Description: The name of the Resource Group.
 ### <a name="output_resource_id"></a> [resource\_id](#output\_resource\_id)
 
 Description: The ID of the Virtual Machine Scale Set
-
-### <a name="output_virtual_machine_scale_set"></a> [virtual\_machine\_scale\_set](#output\_virtual\_machine\_scale\_set)
-
-Description: All attributes of the Virtual Machine Scale Set resource.
 
 ### <a name="output_virtual_machine_scale_set_id"></a> [virtual\_machine\_scale\_set\_id](#output\_virtual\_machine\_scale\_set\_id)
 
