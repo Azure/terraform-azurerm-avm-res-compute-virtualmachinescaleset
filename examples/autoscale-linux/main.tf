@@ -149,7 +149,7 @@ module "terraform_azurerm_avm_res_compute_virtualmachinescaleset" {
   }
   custom_data         = base64encode(file("custom-data.yaml"))
   custom_data_version = "1"
-  enable_telemetry    = false
+  enable_telemetry    = var.enable_telemetry
   extension = [{
     name                               = "HealthExtension"
     publisher                          = "Microsoft.ManagedServices"
@@ -157,7 +157,11 @@ module "terraform_azurerm_avm_res_compute_virtualmachinescaleset" {
     type_handler_version               = "1.0"
     auto_upgrade_minor_version_enabled = true
     failure_suppression_enabled        = false
-    settings                           = "{\"port\":80,\"protocol\":\"http\",\"requestPath\":\"/index.html\"}"
+    settings = jsonencode({
+      port        = 80
+      protocol    = "http"
+      requestPath = "/index.html"
+    })
   }]
   instances = 2
   network_interface = [{
