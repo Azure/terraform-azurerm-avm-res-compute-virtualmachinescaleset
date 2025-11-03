@@ -38,7 +38,7 @@ moved {
 resource "azapi_resource" "virtual_machine_scale_set" {
   location  = var.location
   name      = var.name
-  parent_id = "/subscriptions/${data.azapi_client_config.current.subscription_id}/resourceGroups/${var.resource_group_name}"
+  parent_id = local.resource_group_id
   type      = "Microsoft.Compute/virtualMachineScaleSets@2025-04-01"
   body = merge(
     {
@@ -899,26 +899,55 @@ resource "azapi_update_resource" "this" {
 
 # AVM Required Code
 
-resource "azurerm_management_lock" "this" {
+moved {
+  from = azurerm_management_lock.this
+  to   = azapi_resource.lock
+}
+
+resource "azapi_resource" "lock" {
   count = var.lock != null ? 1 : 0
 
-  lock_level = var.lock.kind
-  name       = coalesce(var.lock.name, "lock-${var.lock.kind}")
-  scope      = azapi_resource.virtual_machine_scale_set.id
-  notes      = var.lock.kind == "CanNotDelete" ? "Cannot delete the resource or its child resources." : "Cannot delete or modify the resource or its child resources."
+  name           = module.avm_utl_interfaces.lock_azapi.name != null ? module.avm_utl_interfaces.lock_azapi.name : "lock-${azapi_resource.virtual_machine_scale_set.name}"
+  parent_id      = azapi_resource.virtual_machine_scale_set.id
+  type           = module.avm_utl_interfaces.lock_azapi.type
+  body           = module.avm_utl_interfaces.lock_azapi.body
+  create_headers = var.enable_telemetry ? { "User-Agent" : local.avm_azapi_header } : null
+  delete_headers = var.enable_telemetry ? { "User-Agent" : local.avm_azapi_header } : null
+  read_headers   = var.enable_telemetry ? { "User-Agent" : local.avm_azapi_header } : null
+  update_headers = var.enable_telemetry ? { "User-Agent" : local.avm_azapi_header } : null
+
+  depends_on = [azapi_resource.role_assignments]
 }
 
-resource "azurerm_role_assignment" "this" {
+moved {
+  from = azurerm_role_assignment.this
+  to   = azapi_resource.role_assignments
+}
+
+resource "azapi_resource" "role_assignments" {
   for_each = var.role_assignments
 
-  principal_id                           = each.value.principal_id
-  scope                                  = azapi_resource.virtual_machine_scale_set.id
-  condition                              = each.value.condition
-  condition_version                      = each.value.condition_version
-  delegated_managed_identity_resource_id = each.value.delegated_managed_identity_resource_id
-  principal_type                         = each.value.principal_type
-  role_definition_id                     = strcontains(lower(each.value.role_definition_id_or_name), lower(local.role_definition_resource_substring)) ? each.value.role_definition_id_or_name : null
-  role_definition_name                   = strcontains(lower(each.value.role_definition_id_or_name), lower(local.role_definition_resource_substring)) ? null : each.value.role_definition_id_or_name
-  skip_service_principal_aad_check       = each.value.skip_service_principal_aad_check
+  name      = module.avm_utl_interfaces.role_assignments_azapi[each.key].name
+  parent_id = azapi_resource.virtual_machine_scale_set.id
+  type      = module.avm_utl_interfaces.role_assignments_azapi[each.key].type
+  body = {
+    properties = {
+      principalId                        = module.avm_utl_interfaces.role_assignments_azapi[each.key].body.properties.principalId
+      roleDefinitionId                   = module.avm_utl_interfaces.role_assignments_azapi[each.key].body.properties.roleDefinitionId
+      condition                          = module.avm_utl_interfaces.role_assignments_azapi[each.key].body.properties.condition
+      conditionVersion                   = module.avm_utl_interfaces.role_assignments_azapi[each.key].body.properties.conditionVersion
+      delegatedManagedIdentityResourceId = module.avm_utl_interfaces.role_assignments_azapi[each.key].body.properties.delegatedManagedIdentityResourceId
+      description                        = module.avm_utl_interfaces.role_assignments_azapi[each.key].body.properties.description == null ? "" : module.avm_utl_interfaces.role_assignments_azapi[each.key].body.properties.description
+      principalType                      = coalesce(module.avm_utl_interfaces.role_assignments_azapi[each.key].body.properties.principalType, "User")
+    }
+  }
+  create_headers = var.enable_telemetry ? { "User-Agent" : local.avm_azapi_header } : null
+  delete_headers = var.enable_telemetry ? { "User-Agent" : local.avm_azapi_header } : null
+  read_headers   = var.enable_telemetry ? { "User-Agent" : local.avm_azapi_header } : null
+  retry = {
+    error_message_regex = [
+      ".*Please remove the lock and try again.*",
+    ]
+  }
+  update_headers = var.enable_telemetry ? { "User-Agent" : local.avm_azapi_header } : null
 }
-
