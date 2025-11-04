@@ -48,13 +48,11 @@ resource "azapi_resource" "virtual_machine_scale_set" {
         tier     = var.sku_name != "Mix" ? "Standard" : null
       }
       properties = merge(
-        data.azapi_resource.existing_vmss.exists ? {
-          constrainedMaximumCapacity = data.azapi_resource.existing_vmss.output.properties.constrainedMaximumCapacity
-        } : {},
         {
           highSpeedInterconnectPlacement = "None"
           orchestrationMode              = "Flexible"
           singlePlacementGroup           = false
+          constrainedMaximumCapacity     = data.azapi_resource.existing_vmss.exists ? data.azapi_resource.existing_vmss.output.properties.constrainedMaximumCapacity : null
         },
         {
           platformFaultDomainCount = var.platform_fault_domain_count
