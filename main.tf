@@ -936,7 +936,7 @@ resource "azapi_resource" "role_assignments" {
       conditionVersion                   = module.avm_utl_interfaces.role_assignments_azapi[each.key].body.properties.conditionVersion
       delegatedManagedIdentityResourceId = module.avm_utl_interfaces.role_assignments_azapi[each.key].body.properties.delegatedManagedIdentityResourceId
       description                        = module.avm_utl_interfaces.role_assignments_azapi[each.key].body.properties.description == null ? "" : module.avm_utl_interfaces.role_assignments_azapi[each.key].body.properties.description
-      principalType                      = coalesce(module.avm_utl_interfaces.role_assignments_azapi[each.key].body.properties.principalType, "User")
+      principalType                      = module.avm_utl_interfaces.role_assignments_azapi[each.key].body.properties.principalType
     }
   }
   create_headers = var.enable_telemetry ? { "User-Agent" : local.avm_azapi_header } : null
@@ -948,4 +948,51 @@ resource "azapi_resource" "role_assignments" {
     ]
   }
   update_headers = var.enable_telemetry ? { "User-Agent" : local.avm_azapi_header } : null
+
+  lifecycle {
+    ignore_changes = [
+      body.properties.principalType,
+    ]
+  }
+}
+
+# Terraform data resource to track role assignment changes that require updates via azapi_update_resource
+# This triggers replacement when tracked values change, which then triggers the azapi_update_resource
+resource "terraform_data" "role_assignments_update_tracker" {
+  for_each = var.role_assignments
+
+  input = {
+    principal_type = module.avm_utl_interfaces.role_assignments_azapi[each.key].body.properties.principalType
+  }
+}
+
+# Update role assignment properties using azapi_update_resource to maintain idempotency
+# This is necessary because principalType is ignored in the main resource to prevent drift
+# while still allowing updates to be applied when explicitly changed
+resource "azapi_update_resource" "role_assignments" {
+  for_each = var.role_assignments
+
+  resource_id = azapi_resource.role_assignments[each.key].id
+  type        = module.avm_utl_interfaces.role_assignments_azapi[each.key].type
+  body = {
+    properties = {
+      principalType = module.avm_utl_interfaces.role_assignments_azapi[each.key].body.properties.principalType
+    }
+  }
+  read_headers   = var.enable_telemetry ? { "User-Agent" : local.avm_azapi_header } : null
+  update_headers = var.enable_telemetry ? { "User-Agent" : local.avm_azapi_header } : null
+
+  depends_on = [
+    azapi_resource.role_assignments,
+  ]
+
+  # Trigger update when update_tracker is replaced
+  lifecycle {
+    ignore_changes = [
+      body,
+    ]
+    replace_triggered_by = [
+      terraform_data.role_assignments_update_tracker[each.key]
+    ]
+  }
 }
