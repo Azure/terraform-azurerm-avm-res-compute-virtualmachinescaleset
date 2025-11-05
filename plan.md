@@ -54,22 +54,25 @@ Optional Nested Blocks
 
 Format: Your planning output must be a Markdown table in the following format, to be used by the subsequent "Execution Phase". You must save this table as a new file named track.md.
 
+**IMPORTANT**: The "Proof Doc Markdown Link" column must be left **EMPTY** by you (the planner). This column will be populated later by the executor agents after they complete each task and create their proof documents.
+
 Planning Task List
 
-| No. | Path | Type | Required | Status |
-| 1 | name | Argument | Yes | Pending |
-| 2 | resource_group_name | Argument | Yes | Pending |
-| 3 | location | Argument | Yes | Pending |
-| 4 | address_space | Argument | Yes | Pending |
-| 5 | tags | Argument | No | Pending |
-| 6 | dns_servers | Argument | No | Pending |
-| ... | ... | ... | ... | ... |
-| 10 | identity | Block | Yes | Pending |
-| 11 | subnet | Block | No | Pending |
-| 12 | subnet.name | Argument | Yes | Pending |
-| 13 | subnet.address_prefix | Argument | Yes | Pending |
-| 14 | subnet.delegation | Block | No | Pending |
-| ... | ... | ... | ... | ... |
+| No. | Path | Type | Required | Status | Proof Doc Markdown Link |
+|-----|------|------|----------|--------|-----------|
+| 1 | name | Argument | Yes | Pending | |
+| 2 | resource_group_name | Argument | Yes | Pending | |
+| 3 | location | Argument | Yes | Pending | |
+| 4 | address_space | Argument | Yes | Pending | |
+| 5 | tags | Argument | No | Pending | |
+| 6 | dns_servers | Argument | No | Pending | |
+| ... | ... | ... | ... | ... | ... |
+| 10 | identity | Block | Yes | Pending | |
+| 11 | subnet | Block | No | Pending | |
+| 12 | subnet.name | Argument | Yes | Pending | |
+| 13 | subnet.address_prefix | Argument | Yes | Pending | |
+| 14 | subnet.delegation | Block | No | Pending | |
+| ... | ... | ... | ... | ... | ... |
 
 You also need to address the following rules in this `track.md`:
 
