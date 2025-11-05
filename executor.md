@@ -23,6 +23,70 @@ This means all Azure API properties should be written directly in HCL object syn
 6. Update task status in `track.md`
 7. For Blocks: Recursively delegate nested Blocks to new Executors
 
+## ⚠️ CRITICAL Constraints
+
+**DO NOT use command line tools** - You are FORBIDDEN from running `terraform fmt`, `terraform validate`, `git`, `./avm`, or ANY terminal commands. Code formatting and validation will be handled later.
+
+**DO NOT worry about code formatting** - Focus on conversion logic correctness, not indentation or spacing. Code will be auto-formatted later.
+
+## ⚠️ ABSOLUTE REQUIREMENT: Strict Rule Compliance
+
+**All rules established in this document MUST be strictly followed without exception.** Agents are FORBIDDEN from deviating from these rules based on their own judgment or assumptions. If a situation arises that is not covered by this document, seek clarification rather than improvising.
+
+## Core Conversion Principles
+
+### ⚠️ CRITICAL: Field Placement Rules
+
+**Top-level azapi_resource properties** (NOT in body):
+- `name` - Resource name
+- `parent_id` - Parent resource ID (see below for construction)
+- `location` - Azure region
+- `tags` - Resource tags
+
+**All other azurerm fields go inside `body = {}`**, following the Azure REST API structure where most properties are nested under `properties`.
+
+### Constructing `parent_id` for Resource Group Scoped Resources
+
+**When to use this method:**
+- After analyzing the Azure resource type, you determine that `parent_id` should be a resource group ID (most common case)
+- AND the module only has `var.resource_group_name` available (not the full resource group ID)
+
+**Then construct the resource group ID in `locals.tf`:**
+
+```hcl
+# In locals.tf
+locals {
+  resource_group_id = "/subscriptions/${data.azapi_client_config.current.subscription_id}/resourceGroups/${var.resource_group_name}"
+}
+
+# Then use in azapi.tf
+resource "azapi_resource" "virtual_machine_scale_set" {
+  parent_id = local.resource_group_id
+  # ...
+}
+```
+
+**Required data source** (add to `azapi.tf` if not present):
+```hcl
+data "azapi_client_config" "current" {}
+```
+
+### ⚠️ CRITICAL: Three Golden Rules
+
+1. **Preserve Original Expressions**
+   - Copy right-hand side expressions from `main.tf` as-is (only change property names to camelCase)
+   - Keep null checks, conditionals, and dynamic block logic unchanged
+   - ❌ Do NOT optimize, simplify, or refactor expressions
+
+2. **Strict Task Scope**
+   - Only modify the field(s) explicitly assigned in your task
+   - ❌ Do NOT touch unrelated fields, even if they seem wrong
+   - ❌ Do NOT do "drive-by fixes" or improvements
+
+3. **Document Every Change**
+   - Every modification must have a corresponding entry in your proof document
+   - Cite provider source code for all validations and defaults
+
 ## Task Types
 
 ### Type 1: Root-Level Argument Conversion
@@ -395,39 +459,6 @@ resource "azapi_resource" "virtual_machine_scale_set" {
      - Suggest manual intervention or refactoring approaches
   4. **Add error note in track.md** - In the `Proof Doc` column, add: `[X.field.md](X.field.md) - Error: Complex expression`
 
-  **Example track.md update for failed conversion**:
-  ```markdown
-  | 67 | os_profile.linux_configuration.admin_password | Argument | No | Error | [67.admin_password.md](67.admin_password.md) - Complex expression |
-  ```
-
-  **Example proof document for failed conversion**:
-  ```markdown
-  # Task #67: Conversion of `admin_password` - ERROR
-
-  ## Conversion Status: ❌ FAILED
-
-  **Reason**: The field uses a complex expression that cannot be converted to Special Case 5.
-
-  ## Source Code (main.tf)
-
-  ```hcl
-  admin_password = var.use_generated ? random_password.admin.result : var.admin_password
-  ```
-
-  ## Problem
-
-  Special Case 5 requires simple variable references for version tracking. This field uses a conditional expression with a dynamically generated value (`random_password.admin.result`), which cannot be tracked via `sensitive_body_version`.
-
-  ## Recommendation
-
-  Manual intervention required. Consider one of:
-  1. Refactor to use only `var.admin_password` and handle generation outside Terraform
-  2. Split into two separate resources based on `var.use_generated`
-  3. Keep this field in the azurerm provider resource if migration is not critical
-  ```
-
----
-
 #### Proof Documentation Requirements for Special Cases
 
 When converting fields with special attributes, your proof document must include:
@@ -510,9 +541,6 @@ The task number is from the `No.` column in `track.md`.
 
 Examples:
 - Task #1: Converting `name` → Create `1.name.md`
-- Task #2: Converting `location` → Create `2.location.md`
-- Task #7: Converting `eviction_policy` → Create `7.eviction_policy.md`
-- Task #10: Converting `encryption_at_host_enabled` → Create `10.encryption_at_host_enabled.md`
 
 #### For Nested Blocks
 **File Name**: `{task_number}.{block_path}.md`
@@ -604,6 +632,8 @@ Pattern: [Standard | Special Case 1-4]
 
 If your conversion requires changes beyond `azapi.tf`, document each one **concisely**:
 
+**⚠️ CRITICAL REQUIREMENT**: For ANY validation blocks or preconditions you add, you MUST include the complete provider source code that implements the validation logic. This is mandatory for human review to verify correctness.
+
 ##### a. Variable Default Values
 If the AzureRM provider has default values, add them to `variables.tf`:
 
@@ -630,23 +660,140 @@ If the AzureRM provider has default values, add them to `variables.tf`:
 **Source**: Cite the Go code that shows this default value from the AzureRM provider schema.
 
 ##### b. Variable Validation Blocks
-If the AzureRM provider has ValidateFunc, add validation to `variables.tf`:
+If the AzureRM provider has ValidateFunc or declarative validation constraints, add validation to `variables.tf`:
 
-**IMPORTANT NOTE**:
-- **Skip Resource ID validations**: If the ValidateFunc only validates that a string is a valid Azure resource ID format (e.g., `azure.ValidateResourceID`, `azure.ValidateResourceIDOrEmpty`, `commonids.ValidateXxxID`), **DO NOT** add a validation block. Resource ID format validation is typically not needed in module variables.
+**CRITICAL PRINCIPLE**:
+**We must replicate ALL provider validations (except resource ID format checks) to catch errors during Plan phase, not Apply phase.**
 
-**When to add validation**:
-- Add validation blocks for:
-  - Enum/allowed values (e.g., `validation.StringInSlice`)
-  - String format patterns (e.g., naming conventions, regex patterns)
-  - Numeric ranges (e.g., `validation.IntBetween`)
-  - Boolean logic combinations
-  - NOT for resource ID format validation
+**⚠️ MANDATORY: Include Validation Source Code in Proof Document**
 
-**Source**: Cite the ValidateFunc from the provider, and explain why validation was added or skipped.
+When adding validation blocks or preconditions, MUST include the provider source code in your proof document for human review.
+
+**Required:**
+- ValidateFunc implementation
+- Schema constraints (MaxItems, ConflictsWith, etc.)
+- Create/Update validation logic (for preconditions)
+- Logic mapping explanation
+
+**Example:**
+```markdown
+### Validation Source Code
+
+**Schema definition:**
+\`\`\`go
+"sku_name": {
+    Type:         pluginsdk.TypeString,
+    Optional:     true,
+    ValidateFunc: computeValidate.OrchestratedVirtualMachineScaleSetSku,
+}
+\`\`\`
+
+**ValidateFunc implementation:**
+\`\`\`go
+func OrchestratedVirtualMachineScaleSetSku(input interface{}, key string) (warnings []string, errors []error) {
+    v, ok := input.(string)
+    if !ok {
+        errors = append(errors, fmt.Errorf("expected %q to be a string", key))
+        return
+    }
+
+    skuParts := strings.Split(v, "_")
+
+    if (input != SkuNameMix && len(skuParts) < 2) || strings.Contains(v, "__") || strings.Contains(v, " ") {
+        errors = append(errors, fmt.Errorf("%q is not formatted properly, got %q", key, v))
+    }
+
+    return
+}
+\`\`\`
+
+**Mapping:** Provider validates `len(skuParts) >= 2` (for non-Mix SKUs), no `__`, no spaces → Terraform `length(split("_", var.sku_name)) >= 2`, `!can(regex("__", ...))`, `!can(regex(" ", ...))`
+```
+
+
+**When to add validation (REQUIRED)**:
+- ✅ **Enum/allowed values** (e.g., `validation.StringInSlice`) - MUST replicate
+- ✅ **String format patterns** (e.g., naming conventions, regex patterns) - MUST replicate
+- ✅ **Numeric ranges** (e.g., `validation.IntBetween`) - MUST replicate
+- ✅ **Boolean logic combinations** - MUST replicate
+- ✅ **Custom validation functions** (e.g., `computeValidate.VirtualMachineName`) - MUST replicate
+- ✅ **Declarative schema constraints** (see table below) - MUST replicate
+- ❌ **Resource ID format validation** (e.g., `azure.ValidateResourceID`, `commonids.ValidateXxxID`) - Skip only these
+
+**Why this is critical**:
+- Azure API validation happens at Apply time (too late)
+- Users need immediate feedback during Plan phase
+- Prevents wasted time on invalid configurations
+- Maintains parity with AzureRM provider behavior
+
+**Declarative Schema Validation Constraints**:
+
+| Provider Schema Constraint | Implementation in variables.tf | Example |
+|---------------------------|--------------------------------|---------|
+| `MaxItems` (for lists) | Add validation checking length/size | `condition = length(var.list_field) <= 5` |
+| `MaxItems = 1` (Object type) | Use `object({...})` type instead of `list(object({...}))` - **NO validation needed** | See "Object Type Identification" section |
+| `MinItems` | Add validation checking length/size (only if field is Required) | `condition = length(var.list_field) >= 2` |
+| `MinItems = 1` (with MaxItems = 1) | Set `nullable = false` or omit `default` for Required object - **NO validation needed** | See "Object Type Identification" section |
+| `ConflictsWith` | Add validation ensuring mutual exclusivity | `condition = var.field_a == null \|\| var.field_b == null` |
+| `ExactlyOneOf` | Add validation ensuring exactly one is set | `condition = (var.a != null ? 1 : 0) + (var.b != null ? 1 : 0) == 1` |
+| `AtLeastOneOf` | Add validation ensuring at least one is set | `condition = var.a != null \|\| var.b != null \|\| var.c != null` |
+| `RequiredWith` | Add validation ensuring fields are set together | `condition = (var.a == null && var.b == null) \|\| (var.a != null && var.b != null)` |
+
+**Special Case: Object Type Identification**:
+- **Provider uses `MaxItems = 1` with nested Schema to represent an Object** (not a list with one item)
+- When you see `MaxItems: 1` AND `Elem: &schema.Resource{...}` or `Elem: &pluginsdk.Resource{...}`:
+  - This represents a **single Object**, not a list
+  - In `variables.tf`, use `object({...})` type, not `list(object({...}))`
+  - If `MinItems: 1` is also present, the object is **Required** (set `nullable = false`)
+  - If only `MaxItems: 1` (no MinItems or MinItems: 0), the object is **Optional**
+
+**Example from Provider Schema**:
+```go
+"boot_diagnostics": {
+    Type:     pluginsdk.TypeList,
+    Optional: true,
+    MaxItems: 1,  // ← This means it's an Object, not a list!
+    Elem: &pluginsdk.Resource{
+        Schema: map[string]*pluginsdk.Schema{
+            "storage_account_uri": {...},
+        },
+    },
+}
+```
+
+**Corresponding variables.tf**:
+```hcl
+variable "boot_diagnostics" {
+  type = object({  # ← Use object(), not list(object())
+    storage_account_uri = optional(string)
+  })
+  default     = null
+  description = "..."
+}
+```
+
+**Notes on declarative constraints**:
+- `MinItems` is ignored when field is `Optional: true`, so only add validation if field is `Required: true`
+- For `ConflictsWith`, `ExactlyOneOf`, `AtLeastOneOf`, `RequiredWith`: only validate fields at the same nesting level (top-level variables)
+- Nested block attributes (e.g., `parent_block.0.child`) cannot be validated in `variables.tf` - use preconditions instead (see section c)
+
+**Implementation approach**:
+1. Read the ValidateFunc implementation in the provider source code
+2. Check for declarative constraints: MaxItems, MinItems, ConflictsWith, etc.
+3. Translate the validation logic to Terraform validation block
+4. Preserve exact same error messages when possible
+5. Document the source ValidateFunc/constraints in your proof document
+
+**Source**: Always cite the ValidateFunc and declarative constraints from the provider schema, and document which validation was added (or explain why skipped if it's a resource ID validation).
 
 ##### c. Resource Precondition Blocks
 If the AzureRM provider has runtime validation in Create/Update methods, add preconditions to `azapi.tf`:
+
+**⚠️ MANDATORY: Include Validation Source Code in Proof Document**
+
+When you add ANY precondition block to `azapi.tf`, you MUST include the corresponding validation code from the provider's Create/Update methods in your proof document.
+
+**Example:**
 ```hcl
 resource "azapi_resource" "virtual_machine_scale_set" {
   # ... other config ...
@@ -659,6 +806,26 @@ resource "azapi_resource" "virtual_machine_scale_set" {
   }
 }
 ```
+
+**Required in Proof Document:**
+```markdown
+### Precondition Source Code
+
+From provider Create method:
+\`\`\`go
+if v, ok := d.GetOk("field_a"); ok {
+    if _, ok := d.GetOk("field_b"); !ok {
+        return fmt.Errorf("field_b must be set when field_a is configured")
+    }
+}
+\`\`\`
+
+**Precondition Logic Mapping:**
+- Provider checks: if field_a exists, then field_b must exist
+- Terraform: `var.field_a == null || var.field_b != null`
+- Both expressions ensure field_b is set when field_a is configured
+```
+
 **Source**: Cite the validation code from Create/Update functions.
 
 #### 7. Completeness Verification
@@ -696,6 +863,7 @@ resource "azapi_resource" "virtual_machine_scale_set" {
 6. **Trust the reader**: Don't explain obvious mappings or standard Terraform concepts
 7. **Scannable format**: Use clear sections, code blocks, and bullet points
 8. **Verify completeness**: Use the checklist, but keep it simple
+9. **⚠️ MANDATORY: Include validation source code**: When adding validation blocks or preconditions, ALWAYS include the complete provider source code that implements the validation logic. Human reviewers need this to verify correctness.
 
 ## Code Conversion and File Updates
 
@@ -711,7 +879,7 @@ resource "azapi_resource" "virtual_machine_scale_set" {
 
   body = {
     properties = {
-      orchestrationMode = "Flexible"
+      orchestrationMode = "Flexible" # Unconfigurable field set by AzureRM Provider
       # Properties will be added here
     }
   }
