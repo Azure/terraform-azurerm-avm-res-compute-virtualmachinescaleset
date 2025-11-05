@@ -98,9 +98,172 @@ Use the available MCP tools to query the Azure API schema:
 - `query_azapi_resource_schema` - Get the schema structure
 - `query_azapi_resource_document` - Get property descriptions
 
-### Common Patterns
+### Speical Patterns
 
-#### TODO
+This section describes how to handle special scanerios from the AzureRM provider when converting to AzAPI. Standard fields (without special attributes) are converted directly into the `body` block.
+
+| Scanerio | Pattern | Required actions |
+| --- | --- | --- |
+| `Optional: true` **and** `Computed: true` (no `ForceNew`) | Special Case 1 | Assign directly in `body`, add ignore drift entry, update shared O+C trigger and updater. |
+| `ForceNew: true` | Special Case 2 | Include in `body`, hook into shared ForceNew trigger, add `ignore_changes` only when also Computed. |
+| Appears in `CustomizeDiff` logic | Special Case 3 | Mirror the diff hook (e.g. `ForceNewIfChange`) using triggers or preconditions; document behavior and guard conditions. |
+| Prohibits specific value transitions in Create/Update | Special Case 4 | Recreate the guard via stable replacement triggers; reuse Special Case 3 data-source guidance when historic values are needed. |
+
+If the shared `terraform_data` or `azapi_update_resource` blocks mentioned below are missing, create them before wiring in new fields.
+
+#### Special Case 1: Optional + Computed (Non-ForceNew)
+
+- Purpose: Azure applies defaults, so Terraform must skip updates unless user supplied a value.
+- Required steps:
+  - Assign the property directly inside the main `body`.
+  - Append `body.properties.fieldName` to the main resource `ignore_changes` list.
+  - Extend the shared `terraform_data.properties_update_trigger` map with `"field_name" = tostring(var.field_name)`.
+  - Extend the shared `azapi_update_resource.updater` body with the same assignment.
+
+#### Special Case 2: ForceNew Fields
+
+- Purpose: Any change forces replacement; we centralize replace triggers.
+- Required steps:
+  - Place the property in the main `body` (conditionally when Optional, directly when Required).
+  - When Computed, add the property path to `ignore_changes` to suppress drift.
+  - Add `"field_name" = tostring(var.field_name)` to the shared `terraform_data.force_new_trigger`.
+  - Reference `terraform_data.force_new_trigger` inside the resource `lifecycle.replace_triggered_by` list.
+
+```hcl
+replace_triggered_by = [terraform_data.force_new_trigger]
+```
+
+#### Special Case 3: CustomizeDiff Hooks
+
+- Purpose: The provider sometimes wires custom diff logic (for example `pluginsdk.ForceNewIfChange`) so replacements or validations only occur under specific conditions.
+- Required steps:
+  - Search the resource for `CustomizeDiff` whenever your field is mentioned; include the relevant Go snippet in your proof document.
+  - Reproduce the intent in AzAPI: wire replacement triggers via `terraform_data.force_new_trigger` or add lifecycle `precondition` blocks so behaviour matches the callback (only trigger when the same condition would fire).
+  - When the hook suppresses replacement for certain values (e.g. `old != 0 && new == 0`), ensure your trigger logic respects that guard rather than always forcing replacement.
+  - Call out in the proof doc how null/zero values, user-supplied values, and updates interact with the recreated logic.
+  - If the provider logic needs the previous value (for example, reading `old` inside the callback), add a `data "azapi_resource"` reader so the module can load the existing resource state. Ensure the data block uses the same `type` string as the resource, sets `ignore_not_found = true`, and `response_export_values = ["*"]`. Always check the `exists` attribute before dereferencing historic values; if `exists` is `false`, treat the old value as absent. See https://registry.terraform.io/providers/Azure/azapi/latest/docs/data-sources/resource for full syntax.
+
+Example provider snippet:
+
+```go
+CustomizeDiff: pluginsdk.CustomDiffInSequence(
+    // The behaviour of the API requires this, but this could be removed when https://github.com/Azure/azure-rest-api-specs/issues/27373 has been addressed
+    pluginsdk.ForceNewIfChange("default_node_pool.0.upgrade_settings.0.drain_timeout_in_minutes", func(ctx context.Context, old, new, meta interface{}) bool {
+        return old != 0 && new == 0
+    }),
+),
+```
+
+#### Special Case 4: Prohibited Value Transitions
+
+- Purpose: Some Create/Update methods explicitly block changing a field from one specific value to another (for example preventing `single_placement_group` from flipping `false → true`).
+- Required steps:
+  - Treat these like Special Case 3: capture the Go logic in your proof document and note the forbidden transition.
+  - Design a deterministic expression (for example a local that hashes the forbidden diff) that changes only when the prohibited transition occurs. Surface this expression through `replace_triggers_external_values` on the `azapi_resource` so the replacement fires when the illegal transition appears, yet settles back to `null` once the remediation apply completes.
+    * Do **not** use the raw list of removed items directly as a trigger value. After the first forced replacement Terraform will see the list as empty on the next plan, which would make the trigger keep changing and cause an infinite replace loop. Instead, derive a stable hash (or other deterministic scalar) whose value stops changing once the remediation apply completes.
+  - Reuse the `data "azapi_resource"` reader pattern from Special Case 3 when you must compare against the deployed value. Remember to guard on `exists` before reading historic values.
+  - Ensure the trigger value is stable (no random suffixes). The provided `zones_replacement_trigger` example shows how to build such a hash from removed items.
+
+Example provider snippet:
+
+```go
+CustomizeDiff: pluginsdk.CustomDiffWithAll(
+			// Removing existing zones is currently not supported for Virtual Machine Scale Sets
+			pluginsdk.ForceNewIfChange("zones", func(ctx context.Context, old, new, meta interface{}) bool {
+				oldZones := zones.ExpandUntyped(old.(*schema.Set).List())
+				newZones := zones.ExpandUntyped(new.(*schema.Set).List())
+
+				for _, ov := range oldZones {
+					found := false
+					for _, nv := range newZones {
+						if ov == nv {
+							found = true
+							break
+						}
+					}
+
+					if !found {
+						return true
+					}
+				}
+
+				return false
+			}),
+```
+
+```go
+if d.HasChange("single_placement_group") {
+    // Since null is now a valid value for single_placement_group
+    // make sure it is in the config file before you set the value
+    // on the update props...
+    if !pluginsdk.IsExplicitlyNullInConfig(d, "single_placement_group") {
+        singlePlacementGroup := d.Get("single_placement_group").(bool)
+        if singlePlacementGroup {
+            return fmt.Errorf("`single_placement_group` cannot be changed from `false` to `true`")
+        }
+        updateProps.SinglePlacementGroup = pointer.To(singlePlacementGroup)
+    }
+}
+```
+
+Example Terraform trigger design:
+
+```hcl
+# Zones drift detection
+# Detects when zones are removed from configuration, which requires resource recreation
+# This mimics the azurerm provider behavior that prevents zone removal
+locals {
+  # Get desired zones from configuration (empty list if not specified)
+  desired_zones = var.zones != null ? tolist(var.zones) : []
+  # Get existing zones from the deployed resource (empty list if resource doesn't exist)
+  existing_zones = data.azapi_resource.existing_vmss.exists ? try(
+    data.azapi_resource.existing_vmss.output.zones,
+    []
+  ) : []
+  # Replacement trigger: changes when zones are removed to force resource recreation
+  # Use a hash so the trigger is stable after the remediation apply completes
+  removed_zones_list = [
+    for zone in local.existing_zones : zone
+    if !contains(local.desired_zones, zone)
+  ]
+  # Check if any existing zone has been removed
+  zones_removed = length(local.existing_zones) > 0 && length([
+    for zone in local.existing_zones : zone
+    if !contains(local.desired_zones, zone)
+  ]) > 0
+  zones_replacement_trigger = local.zones_removed ? sha256(jsonencode(sort(local.removed_zones_list))) : null
+}
+
+# Surface the stable triggers in the resource so only the prohibited transitions force recreation
+resource "azapi_resource" "virtual_machine_scale_set" {
+  # ...
+  replace_triggers_external_values = {
+    zones_removal_trigger          = local.zones_replacement_trigger
+    single_placement_group_trigger = local.single_placement_group_trigger # Define similarly using a stable hash of the forbidden diff
+  }
+}
+```
+
+---
+
+#### Proof Documentation Requirements for Special Cases
+
+When converting fields with special attributes, your proof document must include:
+
+1. **Pattern Identification**
+   - Quote the exact AzureRM schema showing `Optional`, `Computed`, `ForceNew`
+   - Identify which special case applies (1-4) or state "standard conversion"
+   - Explain the decision rationale
+
+2. **Component Updates**
+   - List which shared components this field uses
+   - Show the exact lines added to each component
+   - Confirm all three locations are updated (for O+C fields)
+
+3. **Behavior Verification**
+   - What happens when value is `null`
+   - What happens when value changes
+   - What happens with Azure's server-side defaults (if applicable)
 
 ## Recursive Delegation
 
@@ -136,7 +299,7 @@ copilot -p "You are an Executor Agent. Convert the nested block 'network_interfa
 
 ### ⚠️ MANDATORY: Create Proof Document for Every Conversion
 
-After converting any Argument or Block, you **MUST** create a proof document that demonstrates the correctness and completeness of your conversion. This document serves as evidence that your conversion is accurate and includes all necessary logic.
+After completing the conversion work for any Argument or Block, pause and re-read your changes with a critical eye before you start documenting. Once you are satisfied that the mapping is correct and complete, you **MUST** create a proof document that demonstrates the correctness and completeness of your conversion. This document serves as evidence that your conversion is accurate and includes all necessary logic.
 
 ### Proof Document Naming Convention
 
