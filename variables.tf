@@ -16,10 +16,15 @@ variable "name" {
   nullable    = false
 }
 
-variable "resource_group_name" {
+variable "parent_id" {
   type        = string
-  description = "(Required) The name of the Resource Group in which the Orchestrated Virtual Machine Scale Set should exist. Changing this forces a new resource to be created."
+  description = "(String) The ID of the resource group that contains the Orchestrated Virtual Machine Scale Set and other resources. Changing this forces a new resource to be created."
   nullable    = false
+
+  validation {
+    condition     = can(regex("^/subscriptions/[^/]+/resourceGroups/[^/]+$", var.parent_id))
+    error_message = "The parent_id must be a valid Azure Resource Group ID in the format: /subscriptions/{subscriptionId}/resourceGroups/{resourceGroupName}"
+  }
 }
 
 variable "user_data_base64" {

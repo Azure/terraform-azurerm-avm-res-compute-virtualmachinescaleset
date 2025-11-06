@@ -137,7 +137,7 @@ module "terraform_azurerm_avm_res_compute_virtualmachinescaleset" {
   location                    = azurerm_resource_group.this.location
   # source             = "Azure/avm-res-compute-virtualmachinescaleset/azurerm"
   name                   = module.naming.virtual_machine_scale_set.name_unique
-  resource_group_name    = azurerm_resource_group.this.name
+  parent_id              = azurerm_resource_group.this.id
   user_data_base64       = null
   admin_password         = "P@ssw0rd1234!"
   admin_password_version = "1"
