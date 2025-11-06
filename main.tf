@@ -1,11 +1,9 @@
-data "azapi_client_config" "current" {}
-
 # Data source to read existing VMSS for drift detection
 # This is used to detect when zones are removed (requires recreation) or
 # single_placement_group changes from false to true (not allowed - throws error)
 data "azapi_resource" "existing_vmss" {
   name                   = var.name
-  parent_id              = "/subscriptions/${data.azapi_client_config.current.subscription_id}/resourceGroups/${var.resource_group_name}"
+  parent_id              = var.parent_id
   type                   = "Microsoft.Compute/virtualMachineScaleSets@2024-11-01"
   ignore_not_found       = true
   response_export_values = ["*"]
@@ -38,7 +36,7 @@ moved {
 resource "azapi_resource" "virtual_machine_scale_set" {
   location  = var.location
   name      = var.name
-  parent_id = local.resource_group_id
+  parent_id = var.parent_id
   type      = "Microsoft.Compute/virtualMachineScaleSets@2025-04-01"
   body = merge(
     {
@@ -182,9 +180,6 @@ resource "azapi_resource" "virtual_machine_scale_set" {
             } : {},
             var.extension_operations_enabled != null || var.os_profile != null ? {
               osProfile = merge(
-                data.azapi_resource.existing_vmss.exists ? {
-                  requireGuestProvisionSignal = try(data.azapi_resource.existing_vmss.output.properties.virtualMachineProfile.osProfile.requireGuestProvisionSignal, true)
-                } : {},
                 var.extension_operations_enabled != null ? {
                   allowExtensionOperations = var.extension_operations_enabled
                 } : {},
@@ -665,7 +660,6 @@ resource "azapi_resource" "virtual_machine_scale_set" {
 
   lifecycle {
     ignore_changes = [
-      body.properties.virtualMachineProfile.osProfile.requireGuestProvisionSignal,
       body.zones,
     ]
 
@@ -939,60 +933,14 @@ resource "azapi_resource" "role_assignments" {
       principalType                      = module.avm_utl_interfaces.role_assignments_azapi[each.key].body.properties.principalType
     }
   }
-  create_headers = var.enable_telemetry ? { "User-Agent" : local.avm_azapi_header } : null
-  delete_headers = var.enable_telemetry ? { "User-Agent" : local.avm_azapi_header } : null
-  read_headers   = var.enable_telemetry ? { "User-Agent" : local.avm_azapi_header } : null
+  create_headers       = var.enable_telemetry ? { "User-Agent" : local.avm_azapi_header } : null
+  delete_headers       = var.enable_telemetry ? { "User-Agent" : local.avm_azapi_header } : null
+  ignore_null_property = true
+  read_headers         = var.enable_telemetry ? { "User-Agent" : local.avm_azapi_header } : null
   retry = {
     error_message_regex = [
       ".*Please remove the lock and try again.*",
     ]
   }
   update_headers = var.enable_telemetry ? { "User-Agent" : local.avm_azapi_header } : null
-
-  lifecycle {
-    ignore_changes = [
-      body.properties.principalType,
-    ]
-  }
-}
-
-# Terraform data resource to track role assignment changes that require updates via azapi_update_resource
-# This triggers replacement when tracked values change, which then triggers the azapi_update_resource
-resource "terraform_data" "role_assignments_update_tracker" {
-  for_each = var.role_assignments
-
-  input = {
-    principal_type = module.avm_utl_interfaces.role_assignments_azapi[each.key].body.properties.principalType
-  }
-}
-
-# Update role assignment properties using azapi_update_resource to maintain idempotency
-# This is necessary because principalType is ignored in the main resource to prevent drift
-# while still allowing updates to be applied when explicitly changed
-resource "azapi_update_resource" "role_assignments" {
-  for_each = var.role_assignments
-
-  resource_id = azapi_resource.role_assignments[each.key].id
-  type        = module.avm_utl_interfaces.role_assignments_azapi[each.key].type
-  body = {
-    properties = {
-      principalType = module.avm_utl_interfaces.role_assignments_azapi[each.key].body.properties.principalType
-    }
-  }
-  read_headers   = var.enable_telemetry ? { "User-Agent" : local.avm_azapi_header } : null
-  update_headers = var.enable_telemetry ? { "User-Agent" : local.avm_azapi_header } : null
-
-  depends_on = [
-    azapi_resource.role_assignments,
-  ]
-
-  # Trigger update when update_tracker is replaced
-  lifecycle {
-    ignore_changes = [
-      body,
-    ]
-    replace_triggered_by = [
-      terraform_data.role_assignments_update_tracker[each.key]
-    ]
-  }
 }

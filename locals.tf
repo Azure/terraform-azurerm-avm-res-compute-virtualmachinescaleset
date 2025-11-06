@@ -1,7 +1,3 @@
-locals {
-  resource_group_id = "/subscriptions/${data.azapi_client_config.current.subscription_id}/resourceGroups/${var.resource_group_name}"
-}
-
 # Helper locals to make the dynamic block more readable
 locals {
   managed_identities = module.managed_identities.managed_identities_azapi
