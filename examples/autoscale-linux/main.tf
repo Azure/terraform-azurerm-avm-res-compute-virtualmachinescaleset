@@ -125,6 +125,71 @@ resource "tls_private_key" "example_ssh" {
   rsa_bits  = 4096
 }
 
+resource "random_string" "id" {
+  length  = 5
+  special = false
+  upper   = false
+}
+
+data "azurerm_client_config" "current" {}
+
+resource "azurerm_key_vault" "example" {
+  location                   = azurerm_resource_group.this.location
+  name                       = "ephemeralavm${random_string.id.result}"
+  resource_group_name        = azurerm_resource_group.this.name
+  sku_name                   = "premium"
+  tenant_id                  = data.azurerm_client_config.current.tenant_id
+  soft_delete_retention_days = 7
+
+  access_policy {
+    key_permissions = [
+      "Create",
+      "Delete",
+      "Get",
+      "Purge",
+      "Recover",
+      "Update",
+      "GetRotationPolicy",
+      "SetRotationPolicy",
+      "List",
+    ]
+    object_id = data.azurerm_client_config.current.object_id
+    secret_permissions = [
+      "Get",
+      "List",
+      "Set",
+      "Delete",
+      "Recover",
+      "Backup",
+      "Restore",
+      "Purge",
+    ]
+    tenant_id = data.azurerm_client_config.current.tenant_id
+  }
+}
+
+module "avm-ptn-ephemeral-credential" {
+  source  = "Azure/avm-ptn-ephemeral-credential/azure"
+  version = "0.1.0"
+
+  enable_telemetry = var.enable_telemetry
+  password = {
+    length      = 20
+    special     = true
+    upper       = true
+    lower       = true
+    numeric     = true
+    min_lower   = 2
+    min_upper   = 2
+    min_numeric = 2
+    min_special = 2
+  }
+  retrievable_secret = {
+    key_vault_id = azurerm_key_vault.example.id
+    name         = "ephemeral-vm-password-${random_string.id.result}"
+  }
+}
+
 # This is the module call
 module "terraform_azurerm_avm_res_compute_virtualmachinescaleset" {
   source = "../../"
@@ -135,8 +200,8 @@ module "terraform_azurerm_avm_res_compute_virtualmachinescaleset" {
   name                   = module.naming.virtual_machine_scale_set.name_unique
   parent_id              = azurerm_resource_group.this.id
   user_data_base64       = null
-  admin_password         = "P@ssw0rd1234!"
-  admin_password_version = "1"
+  admin_password         = module.avm-ptn-ephemeral-credential.password_result
+  admin_password_version = module.avm-ptn-ephemeral-credential.value_wo_version
   admin_ssh_keys = [(
     {
       id         = tls_private_key.example_ssh.id
