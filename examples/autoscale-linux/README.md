@@ -142,6 +142,71 @@ resource "tls_private_key" "example_ssh" {
   rsa_bits  = 4096
 }
 
+resource "random_string" "id" {
+  length  = 5
+  special = false
+  upper   = false
+}
+
+data "azurerm_client_config" "current" {}
+
+resource "azurerm_key_vault" "example" {
+  location                   = azurerm_resource_group.this.location
+  name                       = "ephemeralavm${random_string.id.result}"
+  resource_group_name        = azurerm_resource_group.this.name
+  sku_name                   = "premium"
+  tenant_id                  = data.azurerm_client_config.current.tenant_id
+  soft_delete_retention_days = 7
+
+  access_policy {
+    key_permissions = [
+      "Create",
+      "Delete",
+      "Get",
+      "Purge",
+      "Recover",
+      "Update",
+      "GetRotationPolicy",
+      "SetRotationPolicy",
+      "List",
+    ]
+    object_id = data.azurerm_client_config.current.object_id
+    secret_permissions = [
+      "Get",
+      "List",
+      "Set",
+      "Delete",
+      "Recover",
+      "Backup",
+      "Restore",
+      "Purge",
+    ]
+    tenant_id = data.azurerm_client_config.current.tenant_id
+  }
+}
+
+module "avm-ptn-ephemeral-credential" {
+  source  = "Azure/avm-ptn-ephemeral-credential/azure"
+  version = "0.1.0"
+
+  enable_telemetry = var.enable_telemetry
+  password = {
+    length      = 20
+    special     = true
+    upper       = true
+    lower       = true
+    numeric     = true
+    min_lower   = 2
+    min_upper   = 2
+    min_numeric = 2
+    min_special = 2
+  }
+  retrievable_secret = {
+    key_vault_id = azurerm_key_vault.example.id
+    name         = "ephemeral-vm-password-${random_string.id.result}"
+  }
+}
+
 # This is the module call
 module "terraform_azurerm_avm_res_compute_virtualmachinescaleset" {
   source = "../../"
@@ -152,8 +217,8 @@ module "terraform_azurerm_avm_res_compute_virtualmachinescaleset" {
   name                   = module.naming.virtual_machine_scale_set.name_unique
   parent_id              = azurerm_resource_group.this.id
   user_data_base64       = null
-  admin_password         = "P@ssw0rd1234!"
-  admin_password_version = "1"
+  admin_password         = module.avm-ptn-ephemeral-credential.password_result
+  admin_password_version = module.avm-ptn-ephemeral-credential.value_wo_version
   admin_ssh_keys = [(
     {
       id         = tls_private_key.example_ssh.id
@@ -222,14 +287,15 @@ The following requirements are needed by this module:
 
 - <a name="requirement_azurerm"></a> [azurerm](#requirement\_azurerm) (~> 4.0)
 
-- <a name="requirement_random"></a> [random](#requirement\_random) (>= 3.6.2)
+- <a name="requirement_random"></a> [random](#requirement\_random) (~> 3.0)
 
-- <a name="requirement_tls"></a> [tls](#requirement\_tls) (4.0.6)
+- <a name="requirement_tls"></a> [tls](#requirement\_tls) (~> 4.0)
 
 ## Resources
 
 The following resources are used by this module:
 
+- [azurerm_key_vault.example](https://registry.terraform.io/providers/hashicorp/azurerm/latest/docs/resources/key_vault) (resource)
 - [azurerm_monitor_autoscale_setting.autoscale](https://registry.terraform.io/providers/hashicorp/azurerm/latest/docs/resources/monitor_autoscale_setting) (resource)
 - [azurerm_nat_gateway.this](https://registry.terraform.io/providers/hashicorp/azurerm/latest/docs/resources/nat_gateway) (resource)
 - [azurerm_nat_gateway_public_ip_association.this](https://registry.terraform.io/providers/hashicorp/azurerm/latest/docs/resources/nat_gateway_public_ip_association) (resource)
@@ -243,7 +309,9 @@ The following resources are used by this module:
 - [azurerm_virtual_network.this](https://registry.terraform.io/providers/hashicorp/azurerm/latest/docs/resources/virtual_network) (resource)
 - [random_integer.region_index](https://registry.terraform.io/providers/hashicorp/random/latest/docs/resources/integer) (resource)
 - [random_integer.zone_index](https://registry.terraform.io/providers/hashicorp/random/latest/docs/resources/integer) (resource)
-- [tls_private_key.example_ssh](https://registry.terraform.io/providers/hashicorp/tls/4.0.6/docs/resources/private_key) (resource)
+- [random_string.id](https://registry.terraform.io/providers/hashicorp/random/latest/docs/resources/string) (resource)
+- [tls_private_key.example_ssh](https://registry.terraform.io/providers/hashicorp/tls/latest/docs/resources/private_key) (resource)
+- [azurerm_client_config.current](https://registry.terraform.io/providers/hashicorp/azurerm/latest/docs/data-sources/client_config) (data source)
 
 <!-- markdownlint-disable MD013 -->
 ## Required Inputs
@@ -272,6 +340,10 @@ The following outputs are exported:
 
 Description: The deployment region.
 
+### <a name="output_password_key_vault_secret_id"></a> [password\_key\_vault\_secret\_id](#output\_password\_key\_vault\_secret\_id)
+
+Description: The ID of the Key Vault secret storing the VM admin password.
+
 ### <a name="output_resource_group_name"></a> [resource\_group\_name](#output\_resource\_group\_name)
 
 Description: The name of the Resource Group.
@@ -291,6 +363,12 @@ Description: The name of the Virtual Machine Scale Set.
 ## Modules
 
 The following Modules are called:
+
+### <a name="module_avm-ptn-ephemeral-credential"></a> [avm-ptn-ephemeral-credential](#module\_avm-ptn-ephemeral-credential)
+
+Source: Azure/avm-ptn-ephemeral-credential/azure
+
+Version: 0.1.0
 
 ### <a name="module_get_valid_sku_for_deployment_region"></a> [get\_valid\_sku\_for\_deployment\_region](#module\_get\_valid\_sku\_for\_deployment\_region)
 

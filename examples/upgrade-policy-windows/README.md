@@ -137,6 +137,24 @@ resource "azurerm_subnet_nat_gateway_association" "this" {
   subnet_id      = azurerm_subnet.subnet.id
 }
 
+module "avm-ptn-ephemeral-credential" {
+  source  = "Azure/avm-ptn-ephemeral-credential/azure"
+  version = "0.1.0"
+
+  enable_telemetry = var.enable_telemetry
+  password = {
+    length      = 20
+    special     = true
+    upper       = true
+    lower       = true
+    numeric     = true
+    min_lower   = 2
+    min_upper   = 2
+    min_numeric = 2
+    min_special = 2
+  }
+}
+
 # This is the module call
 module "terraform_azurerm_avm_res_compute_virtualmachinescaleset" {
   source = "../../"
@@ -147,8 +165,8 @@ module "terraform_azurerm_avm_res_compute_virtualmachinescaleset" {
   name                   = module.naming.virtual_machine_scale_set.name_unique
   parent_id              = azurerm_resource_group.this.id
   user_data_base64       = null
-  admin_password         = "P@ssw0rd1234!"
-  admin_password_version = "1"
+  admin_password         = module.avm-ptn-ephemeral-credential.password_result
+  admin_password_version = module.avm-ptn-ephemeral-credential.value_wo_version
   admin_ssh_keys         = []
   boot_diagnostics = {
     storage_account_uri = "" # Enable boot diagnostics
@@ -296,6 +314,12 @@ Description: The name of the Virtual Machine Scale Set.
 ## Modules
 
 The following Modules are called:
+
+### <a name="module_avm-ptn-ephemeral-credential"></a> [avm-ptn-ephemeral-credential](#module\_avm-ptn-ephemeral-credential)
+
+Source: Azure/avm-ptn-ephemeral-credential/azure
+
+Version: 0.1.0
 
 ### <a name="module_get_valid_sku_for_deployment_region"></a> [get\_valid\_sku\_for\_deployment\_region](#module\_get\_valid\_sku\_for\_deployment\_region)
 
