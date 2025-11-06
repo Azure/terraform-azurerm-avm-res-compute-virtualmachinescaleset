@@ -129,7 +129,7 @@ resource "azurerm_user_assigned_identity" "user_identity" {
 
 data "azurerm_client_config" "current" {}
 
-module "avm-ptn-ephemeral-credential" {
+module "avm_ptn_ephemeral_credential" {
   source  = "Azure/avm-ptn-ephemeral-credential/azure"
   version = "0.1.0"
 
@@ -157,8 +157,8 @@ module "terraform_azurerm_avm_res_compute_virtualmachinescaleset" {
   name                   = module.naming.virtual_machine_scale_set.name_unique
   parent_id              = azurerm_resource_group.this.id
   user_data_base64       = null
-  admin_password         = module.avm-ptn-ephemeral-credential.password_result
-  admin_password_version = module.avm-ptn-ephemeral-credential.value_wo_version
+  admin_password         = module.avm_ptn_ephemeral_credential.password_result
+  admin_password_version = module.avm_ptn_ephemeral_credential.value_wo_version
   custom_data            = base64encode(file("init-script.ps1"))
   custom_data_version    = "1"
   enable_telemetry       = var.enable_telemetry
