@@ -17,8 +17,6 @@ The following requirements are needed by this module:
 
 - <a name="requirement_azapi"></a> [azapi](#requirement\_azapi) (~> 2.4)
 
-- <a name="requirement_azurerm"></a> [azurerm](#requirement\_azurerm) (>= 4.0, < 4.37)
-
 - <a name="requirement_modtm"></a> [modtm](#requirement\_modtm) (~> 0.3)
 
 - <a name="requirement_random"></a> [random](#requirement\_random) (>= 3.6.2)
@@ -27,13 +25,15 @@ The following requirements are needed by this module:
 
 The following resources are used by this module:
 
-- [azapi_update_resource.set_vmss_license](https://registry.terraform.io/providers/Azure/azapi/latest/docs/resources/update_resource) (resource)
-- [azurerm_management_lock.this](https://registry.terraform.io/providers/hashicorp/azurerm/latest/docs/resources/management_lock) (resource)
-- [azurerm_orchestrated_virtual_machine_scale_set.virtual_machine_scale_set](https://registry.terraform.io/providers/hashicorp/azurerm/latest/docs/resources/orchestrated_virtual_machine_scale_set) (resource)
-- [azurerm_role_assignment.this](https://registry.terraform.io/providers/hashicorp/azurerm/latest/docs/resources/role_assignment) (resource)
+- [azapi_resource.lock](https://registry.terraform.io/providers/Azure/azapi/latest/docs/resources/resource) (resource)
+- [azapi_resource.role_assignments](https://registry.terraform.io/providers/Azure/azapi/latest/docs/resources/resource) (resource)
+- [azapi_resource.virtual_machine_scale_set](https://registry.terraform.io/providers/Azure/azapi/latest/docs/resources/resource) (resource)
+- [azapi_update_resource.this](https://registry.terraform.io/providers/Azure/azapi/latest/docs/resources/update_resource) (resource)
 - [modtm_telemetry.telemetry](https://registry.terraform.io/providers/Azure/modtm/latest/docs/resources/telemetry) (resource)
 - [random_uuid.telemetry](https://registry.terraform.io/providers/hashicorp/random/latest/docs/resources/uuid) (resource)
+- [terraform_data.update_tracker](https://registry.terraform.io/providers/hashicorp/terraform/latest/docs/resources/data) (resource)
 - [azapi_client_config.telemetry](https://registry.terraform.io/providers/Azure/azapi/latest/docs/data-sources/client_config) (data source)
+- [azapi_resource.existing_vmss](https://registry.terraform.io/providers/Azure/azapi/latest/docs/data-sources/resource) (data source)
 - [modtm_module_source.telemetry](https://registry.terraform.io/providers/Azure/modtm/latest/docs/data-sources/module_source) (data source)
 
 <!-- markdownlint-disable MD013 -->
@@ -59,9 +59,9 @@ Description: (Required) The name of the Orchestrated Virtual Machine Scale Set. 
 
 Type: `string`
 
-### <a name="input_resource_group_name"></a> [resource\_group\_name](#input\_resource\_group\_name)
+### <a name="input_parent_id"></a> [parent\_id](#input\_parent\_id)
 
-Description: (Required) The name of the Resource Group in which the Orchestrated Virtual Machine Scale Set should exist. Changing this forces a new resource to be created.
+Description: (String) The ID of the resource group that contains the Orchestrated Virtual Machine Scale Set and other resources. Changing this forces a new resource to be created.
 
 Type: `string`
 
@@ -92,6 +92,23 @@ Default: `null`
 ### <a name="input_admin_password"></a> [admin\_password](#input\_admin\_password)
 
 Description: (Optional) Sets the VM password
+
+Type: `string`
+
+Default: `null`
+
+### <a name="input_admin_password_version"></a> [admin\_password\_version](#input\_admin\_password\_version)
+
+Description: (Optional) Version string for the admin password. Required when `admin_password` is set.
+
+When you change the admin password, you must also increment this version string to trigger the update.  
+The version string can be any value (e.g., "v1", "v2", "1.0", "2024-01-15").
+
+Example:
+```hcl
+admin_password         = "MyNewPassword123!"
+admin_password_version = "v2"  # Increment from "v1" to trigger update
+```
 
 Type: `string`
 
@@ -167,10 +184,36 @@ Type: `string`
 
 Default: `null`
 
+### <a name="input_custom_data"></a> [custom\_data](#input\_custom\_data)
+
+Description: (Optional) The Base64-Encoded Custom Data which should be used for this Virtual Machine Scale Set. This value will be passed through sensitive\_body and not stored in state file.
+
+Type: `string`
+
+Default: `null`
+
+### <a name="input_custom_data_version"></a> [custom\_data\_version](#input\_custom\_data\_version)
+
+Description: (Optional) Version string for the custom data. Required when `custom_data` is set.
+
+When you change the custom data, you must also increment this version string to trigger the update.  
+The version string can be any value (e.g., "v1", "v2", "1.0", "2024-01-15").
+
+Example:
+```hcl
+custom_data         = base64encode(file("new-init-script.sh"))
+custom_data_version = "v2"  # Increment from "v1" to trigger update
+```
+
+Type: `string`
+
+Default: `null`
+
 ### <a name="input_data_disk"></a> [data\_disk](#input\_data\_disk)
 
 Description:  - `caching` - (Required) The type of Caching which should be used for this Data Disk. Possible values are None, ReadOnly and ReadWrite.
  - `create_option` - (Optional) The create option which should be used for this Data Disk. Possible values are Empty and FromImage. Defaults to `Empty`. (FromImage should only be used if the source image includes data disks).
+ - `delete_option` - (Optional) The delete option which should be used for this Data Disk when the Virtual Machine is deleted. Possible values are Delete and Detach. Defaults to `Delete`.
  - `disk_encryption_set_id` - (Optional) The ID of the Disk Encryption Set which should be used to encrypt the Data Disk. Changing this forces a new resource to be created.
 
 > Note: Disk Encryption Sets are in Public Preview in a limited set of regions.
@@ -188,6 +231,7 @@ Type:
 set(object({
     caching                        = string
     create_option                  = optional(string)
+    delete_option                  = optional(string)
     disk_encryption_set_id         = optional(string)
     disk_size_gb                   = optional(number)
     lun                            = optional(number)
@@ -197,6 +241,14 @@ set(object({
     write_accelerator_enabled      = optional(bool)
   }))
 ```
+
+Default: `null`
+
+### <a name="input_disk_controller_type"></a> [disk\_controller\_type](#input\_disk\_controller\_type)
+
+Description: (Optional) Specifies the disk controller type configured for the VM. Possible values are 'SCSI' and 'NVMe'. Defaults to 'SCSI'.
+
+Type: `string`
 
 Default: `null`
 
@@ -257,10 +309,10 @@ Type:
 
 ```hcl
 set(object({
-    auto_upgrade_minor_version_enabled        = optional(bool)
-    extensions_to_provision_after_vm_creation = optional(set(string))
+    auto_upgrade_minor_version_enabled        = optional(bool, true)
+    extensions_to_provision_after_vm_creation = optional(set(string), [])
     failure_suppression_enabled               = optional(bool)
-    force_extension_execution_on_change       = optional(string)
+    force_extension_execution_on_change       = optional(string, "")
     name                                      = string
     publisher                                 = string
     settings                                  = optional(string)
@@ -282,6 +334,29 @@ Description: > Note: `extension_operations_enabled` may only be set to `false` i
 
 Type: `bool`
 
+Default: `true`
+
+### <a name="input_extension_protected_setting_version"></a> [extension\_protected\_setting\_version](#input\_extension\_protected\_setting\_version)
+
+Description: (Optional) Version tracking map for extension protected settings. Required when `extension_protected_setting` is set.
+
+When you change protected settings for an extension, you must also update the version string for that extension to trigger the update.  
+The map key should match the extension name, and the value can be any version string (e.g., "v1", "v2", "1.0", "2024-01-15").
+
+Example:
+```hcl
+extension_protected_setting = {
+  "ApplicationHealthLinux" = jsonencode({
+    "commandToExecute" = "curl -f http://localhost || exit 1"
+  })
+}
+extension_protected_setting_version = {
+  "ApplicationHealthLinux" = "v2"  # Increment from "v1" to trigger update
+}
+```
+
+Type: `map(string)`
+
 Default: `null`
 
 ### <a name="input_extensions_time_budget"></a> [extensions\_time\_budget](#input\_extensions\_time\_budget)
@@ -290,7 +365,7 @@ Description: (Optional) Specifies the time alloted for all extensions to start. 
 
 Type: `string`
 
-Default: `null`
+Default: `"PT1H30M"`
 
 ### <a name="input_instances"></a> [instances](#input\_instances)
 
@@ -351,6 +426,14 @@ Type: `number`
 
 Default: `-1`
 
+### <a name="input_network_api_version"></a> [network\_api\_version](#input\_network\_api\_version)
+
+Description: (Optional) Specifies the Microsoft.Network API version used when creating networking resources in the Network Interface Configurations for Virtual Machine Scale Set. Possible values are `2020-11-01` and `2022-11-01`. Defaults to `2020-11-01`.
+
+Type: `string`
+
+Default: `"2020-11-01"`
+
 ### <a name="input_network_interface"></a> [network\_interface](#input\_network\_interface)
 
 Description:  - `dns_servers` - (Optional) A set of IP Addresses of DNS Servers which should be assigned to the Network Interface.
@@ -397,20 +480,20 @@ Type:
 
 ```hcl
 set(object({
-    dns_servers                   = optional(set(string))
-    enable_accelerated_networking = optional(bool)
-    enable_ip_forwarding          = optional(bool)
+    dns_servers                   = optional(set(string), [])
+    enable_accelerated_networking = optional(bool, false)
+    enable_ip_forwarding          = optional(bool, false)
     name                          = string
     network_security_group_id     = optional(string)
-    primary                       = optional(bool)
+    primary                       = optional(bool, false)
     ip_configuration = set(object({
-      application_gateway_backend_address_pool_ids = optional(set(string))
-      application_security_group_ids               = optional(set(string))
-      load_balancer_backend_address_pool_ids       = optional(set(string))
+      application_gateway_backend_address_pool_ids = optional(set(string), [])
+      application_security_group_ids               = optional(set(string), [])
+      load_balancer_backend_address_pool_ids       = optional(set(string), [])
       name                                         = string
-      primary                                      = optional(bool)
+      primary                                      = optional(bool, false)
       subnet_id                                    = optional(string)
-      version                                      = optional(string)
+      version                                      = optional(string, "IPv4")
       public_ip_address = optional(set(object({
         domain_name_label       = optional(string)
         idle_timeout_in_minutes = optional(number)
@@ -436,6 +519,7 @@ Description: - `caching` - (Required) The Type of Caching which should be used f
 - `disk_size_gb` - (Optional) The Size of the Internal OS Disk in GB, if you wish to vary from the size used in the image this Virtual Machine Scale Set is sourced from.
 - `storage_account_type` - (Required) The Type of Storage Account which should back this the Internal OS Disk. Possible values include `Standard_LRS`, `StandardSSD_LRS`, `StandardSSD_ZRS`, `Premium_LRS` and `Premium_ZRS`. Changing this forces a new resource to be created.
 - `write_accelerator_enabled` - (Optional) Specifies if Write Accelerator is enabled on the OS Disk. Defaults to `false`.
+- `delete_option` - (Optional) Specifies the delete option for the OS Disk. Possible values are `Delete` and `Detach`. Defaults to `Delete`.
 
 ---
 `diff_disk_settings` block supports the following:
@@ -450,7 +534,8 @@ object({
     disk_encryption_set_id    = optional(string)
     disk_size_gb              = optional(number)
     storage_account_type      = string
-    write_accelerator_enabled = optional(bool)
+    write_accelerator_enabled = optional(bool, false)
+    delete_option             = optional(string, "Delete")
     diff_disk_settings = optional(object({
       option    = string
       placement = optional(string)
@@ -463,17 +548,15 @@ Default:
 ```json
 {
   "caching": "ReadWrite",
-  "storage_account_type": "Premium_LRS"
+  "delete_option": "Delete",
+  "storage_account_type": "Premium_LRS",
+  "write_accelerator_enabled": false
 }
 ```
 
 ### <a name="input_os_profile"></a> [os\_profile](#input\_os\_profile)
 
 Description: Configure the operating system provile.
-
- - `custom_data` - (Optional) The Base64-Encoded Custom Data which should be used for this Orchestrated Virtual Machine Scale Set.
-
- > Note: When Custom Data has been configured, it's not possible to remove it without tainting the Orchestrated Virtual Machine Scale Set, due to a limitation of the Azure API.
 
  ---
  `linux_configuration` block supports the following:
@@ -552,8 +635,8 @@ object({
     linux_configuration = optional(object({
       admin_username                  = string
       computer_name_prefix            = optional(string)
-      disable_password_authentication = optional(bool)
-      patch_assessment_mode           = optional(string)
+      disable_password_authentication = optional(bool, true)
+      patch_assessment_mode           = optional(string, "ImageDefault")
       patch_mode                      = optional(string, "AutomaticByPlatform")
       provision_vm_agent              = optional(bool, true)
       admin_ssh_key_id                = optional(set(string))
@@ -568,8 +651,8 @@ object({
       admin_username           = string
       computer_name_prefix     = optional(string)
       enable_automatic_updates = optional(bool, false)
-      hotpatching_enabled      = optional(bool)
-      patch_assessment_mode    = optional(string)
+      hotpatching_enabled      = optional(bool, false)
+      patch_assessment_mode    = optional(string, "ImageDefault")
       patch_mode               = optional(string, "AutomaticByPlatform")
       provision_vm_agent       = optional(bool, true)
       timezone                 = optional(string)
@@ -682,7 +765,7 @@ Default: `{}`
 
 ### <a name="input_single_placement_group"></a> [single\_placement\_group](#input\_single\_placement\_group)
 
-Description: (Optional) Should this Virtual Machine Scale Set be limited to a Single Placement Group, which means the number of instances will be capped at 100 Virtual Machines. Possible values are `true` or `false`.
+Description: (Optional) Should this Virtual Machine Scale Set be limited to a Single Placement Group, which means the number of instances will be capped at 100 Virtual Machines. Change this value will result in the Orchestrated Virtual Machine Scale Set being recreated.
 > Note: `single_placement_group` behaves differently for Orchestrated Virtual Machine Scale Sets than it does for other Virtual Machine Scale Sets. If you do not define the `single_placement_group` field in your configuration file the service will determin what this value should be based off of the value contained within the `sku_name` field of your configuration file. You may set the `single_placement_group` field to `true`, however once you set it to `false` you will not be able to revert it back to `true`. If you wish to use Specialty Sku virtual machines (e.g. [M-Seiries](https://docs.microsoft.com/azure/virtual-machines/m-series) virtual machines) you will need to contact you Microsoft support professional and request to be added to the include list since this feature is currently in private preview until the end of September 2022. Once you have been added to the private preview include list you will need to run the following command to register your subscription with the feature: `az feature register --namespace Microsoft.Compute --name SpecialSkusForVmssFlex`. If you are not on the include list this command will error out with the following error message `(featureRegistrationUnsupported) The feature 'SpecialSkusForVmssFlex' does not support registration`.
 
 Type: `bool`
@@ -743,7 +826,7 @@ Type:
 ```hcl
 object({
     enabled = bool
-    timeout = optional(string)
+    timeout = optional(string, "PT5M")
   })
 ```
 
@@ -808,6 +891,23 @@ Default:
 }
 ```
 
+### <a name="input_user_data_base64_version"></a> [user\_data\_base64\_version](#input\_user\_data\_base64\_version)
+
+Description: (Optional) Version string for the user data. Required when `user_data_base64` is set.
+
+When you change the user data, you must also increment this version string to trigger the update.  
+The version string can be any value (e.g., "v1", "v2", "1.0", "2024-01-15").
+
+Example:
+```hcl
+user_data_base64         = base64encode(file("new-init-script.sh"))
+user_data_base64_version = "v2"  # Increment from "v1" to trigger update
+```
+
+Type: `string`
+
+Default: `null`
+
 ### <a name="input_zone_balance"></a> [zone\_balance](#input\_zone\_balance)
 
 Description: (Optional) Should the Virtual Machines in this Scale Set be strictly evenly distributed across Availability Zones? Defaults to `false`. Changing this forces a new resource to be created.
@@ -820,8 +920,8 @@ Default: `false`
 
 ### <a name="input_zones"></a> [zones](#input\_zones)
 
-Description: Specifies a list of Availability Zones in which this Orchestrated Virtual Machine should be located. Changing this forces a new Orchestrated Virtual Machine to be created.  Defaulted to 3 zones as per this reliability guidance: [Deploy Virtual Machine Scale Sets across availability zones with Virtual Machine Scale Sets Flex](https://learn.microsoft.com/en-us/azure/reliability/reliability-virtual-machine-scale-sets?tabs=graph-4%2Cgraph-1%2Cgraph-2%2Cgraph-3%2Cgraph-5%2Cgraph-6%2Cportal#-deploy-virtual-machine-scale-sets-across-availability-zones-with-virtual-machine-scale-sets-flex)
-
+Description: Specifies a list of Availability Zones in which this Orchestrated Virtual Machine should be located. Changing this forces a new Orchestrated Virtual Machine to be created.  Defaulted to 3 zones as per this reliability guidance: [Deploy Virtual Machine Scale Sets across availability zones with Virtual Machine Scale Sets Flex](https://learn.microsoft.com/en-us/azure/reliability/reliability-virtual-machine-scale-sets?tabs=graph-4%2Cgraph-1%2Cgraph-2%2Cgraph-3%2Cgraph-5%2Cgraph-6%2Cportal#-deploy-virtual-machine-scale-sets-across-availability-zones-with-virtual-machine-scale-sets-flex)  
+Removing any zones from this list will result in the Orchestrated Virtual Machine Scale Set being recreated.
 > Note: Due to a limitation of the Azure API at this time only one Availability Zone can be defined.
 
 Type: `set(string)`
@@ -840,10 +940,6 @@ Default:
 
 The following outputs are exported:
 
-### <a name="output_resource"></a> [resource](#output\_resource)
-
-Description: All attributes of the Virtual Machine Scale Set resource.
-
 ### <a name="output_resource_id"></a> [resource\_id](#output\_resource\_id)
 
 Description: The ID of the Virtual Machine Scale Set.
@@ -854,7 +950,19 @@ Description: The name of the Virtual Machine Scale Set.
 
 ## Modules
 
-No modules.
+The following Modules are called:
+
+### <a name="module_avm_utl_interfaces"></a> [avm\_utl\_interfaces](#module\_avm\_utl\_interfaces)
+
+Source: Azure/avm-utl-interfaces/azure
+
+Version: 0.5.0
+
+### <a name="module_managed_identities"></a> [managed\_identities](#module\_managed\_identities)
+
+Source: Azure/avm-utl-interfaces/azure
+
+Version: 0.5.0
 
 <!-- markdownlint-disable-next-line MD041 -->
 ## Data Collection
