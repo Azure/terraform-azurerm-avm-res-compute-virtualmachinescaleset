@@ -150,6 +150,24 @@ resource "azurerm_user_assigned_identity" "user_identity" {
 
 data "azurerm_client_config" "current" {}
 
+module "avm_ptn_ephemeral_credential" {
+  source  = "Azure/avm-ptn-ephemeral-credential/azure"
+  version = "0.1.0"
+
+  enable_telemetry = var.enable_telemetry
+  password = {
+    length      = 20
+    special     = true
+    upper       = true
+    lower       = true
+    numeric     = true
+    min_lower   = 2
+    min_upper   = 2
+    min_numeric = 2
+    min_special = 2
+  }
+}
+
 # This is the module call
 module "terraform_azurerm_avm_res_compute_virtualmachinescaleset" {
   source = "../../"
@@ -157,10 +175,11 @@ module "terraform_azurerm_avm_res_compute_virtualmachinescaleset" {
   extension_protected_setting = {}
   location                    = azurerm_resource_group.this.location
   # source             = "Azure/avm-res-compute-virtualmachinescaleset/azurerm"
-  name                = module.naming.virtual_machine_scale_set.name_unique
-  resource_group_name = azurerm_resource_group.this.name
-  user_data_base64    = null
-  admin_password      = "P@ssw0rd1234!"
+  name                   = module.naming.virtual_machine_scale_set.name_unique
+  parent_id              = azurerm_resource_group.this.id
+  user_data_base64       = null
+  admin_password         = module.avm_ptn_ephemeral_credential.password_result
+  admin_password_version = module.avm_ptn_ephemeral_credential.value_wo_version
   admin_ssh_keys = [(
     {
       id         = tls_private_key.example_ssh.id
@@ -168,15 +187,17 @@ module "terraform_azurerm_avm_res_compute_virtualmachinescaleset" {
       username   = "azureuser"
     }
   )]
-  enable_telemetry = var.enable_telemetry
+  custom_data         = base64encode(file("custom-data.yaml"))
+  custom_data_version = "1"
+  enable_telemetry    = var.enable_telemetry
   extension = [{
-    name                        = "HealthExtension"
-    publisher                   = "Microsoft.ManagedServices"
-    type                        = "ApplicationHealthLinux"
-    type_handler_version        = "1.0"
-    auto_upgrade_minor_version  = true
-    failure_suppression_enabled = false
-    settings                    = "{\"port\":80,\"protocol\":\"http\",\"requestPath\":\"/index.html\"}"
+    name                               = "HealthExtension"
+    publisher                          = "Microsoft.ManagedServices"
+    type                               = "ApplicationHealthLinux"
+    type_handler_version               = "1.0"
+    auto_upgrade_minor_version_enabled = true
+    failure_suppression_enabled        = false
+    settings                           = "{\"port\":80,\"protocol\":\"http\",\"requestPath\":\"/index.html\"}"
   }]
   instances = 2
   managed_identities = {
@@ -193,7 +214,6 @@ module "terraform_azurerm_avm_res_compute_virtualmachinescaleset" {
     }]
   }]
   os_profile = {
-    custom_data = base64encode(file("custom-data.yaml"))
     linux_configuration = {
       disable_password_authentication = false
       user_data_base64                = base64encode(file("user-data.sh"))
@@ -229,11 +249,11 @@ The following requirements are needed by this module:
 
 - <a name="requirement_terraform"></a> [terraform](#requirement\_terraform) (>= 1.9, < 2.0)
 
-- <a name="requirement_azurerm"></a> [azurerm](#requirement\_azurerm) (>= 4.0, < 4.37)
+- <a name="requirement_azurerm"></a> [azurerm](#requirement\_azurerm) (~> 4.0)
 
-- <a name="requirement_random"></a> [random](#requirement\_random) (>= 3.6.2)
+- <a name="requirement_random"></a> [random](#requirement\_random) (~> 3.0)
 
-- <a name="requirement_tls"></a> [tls](#requirement\_tls) (4.0.6)
+- <a name="requirement_tls"></a> [tls](#requirement\_tls) (~> 4.0)
 
 ## Resources
 
@@ -252,7 +272,7 @@ The following resources are used by this module:
 - [azurerm_virtual_network.this](https://registry.terraform.io/providers/hashicorp/azurerm/latest/docs/resources/virtual_network) (resource)
 - [random_integer.region_index](https://registry.terraform.io/providers/hashicorp/random/latest/docs/resources/integer) (resource)
 - [random_integer.zone_index](https://registry.terraform.io/providers/hashicorp/random/latest/docs/resources/integer) (resource)
-- [tls_private_key.example_ssh](https://registry.terraform.io/providers/hashicorp/tls/4.0.6/docs/resources/private_key) (resource)
+- [tls_private_key.example_ssh](https://registry.terraform.io/providers/hashicorp/tls/latest/docs/resources/private_key) (resource)
 - [azurerm_client_config.current](https://registry.terraform.io/providers/hashicorp/azurerm/latest/docs/data-sources/client_config) (data source)
 
 <!-- markdownlint-disable MD013 -->
@@ -272,7 +292,7 @@ If it is set to false, then no telemetry will be collected.
 
 Type: `bool`
 
-Default: `true`
+Default: `false`
 
 ## Outputs
 
@@ -290,10 +310,6 @@ Description: The name of the Resource Group.
 
 Description: The ID of the Virtual Machine Scale Set
 
-### <a name="output_virtual_machine_scale_set"></a> [virtual\_machine\_scale\_set](#output\_virtual\_machine\_scale\_set)
-
-Description: All attributes of the Virtual Machine Scale Set resource.
-
 ### <a name="output_virtual_machine_scale_set_id"></a> [virtual\_machine\_scale\_set\_id](#output\_virtual\_machine\_scale\_set\_id)
 
 Description: The ID of the Virtual Machine Scale Set.
@@ -305,6 +321,12 @@ Description: The name of the Virtual Machine Scale Set.
 ## Modules
 
 The following Modules are called:
+
+### <a name="module_avm_ptn_ephemeral_credential"></a> [avm\_ptn\_ephemeral\_credential](#module\_avm\_ptn\_ephemeral\_credential)
+
+Source: Azure/avm-ptn-ephemeral-credential/azure
+
+Version: 0.1.0
 
 ### <a name="module_get_valid_sku_for_deployment_region"></a> [get\_valid\_sku\_for\_deployment\_region](#module\_get\_valid\_sku\_for\_deployment\_region)
 
