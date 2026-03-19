@@ -841,6 +841,11 @@ resource "azapi_resource" "virtual_machine_scale_set" {
       )
       error_message = "`priority_mix` can only be specified when `priority` is set to `Spot`."
     }
+    # Orchestrated VMSS only supports UserAssigned identity (not SystemAssigned)
+    precondition {
+      condition     = !var.managed_identities.system_assigned
+      error_message = "Orchestrated Virtual Machine Scale Sets do not support system-assigned managed identities. Only user-assigned managed identities are supported. Please set 'system_assigned' to false or omit it."
+    }
   }
 }
 
