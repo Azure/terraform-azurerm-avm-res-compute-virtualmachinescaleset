@@ -569,7 +569,7 @@ variable "os_disk" {
  ---
  `diff_disk_settings` block supports the following:
  - `option` - (Required) Specifies the Ephemeral Disk Settings for the OS Disk. At this time the only possible value is `Local`. Changing this forces a new resource to be created.
- - `placement` - (Optional) Specifies where to store the Ephemeral Disk. Possible values are `CacheDisk` and `ResourceDisk`. Defaults to `CacheDisk`. Changing this forces a new resource to be created.
+ - `placement` - (Optional) Specifies where to store the Ephemeral Disk. Possible values are `CacheDisk`, `ResourceDisk`, and `NvmeDisk`. Defaults to `CacheDisk`. `NvmeDisk` is required for VM sizes that expose only NVMe local storage (e.g. Dv6/Edsv6 family). Changing this forces a new resource to be created.
 EOT
 
   validation {
@@ -585,8 +585,8 @@ EOT
     error_message = "The diff_disk_settings option must be 'Local'."
   }
   validation {
-    condition     = var.os_disk == null ? true : var.os_disk.diff_disk_settings == null ? true : var.os_disk.diff_disk_settings.placement == null ? true : contains(["CacheDisk", "ResourceDisk"], var.os_disk.diff_disk_settings.placement)
-    error_message = "The diff_disk_settings placement must be one of: 'CacheDisk' or 'ResourceDisk'."
+    condition     = var.os_disk == null ? true : var.os_disk.diff_disk_settings == null ? true : var.os_disk.diff_disk_settings.placement == null ? true : contains(["CacheDisk", "ResourceDisk", "NvmeDisk"], var.os_disk.diff_disk_settings.placement)
+    error_message = "The diff_disk_settings placement must be one of: 'CacheDisk', 'ResourceDisk', or 'NvmeDisk'."
   }
 }
 
