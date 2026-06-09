@@ -170,7 +170,7 @@ resource "azurerm_key_vault" "example" {
 
 module "avm_ptn_ephemeral_credential" {
   source  = "Azure/avm-ptn-ephemeral-credential/azure"
-  version = "0.1.0"
+  version = "0.1.1"
 
   enable_telemetry = var.enable_telemetry
   password = {
