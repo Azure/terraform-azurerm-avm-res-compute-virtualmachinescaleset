@@ -145,11 +145,12 @@ module "terraform_azurerm_avm_res_compute_virtualmachinescaleset" {
   # The CustomScript extension delivers its command via `protectedSettings`
   # (encrypted, write-only) instead of public `settings`. This exercises the
   # sensitive_body path that regressed in issue #159: the module must merge the
-  # protected settings into the extension WITHOUT dropping the other extensions'
-  # non-sensitive properties. The HealthExtension (public settings, no protected
-  # settings) must survive the same apply un-stripped.
+  # protected settings into the extension WITHOUT dropping its own or the other
+  # extensions' non-sensitive properties. BGInfo (public settings, no protected
+  # settings) must survive the same apply un-stripped. A trivial, always-succeeding
+  # command is used so the test asserts provisioning, not guest-script behaviour.
   extension_protected_setting = {
-    CustomScriptExtension = "{\"commandToExecute\":\"copy %SYSTEMDRIVE%\\\\AzureData\\\\CustomData.bin c:\\\\init-script.ps1 \\u0026 powershell -ExecutionPolicy Unrestricted -File %SYSTEMDRIVE%\\\\init-script.ps1\"}"
+    CustomScriptExtension = "{\"commandToExecute\":\"cmd /c echo done\"}"
   }
   extension_protected_setting_version = {
     CustomScriptExtension = "1"
@@ -165,8 +166,6 @@ module "terraform_azurerm_avm_res_compute_virtualmachinescaleset" {
   boot_diagnostics = {
     storage_account_uri = "" # Enable boot diagnostics
   }
-  custom_data         = base64encode(file("init-script.ps1"))
-  custom_data_version = "1"
   data_disk = [{
     caching                   = "ReadWrite"
     create_option             = "Empty"
@@ -188,13 +187,13 @@ module "terraform_azurerm_avm_res_compute_virtualmachinescaleset" {
       # commandToExecute is supplied via extension_protected_setting above.
     },
     {
-      name                               = "HealthExtension"
-      publisher                          = "Microsoft.ManagedServices"
-      type                               = "ApplicationHealthWindows"
-      type_handler_version               = "1.0"
+      name                               = "BGInfo"
+      publisher                          = "Microsoft.Compute"
+      type                               = "BGInfo"
+      type_handler_version               = "2.1"
       auto_upgrade_minor_version_enabled = true
       failure_suppression_enabled        = false
-      settings                           = "{\"port\":80,\"protocol\":\"http\",\"requestPath\":\"index.html\"}"
+      settings                           = "{\"Properties\":[]}"
   }]
   instances = 2
   network_interface = [{
