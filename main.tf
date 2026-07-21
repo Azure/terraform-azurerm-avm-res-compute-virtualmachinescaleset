@@ -140,41 +140,7 @@ resource "azapi_resource" "virtual_machine_scale_set" {
                   extensionsTimeBudget = var.extensions_time_budget
                 } : {},
                 try(length(var.extension) > 0, false) ? {
-                  extensions = [
-                    for ext in var.extension : {
-                      name = ext.name
-                      properties = merge(
-                        {
-                          publisher          = ext.publisher
-                          type               = ext.type
-                          typeHandlerVersion = ext.type_handler_version
-                        },
-                        ext.auto_upgrade_minor_version_enabled != null ? {
-                          autoUpgradeMinorVersion = ext.auto_upgrade_minor_version_enabled
-                        } : {},
-                        ext.failure_suppression_enabled != null ? {
-                          suppressFailures = ext.failure_suppression_enabled
-                        } : {},
-                        ext.force_extension_execution_on_change != null ? {
-                          forceUpdateTag = ext.force_extension_execution_on_change != null ? ext.force_extension_execution_on_change : ""
-                        } : {},
-                        ext.settings != null && ext.settings != "" ? {
-                          settings = jsondecode(ext.settings)
-                        } : {},
-                        ext.extensions_to_provision_after_vm_creation != null ? {
-                          provisionAfterExtensions = ext.extensions_to_provision_after_vm_creation
-                        } : {},
-                        ext.protected_settings_from_key_vault != null ? {
-                          protectedSettingsFromKeyVault = {
-                            secretUrl = ext.protected_settings_from_key_vault.secret_url
-                            sourceVault = {
-                              id = ext.protected_settings_from_key_vault.source_vault_id
-                            }
-                          }
-                        } : {}
-                      )
-                    }
-                  ]
+                  extensions = local.extension_objects
                 } : {}
               )
             } : {},
@@ -606,14 +572,7 @@ resource "azapi_resource" "virtual_machine_scale_set" {
         } : {},
         try(length(var.extension_protected_setting) > 0, false) && try(length(var.extension) > 0, false) ? {
           extensionProfile = {
-            extensions = [
-              for ext in var.extension : {
-                name = ext.name
-                properties = lookup(var.extension_protected_setting, ext.name, "") != "" ? {
-                  protectedSettings = jsondecode(lookup(var.extension_protected_setting, ext.name, ""))
-                } : {}
-              }
-            ]
+            extensions = local.extension_objects_with_protected_settings
           }
         } : {}
       )

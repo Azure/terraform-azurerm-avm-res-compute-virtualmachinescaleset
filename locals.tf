@@ -3,6 +3,69 @@ locals {
   managed_identities = module.managed_identities.managed_identities_azapi
 }
 
+# Extension objects shared by `body` and `sensitive_body` (issue #159).
+# azapi merges sensitive_body over body using RFC 7396 JSON Merge Patch, which
+# REPLACES arrays wholesale instead of deep-merging by element. The extensions
+# array therefore has to be built once and mirrored in full into sensitive_body;
+# otherwise the protected-settings array in sensitive_body overwrites the
+# fully-specified array from body and the extensions are never provisioned.
+locals {
+  # Full, non-sensitive extension objects (used directly in `body`). The
+  # null-guard is on the INPUT to the for-expression (not `? [...] : []`) so a
+  # heterogeneous tuple never has to unify with an empty tuple.
+  extension_objects = [
+    for ext in(var.extension == null ? [] : var.extension) : {
+      name = ext.name
+      properties = merge(
+        {
+          publisher          = ext.publisher
+          type               = ext.type
+          typeHandlerVersion = ext.type_handler_version
+        },
+        ext.auto_upgrade_minor_version_enabled != null ? {
+          autoUpgradeMinorVersion = ext.auto_upgrade_minor_version_enabled
+        } : {},
+        ext.failure_suppression_enabled != null ? {
+          suppressFailures = ext.failure_suppression_enabled
+        } : {},
+        ext.force_extension_execution_on_change != null ? {
+          forceUpdateTag = ext.force_extension_execution_on_change != null ? ext.force_extension_execution_on_change : ""
+        } : {},
+        ext.settings != null && ext.settings != "" ? {
+          settings = jsondecode(ext.settings)
+        } : {},
+        ext.extensions_to_provision_after_vm_creation != null ? {
+          provisionAfterExtensions = ext.extensions_to_provision_after_vm_creation
+        } : {},
+        ext.protected_settings_from_key_vault != null ? {
+          protectedSettingsFromKeyVault = {
+            secretUrl = ext.protected_settings_from_key_vault.secret_url
+            sourceVault = {
+              id = ext.protected_settings_from_key_vault.source_vault_id
+            }
+          }
+        } : {}
+      )
+    }
+  ]
+
+  # Same objects PLUS protectedSettings where provided (used in `sensitive_body`
+  # so the RFC 7396 array replacement keeps every non-sensitive property). No
+  # outer conditional (tuple element types would mismatch); the per-element
+  # merge adds protectedSettings only when present.
+  extension_objects_with_protected_settings = [
+    for ext in local.extension_objects : {
+      name = ext.name
+      properties = merge(
+        ext.properties,
+        try(lookup(var.extension_protected_setting, ext.name, ""), "") != "" ? {
+          protectedSettings = jsondecode(lookup(var.extension_protected_setting, ext.name, ""))
+        } : {}
+      )
+    }
+  ]
+}
+
 # SSH key lookup map for Linux configuration
 locals {
   ssh_keys_map = var.admin_ssh_keys != null ? {
