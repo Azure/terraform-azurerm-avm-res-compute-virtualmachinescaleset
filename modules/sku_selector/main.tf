@@ -9,8 +9,18 @@ data "azapi_resource_list" "example" {
 }
 
 locals {
-  #filter the region virtual machines by desired capabilities (v1/v2 support, 2 cpu, and encryption at host)
-  deploy_skus = [
+  #filter the location output for the current region, virtual machine resources, and filter out entries that don't include the capabilities list
+  location_valid_vms = [
+    for location in data.azapi_resource_list.example.output.value : location
+    if length(location.restrictions) < 1 &&       #there are no restrictions on deploying the sku (i.e. allowed for deployment)
+    location.resourceType == "virtualMachines" && #and the sku is a virtual machine
+    !strcontains(location.name, "C") &&           #no confidential vm skus
+    !strcontains(location.name, "B") &&           #no B skus
+    length(try(location.capabilities, [])) > 1    #avoid skus where the capabilities list isn't defined
+  ]
+  #preferred skus: the strict capability set (Gen1+Gen2 support, 2 cpu, encryption at host, x64, premium io).
+  #kept as the first choice so previously selected skus are still used wherever they exist.
+  preferred_skus = [
     for sku in local.location_valid_vms : sku
     if length([
       for capability in sku.capabilities : capability
@@ -21,18 +31,25 @@ locals {
       (capability.name == "PremiumIO" && capability.value == "True")
     ]) == 5
   ]
-  #filter the location output for the current region, virtual machine resources, and filter out entries that don't include the capabilities list
-  location_valid_vms = [
-    for location in data.azapi_resource_list.example.output.value : location
-    if length(location.restrictions) < 1 &&       #there are no restrictions on deploying the sku (i.e. allowed for deployment)
-    location.resourceType == "virtualMachines" && #and the sku is a virtual machine
-    !strcontains(location.name, "C") &&           #no confidential vm skus
-    !strcontains(location.name, "B") &&           #no B skus
-    length(try(location.capabilities, [])) > 1    #avoid skus where the capabilities list isn't defined
+  #fallback skus: relax the two constraints that leave some regions with zero matches - accept Gen2-only skus
+  #(not just Gen1+Gen2) and drop encryption at host (no example enables it). still require 2 cpu, x64 and premium
+  #io because the module's default os disk is Premium_LRS, which needs a premium-capable sku.
+  fallback_skus = [
+    for sku in local.location_valid_vms : sku
+    if length([
+      for capability in sku.capabilities : capability
+      if(capability.name == "vCPUs" && capability.value == "2") ||
+      (capability.name == "CpuArchitectureType" && capability.value == "x64") ||
+      (capability.name == "PremiumIO" && capability.value == "True") ||
+      (capability.name == "HyperVGenerations" && strcontains(capability.value, "V2"))
+    ]) == 4
   ]
+  #prefer the strict set, fall back to the relaxed set so a valid sku is found in virtually every region.
+  #this prevents the flaky empty-list case where random_integer would get max < min.
+  deploy_skus = length(local.preferred_skus) > 0 ? local.preferred_skus : local.fallback_skus
 }
 
 resource "random_integer" "deploy_sku" {
-  max = length(local.deploy_skus) - 1
+  max = max(length(local.deploy_skus) - 1, 0) #guard against an empty list (max must never be below min)
   min = 0
 }
