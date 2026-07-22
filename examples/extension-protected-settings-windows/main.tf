@@ -142,18 +142,19 @@ module "avm_ptn_ephemeral_credential" {
 module "terraform_azurerm_avm_res_compute_virtualmachinescaleset" {
   source = "../../"
 
-  # The CustomScript extension delivers its command via `protectedSettings`
-  # (encrypted, write-only) instead of public `settings`. This exercises the
-  # sensitive_body path that regressed in issue #159: the module must merge the
-  # protected settings into the extension WITHOUT dropping its own or the other
-  # extensions' non-sensitive properties. BGInfo (public settings, no protected
-  # settings) must survive the same apply un-stripped. A trivial, always-succeeding
-  # command is used so the test asserts provisioning, not guest-script behaviour.
+  # The VMAccess extension carries a secret (the admin Password) in
+  # `protectedSettings` (encrypted, write-only) - the same extension shape the
+  # original issue #159 report used. This exercises the sensitive_body path: the
+  # module must merge the protected settings into the extension WITHOUT dropping
+  # its own or the other extensions' non-sensitive properties. BGInfo (public
+  # settings only, no protected settings) must survive the same apply un-stripped.
+  # failure_suppression keeps the e2e focused on protected-settings DELIVERY (the
+  # module's job) rather than in-guest extension execution.
   extension_protected_setting = {
-    CustomScriptExtension = "{\"commandToExecute\":\"cmd /c echo done\"}"
+    VMAccess = jsonencode({ Password = module.avm_ptn_ephemeral_credential.password_result })
   }
   extension_protected_setting_version = {
-    CustomScriptExtension = "1"
+    VMAccess = module.avm_ptn_ephemeral_credential.value_wo_version
   }
   location = azurerm_resource_group.this.location
   # source             = "Azure/avm-res-compute-virtualmachinescaleset/azurerm"
@@ -184,13 +185,15 @@ module "terraform_azurerm_avm_res_compute_virtualmachinescaleset" {
   automatic_instance_repair = null
   extension = [
     {
-      name                               = "CustomScriptExtension"
+      # UserName is public; the secret Password is delivered via
+      # extension_protected_setting (protectedSettings).
+      name                               = "VMAccess"
       publisher                          = "Microsoft.Compute"
-      type                               = "CustomScriptExtension"
-      type_handler_version               = "1.10"
+      type                               = "VMAccessAgent"
+      type_handler_version               = "2.0"
       auto_upgrade_minor_version_enabled = true
-      failure_suppression_enabled        = false
-      # commandToExecute is supplied via extension_protected_setting above.
+      failure_suppression_enabled        = true
+      settings                           = "{\"UserName\":\"azureuser\"}"
     },
     {
       name                               = "BGInfo"
