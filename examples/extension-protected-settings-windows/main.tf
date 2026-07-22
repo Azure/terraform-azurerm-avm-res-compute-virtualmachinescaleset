@@ -179,7 +179,7 @@ module "terraform_azurerm_avm_res_compute_virtualmachinescaleset" {
   # This example is focused on protected settings, not application health, so it
   # deliberately omits an application health extension. The module's WAF-aligned
   # defaults that would otherwise require one are therefore relaxed here: disable
-  # automatic instance repair and use OS-orchestrated patching instead of
+  # automatic instance repair and use Manual patching instead of
   # AutomaticByPlatform (see patch_mode in windows_configuration below).
   automatic_instance_repair = null
   extension = [
@@ -216,7 +216,7 @@ module "terraform_azurerm_avm_res_compute_virtualmachinescaleset" {
       admin_username                  = "azureuser"
       license_type                    = "None"
       hotpatching_enabled             = false
-      patch_mode                      = "AutomaticByOS"
+      patch_mode                      = "Manual"
       timezone                        = "Pacific Standard Time"
       provision_vm_agent              = true
       winrm_listener = [{
