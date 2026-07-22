@@ -177,12 +177,13 @@ module "terraform_azurerm_avm_res_compute_virtualmachinescaleset" {
     write_accelerator_enabled = false
   }]
   enable_telemetry = var.enable_telemetry
-  # This example is focused on protected settings, not application health, so it
-  # deliberately omits an application health extension. The module's WAF-aligned
-  # defaults that would otherwise require one are therefore relaxed here: disable
-  # automatic instance repair and use Manual patching instead of
-  # AutomaticByPlatform (see patch_mode in windows_configuration below).
-  automatic_instance_repair = null
+  # Automatic instance repair is a WAF-aligned module default (and an APRL
+  # requirement), which Azure only permits when application health monitoring is
+  # configured. This example therefore keeps the default enabled repair policy and
+  # supplies the health signal via the Application Health extension below, which
+  # probes the already-listening WinRM port over TCP - satisfying the requirement
+  # without an IIS/web-server runtime dependency. patch_mode stays Manual because
+  # AutomaticByOS needs enable_automatic_updates=true (defaults to false).
   extension = [
     {
       # UserName is public; the secret Password is delivered via
@@ -203,6 +204,18 @@ module "terraform_azurerm_avm_res_compute_virtualmachinescaleset" {
       auto_upgrade_minor_version_enabled = true
       failure_suppression_enabled        = false
       settings                           = "{\"Properties\":[]}"
+    },
+    {
+      # Provides the application health monitoring Azure requires before automatic
+      # instance repair can be enabled. A TCP probe against the WinRM listener
+      # (port 5985) avoids needing an in-guest web server.
+      name                               = "HealthExtension"
+      publisher                          = "Microsoft.ManagedServices"
+      type                               = "ApplicationHealthWindows"
+      type_handler_version               = "1.0"
+      auto_upgrade_minor_version_enabled = true
+      failure_suppression_enabled        = false
+      settings                           = "{\"protocol\":\"tcp\",\"port\":5985}"
   }]
   instances = 2
   network_interface = [{
