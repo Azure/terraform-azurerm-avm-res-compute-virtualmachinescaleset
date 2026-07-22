@@ -1,7 +1,7 @@
 variable "extension_protected_setting" {
   type        = map(string)
-  ephemeral   = true
   description = "(Optional) A JSON String which specifies Sensitive Settings (such as Passwords) for the Extension."
+  ephemeral   = true
 }
 
 variable "location" {
@@ -29,8 +29,8 @@ variable "parent_id" {
 
 variable "user_data_base64" {
   type        = string
-  ephemeral   = true
   description = "(Optional) The Base64-Encoded User Data which should be used for this Virtual Machine Scale Set."
+  ephemeral   = true
 
   validation {
     condition     = var.user_data_base64 == null || can(base64decode(var.user_data_base64))
@@ -50,9 +50,9 @@ EOT
 
 variable "admin_password" {
   type        = string
-  ephemeral   = true
   default     = null
   description = "(Optional) Sets the VM password"
+  ephemeral   = true
 }
 
 variable "admin_password_version" {
@@ -133,9 +133,9 @@ EOT
 
 variable "custom_data" {
   type        = string
-  ephemeral   = true
   default     = null
   description = "(Optional) The Base64-Encoded Custom Data which should be used for this Virtual Machine Scale Set. This value will be passed through sensitive_body and not stored in state file."
+  ephemeral   = true
 }
 
 variable "custom_data_version" {
