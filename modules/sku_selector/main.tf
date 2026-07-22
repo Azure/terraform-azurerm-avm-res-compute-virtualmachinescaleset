@@ -31,17 +31,18 @@ locals {
       (capability.name == "PremiumIO" && capability.value == "True")
     ]) == 5
   ]
-  #fallback skus: relax the two constraints that leave some regions with zero matches - accept Gen2-only skus
-  #(not just Gen1+Gen2) and drop encryption at host (no example enables it). still require 2 cpu, x64 and premium
-  #io because the module's default os disk is Premium_LRS, which needs a premium-capable sku.
+  #fallback skus: broaden the strict set by dropping ONLY the encryption-at-host requirement (no example
+  #enables encryption at host). still require Gen1+Gen2 support (V1,V2) so the selected sku boots the Windows
+  #examples' Gen1 image and is SCSI-bootable - this also excludes Gen2-only / NVMe-only families (e.g. L-series).
+  #2 cpu, x64 and premium io remain required (the module's default os disk is Premium_LRS).
   fallback_skus = [
     for sku in local.location_valid_vms : sku
     if length([
       for capability in sku.capabilities : capability
-      if(capability.name == "vCPUs" && capability.value == "2") ||
+      if(capability.name == "HyperVGenerations" && capability.value == "V1,V2") ||
+      (capability.name == "vCPUs" && capability.value == "2") ||
       (capability.name == "CpuArchitectureType" && capability.value == "x64") ||
-      (capability.name == "PremiumIO" && capability.value == "True") ||
-      (capability.name == "HyperVGenerations" && strcontains(capability.value, "V2"))
+      (capability.name == "PremiumIO" && capability.value == "True")
     ]) == 4
   ]
   #prefer the strict set, fall back to the relaxed set so a valid sku is found in virtually every region.
