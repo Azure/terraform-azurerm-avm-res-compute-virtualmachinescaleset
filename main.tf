@@ -647,6 +647,7 @@ resource "azapi_resource" "virtual_machine_scale_set" {
       identity_ids = identity.value.identity_ids
     }
   }
+
   dynamic "timeouts" {
     for_each = var.timeouts == null ? [] : [var.timeouts]
 
@@ -874,10 +875,6 @@ resource "azapi_update_resource" "this" {
   read_headers   = var.enable_telemetry ? { "User-Agent" : local.avm_azapi_header } : null
   update_headers = var.enable_telemetry ? { "User-Agent" : local.avm_azapi_header } : null
 
-  depends_on = [
-    azapi_resource.virtual_machine_scale_set,
-  ]
-
   # Trigger update when update_tracker is replaced
   lifecycle {
     ignore_changes = [
@@ -887,6 +884,9 @@ resource "azapi_update_resource" "this" {
       terraform_data.update_tracker
     ]
   }
+  depends_on = [
+    azapi_resource.virtual_machine_scale_set,
+  ]
 }
 
 # AVM Required Code
