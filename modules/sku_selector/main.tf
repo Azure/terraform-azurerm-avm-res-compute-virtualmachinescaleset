@@ -18,13 +18,22 @@ locals {
     !strcontains(location.name, "B") &&           #no B skus
     length(try(location.capabilities, [])) > 1    #avoid skus where the capabilities list isn't defined
   ]
-  #preferred skus: the strict capability set (Gen1+Gen2 support, 2 cpu, encryption at host, x64, premium io).
-  #kept as the first choice so previously selected skus are still used wherever they exist.
-  preferred_skus = [
+  #the linux examples force diskControllerType = "SCSI", so drop NVMe-only skus (they can't boot the SCSI controller).
+  #skus without a DiskControllerTypes capability are older sizes that default to SCSI, so they are kept.
+  scsi_bootable_vms = [
     for sku in local.location_valid_vms : sku
     if length([
       for capability in sku.capabilities : capability
-      if(capability.name == "HyperVGenerations" && capability.value == "V1,V2") ||
+      if capability.name == "DiskControllerTypes" && strcontains(capability.value, "NVMe") && !strcontains(capability.value, "SCSI")
+    ]) == 0
+  ]
+  #preferred skus: the strict capability set (Gen2 support, 2 cpu, encryption at host, x64, premium io).
+  #kept as the first choice so previously selected skus are still used wherever they exist.
+  preferred_skus = [
+    for sku in local.scsi_bootable_vms : sku
+    if length([
+      for capability in sku.capabilities : capability
+      if(capability.name == "HyperVGenerations" && strcontains(capability.value, "V2")) ||
       (capability.name == "vCPUs" && capability.value == "2") ||
       (capability.name == "EncryptionAtHostSupported" && capability.value == "True") ||
       (capability.name == "CpuArchitectureType" && capability.value == "x64") ||
@@ -32,14 +41,14 @@ locals {
     ]) == 5
   ]
   #fallback skus: broaden the strict set by dropping ONLY the encryption-at-host requirement (no example
-  #enables encryption at host). still require Gen1+Gen2 support (V1,V2) so the selected sku boots the Windows
-  #examples' Gen1 image and is SCSI-bootable - this also excludes Gen2-only / NVMe-only families (e.g. L-series).
-  #2 cpu, x64 and premium io remain required (the module's default os disk is Premium_LRS).
+  #enables encryption at host). all examples use Gen2 images so require Gen2 support (V2). NVMe-only skus are
+  #already excluded above, so the selected sku is SCSI-bootable for the linux examples. 2 cpu, x64 and premium
+  #io remain required (the module's default os disk is Premium_LRS).
   fallback_skus = [
-    for sku in local.location_valid_vms : sku
+    for sku in local.scsi_bootable_vms : sku
     if length([
       for capability in sku.capabilities : capability
-      if(capability.name == "HyperVGenerations" && capability.value == "V1,V2") ||
+      if(capability.name == "HyperVGenerations" && strcontains(capability.value, "V2")) ||
       (capability.name == "vCPUs" && capability.value == "2") ||
       (capability.name == "CpuArchitectureType" && capability.value == "x64") ||
       (capability.name == "PremiumIO" && capability.value == "True")
