@@ -27,26 +27,9 @@ locals {
       if capability.name == "DiskControllerTypes" && strcontains(capability.value, "NVMe") && !strcontains(capability.value, "SCSI")
     ]) == 0
   ]
-  #capability sets below deliberately EXCLUDE the vCPU-count filter, so we can prefer 2-vCPU sizes and only
-  #fall back to 4-vCPU sizes when a region has no 2-vCPU match (keeps the selected size as small as possible).
-
-  #preferred capability set: the strict set (Gen2 support, encryption at host, x64, premium io).
-  #kept as the first choice so previously selected skus are still used wherever they exist.
-  preferred_capability_skus = [
-    for sku in local.scsi_bootable_vms : sku
-    if length([
-      for capability in sku.capabilities : capability
-      if(capability.name == "HyperVGenerations" && strcontains(capability.value, "V2")) ||
-      (capability.name == "EncryptionAtHostSupported" && capability.value == "True") ||
-      (capability.name == "CpuArchitectureType" && capability.value == "x64") ||
-      (capability.name == "PremiumIO" && capability.value == "True")
-    ]) == 4
-  ]
-  #fallback capability set: broaden the strict set by dropping ONLY the encryption-at-host requirement (no
-  #example enables it). all examples use Gen2 images so require Gen2 support (V2). NVMe-only skus are already
-  #excluded above, so the selected sku is SCSI-bootable for the linux examples. x64 and premium io remain
-  #required (the module's default os disk is Premium_LRS).
-  fallback_capability_skus = [
+  #eligible skus: Gen2 support (V2), x64, and premium io (the module's default os disk is Premium_LRS).
+  #NVMe-only skus are already excluded above, so the selected sku is SCSI-bootable for the linux examples.
+  eligible_skus = [
     for sku in local.scsi_bootable_vms : sku
     if length([
       for capability in sku.capabilities : capability
@@ -55,17 +38,11 @@ locals {
       (capability.name == "PremiumIO" && capability.value == "True")
     ]) == 3
   ]
-  #split each capability set by vCPU count so 2-vCPU sizes can be preferred over 4-vCPU sizes.
-  preferred_skus_2vcpu = [for sku in local.preferred_capability_skus : sku if anytrue([for c in sku.capabilities : c.name == "vCPUs" && c.value == "2"])]
-  preferred_skus_4vcpu = [for sku in local.preferred_capability_skus : sku if anytrue([for c in sku.capabilities : c.name == "vCPUs" && c.value == "4"])]
-  fallback_skus_2vcpu  = [for sku in local.fallback_capability_skus : sku if anytrue([for c in sku.capabilities : c.name == "vCPUs" && c.value == "2"])]
-  fallback_skus_4vcpu  = [for sku in local.fallback_capability_skus : sku if anytrue([for c in sku.capabilities : c.name == "vCPUs" && c.value == "4"])]
-  #within a vCPU tier, prefer the strict set and fall back to the relaxed set.
-  deploy_skus_2vcpu = length(local.preferred_skus_2vcpu) > 0 ? local.preferred_skus_2vcpu : local.fallback_skus_2vcpu
-  deploy_skus_4vcpu = length(local.preferred_skus_4vcpu) > 0 ? local.preferred_skus_4vcpu : local.fallback_skus_4vcpu
-  #escalation order: 2-vCPU strict -> 2-vCPU relaxed -> 4-vCPU strict -> 4-vCPU relaxed. only allow 4 vCPUs
-  #when no 2-vCPU sku exists in the region. this also avoids the flaky empty-list case for random_integer.
-  deploy_skus = length(local.deploy_skus_2vcpu) > 0 ? local.deploy_skus_2vcpu : local.deploy_skus_4vcpu
+  #prefer 2-vCPU sizes; only fall back to 4-vCPU sizes when the region has no 2-vCPU eligible sku.
+  #this keeps the selected size small and avoids the flaky empty-list case for random_integer.
+  skus_2vcpu  = [for sku in local.eligible_skus : sku if anytrue([for c in sku.capabilities : c.name == "vCPUs" && c.value == "2"])]
+  skus_4vcpu  = [for sku in local.eligible_skus : sku if anytrue([for c in sku.capabilities : c.name == "vCPUs" && c.value == "4"])]
+  deploy_skus = length(local.skus_2vcpu) > 0 ? local.skus_2vcpu : local.skus_4vcpu
 }
 
 resource "random_integer" "deploy_sku" {
@@ -77,7 +54,7 @@ resource "random_integer" "deploy_sku" {
     #"no_current_valid_skus" sentinel that only surfaces later as an opaque 400 InvalidParameter on the vmss PUT.
     precondition {
       condition     = length(local.deploy_skus) > 0
-      error_message = "sku_selector found no deployable VM size in region '${var.deployment_region}'. Candidate counts by stage - location_valid_vms: ${length(local.location_valid_vms)}, scsi_bootable_vms: ${length(local.scsi_bootable_vms)}, 2-vCPU deployable: ${length(local.deploy_skus_2vcpu)}, 4-vCPU deployable: ${length(local.deploy_skus_4vcpu)}. Required capabilities: Gen2 (V2), 2 or 4 vCPUs, x64, PremiumIO, SCSI-boot. Pick another region or relax the sku_selector filters."
+      error_message = "sku_selector found no deployable VM size in region '${var.deployment_region}'. Candidate counts by stage - location_valid_vms: ${length(local.location_valid_vms)}, scsi_bootable_vms: ${length(local.scsi_bootable_vms)}, eligible_skus: ${length(local.eligible_skus)}, 2-vCPU: ${length(local.skus_2vcpu)}, 4-vCPU: ${length(local.skus_4vcpu)}. Required capabilities: Gen2 (V2), 2 or 4 vCPUs, x64, PremiumIO, SCSI-boot. Pick another region or relax the sku_selector filters."
     }
   }
 }
