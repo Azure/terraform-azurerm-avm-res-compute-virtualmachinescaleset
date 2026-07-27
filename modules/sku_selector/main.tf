@@ -14,15 +14,15 @@ locals {
     for location in data.azapi_resource_list.example.output.value : location
     if length(location.restrictions) < 1 &&       #there are no restrictions on deploying the sku (i.e. allowed for deployment)
     location.resourceType == "virtualMachines" && #and the sku is a virtual machine
-    !strcontains(location.name, "C") &&           #no confidential vm skus
-    !strcontains(location.name, "B") &&           #no B skus
-    #drop GPU skus: they have zero/low default quota and fail with OperationNotAllowed.
-    #azure reserves the "N" series for gpu-accelerated sizes (NC/ND/NV/NG), so exclude by name -
-    #the GPUs capability probe below is a secondary net, but some families (e.g. NVads V710 v5)
-    #do not report that capability, so the name check is the reliable signal.
-    !startswith(location.name, "Standard_N") &&
-    !anytrue([for capability in try(location.capabilities, []) : capability.name == "GPUs"]) &&
-    length(try(location.capabilities, [])) > 1 #avoid skus where the capabilities list isn't defined
+    #allowlist general purpose (D), memory optimised (E) and compute optimised (F) families.
+    #specialised families - GPU (N-series), FX, HPC (H/HB/HC), M, G, L - ship with zero default
+    #quota in test subscriptions and fail at deploy time with OperationNotAllowed, which looks
+    #like flaky CI. denylisting them one by one does not scale (we hit NVSv4, NVadsV710v5, FXMDVS).
+    #D/E/F cover every size that can satisfy gen2 + x64 + premiumIO at 2-4 vCPUs; L/M start at 8+.
+    (startswith(location.name, "Standard_D") || startswith(location.name, "Standard_E") || startswith(location.name, "Standard_F")) &&
+    !startswith(location.name, "Standard_FX") && #FX is compute-specialised (EDA) with zero default quota
+    !strcontains(location.name, "C") &&          #no confidential vm skus (DC/EC series)
+    length(try(location.capabilities, [])) > 1   #avoid skus where the capabilities list isn't defined
   ]
   #the linux examples force diskControllerType = "SCSI", so drop NVMe-only skus (they can't boot the SCSI controller).
   #skus without a DiskControllerTypes capability are older sizes that default to SCSI, so they are kept.
