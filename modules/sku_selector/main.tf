@@ -16,8 +16,11 @@ locals {
     location.resourceType == "virtualMachines" && #and the sku is a virtual machine
     !strcontains(location.name, "C") &&           #no confidential vm skus
     !strcontains(location.name, "B") &&           #no B skus
-    #drop GPU (N-series) skus: they carry a "GPUs" capability and have zero/low default quota,
-    #which fails deployment with OperationNotAllowed. general-purpose skus have no such capability.
+    #drop GPU skus: they have zero/low default quota and fail with OperationNotAllowed.
+    #azure reserves the "N" series for gpu-accelerated sizes (NC/ND/NV/NG), so exclude by name -
+    #the GPUs capability probe below is a secondary net, but some families (e.g. NVads V710 v5)
+    #do not report that capability, so the name check is the reliable signal.
+    !startswith(location.name, "Standard_N") &&
     !anytrue([for capability in try(location.capabilities, []) : capability.name == "GPUs"]) &&
     length(try(location.capabilities, [])) > 1 #avoid skus where the capabilities list isn't defined
   ]
