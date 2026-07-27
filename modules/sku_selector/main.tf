@@ -16,7 +16,10 @@ locals {
     location.resourceType == "virtualMachines" && #and the sku is a virtual machine
     !strcontains(location.name, "C") &&           #no confidential vm skus
     !strcontains(location.name, "B") &&           #no B skus
-    length(try(location.capabilities, [])) > 1    #avoid skus where the capabilities list isn't defined
+    #drop GPU (N-series) skus: they carry a "GPUs" capability and have zero/low default quota,
+    #which fails deployment with OperationNotAllowed. general-purpose skus have no such capability.
+    !anytrue([for capability in try(location.capabilities, []) : capability.name == "GPUs"]) &&
+    length(try(location.capabilities, [])) > 1 #avoid skus where the capabilities list isn't defined
   ]
   #the linux examples force diskControllerType = "SCSI", so drop NVMe-only skus (they can't boot the SCSI controller).
   #skus without a DiskControllerTypes capability are older sizes that default to SCSI, so they are kept.
