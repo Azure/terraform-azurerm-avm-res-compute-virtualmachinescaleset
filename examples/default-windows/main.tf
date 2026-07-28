@@ -211,7 +211,7 @@ module "terraform_azurerm_avm_res_compute_virtualmachinescaleset" {
   source_image_reference = {
     publisher = "MicrosoftWindowsServer"
     offer     = "WindowsServer"
-    sku       = "2022-Datacenter"
+    sku       = "2022-datacenter-g2"
     version   = "latest"
   }
   tags = local.tags
