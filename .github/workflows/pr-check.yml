@@ -21,7 +21,10 @@ jobs:
 
   run-managed-workflow:
     if: github.event.pull_request.head.repo.fork == false
-    uses: Azure/avm-terraform-governance/.github/workflows/managed-pr-check.yml@main
+    # TEMPORARY - DO NOT MERGE. Points at the governance branch carrying the e2e retry
+    # chain. That branch also pins AVM_PORCH_REF to itself, so the porch configs used
+    # here come from the branch rather than from governance main. Revert to @main.
+    uses: Azure/avm-terraform-governance/.github/workflows/managed-pr-check.yml@feat/retry-e2e-tests
     name: run managed workflow
     secrets: inherit
     permissions:

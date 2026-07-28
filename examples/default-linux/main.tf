@@ -27,11 +27,39 @@ module "get_valid_sku_for_deployment_region" {
   deployment_region = module.regions.regions[random_integer.region_index.result].name
 }
 
+# TEMPORARY - DO NOT MERGE.
+# Forces exactly one retryable capacity failure so that CI exercises the e2e retry chain in
+# test-examples.porch.yaml. Porch copies the example to a fresh temp directory per run, so the
+# marker is absent on the first apply and present on the retry: attempt 1 always fails, attempt 2
+# always succeeds. `input` ties this to the region randomiser so the retry's
+# `-replace=random_integer.region_index` also replaces this resource and re-runs the provisioner.
+# Nothing chargeable is created on attempt 1 because azurerm_resource_group.this depends on it.
+resource "terraform_data" "retry_probe" {
+  input = random_integer.region_index.result
+
+  provisioner "local-exec" {
+    interpreter = ["/bin/sh", "-c"]
+    command     = <<-EOT
+      marker="${path.module}/.retry-probe-marker"
+      if [ -f "$marker" ]; then
+        echo "retry probe: marker present, allowing the deployment to proceed."
+        exit 0
+      fi
+      touch "$marker"
+      echo "Error: creating Linux Virtual Machine Scale Set: SkuNotAvailable: The requested VM size is not available in the current region. Raised deliberately by the retry probe." 1>&2
+      exit 1
+    EOT
+  }
+}
+
 # This is required for resource modules
 resource "azurerm_resource_group" "this" {
   location = module.regions.regions[random_integer.region_index.result].name
   name     = module.naming.resource_group.name_unique
   tags     = local.tags
+
+  # TEMPORARY - DO NOT MERGE. Keeps the probe failure ahead of any chargeable resource.
+  depends_on = [terraform_data.retry_probe]
 }
 
 resource "azurerm_virtual_network" "this" {
