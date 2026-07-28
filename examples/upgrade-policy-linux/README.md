@@ -47,7 +47,7 @@ module "get_valid_sku_for_deployment_region" {
 
 # This is required for resource modules
 resource "azurerm_resource_group" "this" {
-  location = "southeastasia"
+  location = module.regions.regions[random_integer.region_index.result].name
   name     = module.naming.resource_group.name_unique
   tags     = local.tags
 }
@@ -212,7 +212,7 @@ module "terraform_azurerm_avm_res_compute_virtualmachinescaleset" {
       admin_ssh_key                   = toset([tls_private_key.example_ssh.id])
     }
   }
-  sku_name = "Standard_B1ms"
+  sku_name = module.get_valid_sku_for_deployment_region.sku
   source_image_reference = {
     publisher = "Canonical"
     offer     = "0001-com-ubuntu-server-jammy"
