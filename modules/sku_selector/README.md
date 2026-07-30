@@ -38,7 +38,15 @@ Type: `string`
 
 ## Optional Inputs
 
-No optional inputs.
+The following input variables are optional (have default values):
+
+### <a name="input_hibernation_supported"></a> [hibernation\_supported](#input\_hibernation\_supported)
+
+Description: When true, only return sizes that advertise the `HibernationSupported` capability. Hibernation is limited to a subset of the v5 D and E families, so leave this false unless the example enables hibernation.
+
+Type: `bool`
+
+Default: `false`
 
 ## Outputs
 
