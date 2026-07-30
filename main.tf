@@ -1,6 +1,8 @@
 # Data source to read existing VMSS for drift detection
-# This is used to detect when zones are removed (requires recreation) or
-# single_placement_group changes from false to true (not allowed - throws error)
+# This is used to force recreation when zones are removed, or when
+# single_placement_group changes from false to true, as Azure does not allow
+# either to be updated in place. Both are wired up through
+# replace_triggers_external_values on the scale set resource.
 data "azapi_resource" "existing_vmss" {
   name                   = var.name
   parent_id              = var.parent_id
@@ -94,7 +96,8 @@ resource "azapi_resource" "virtual_machine_scale_set" {
         } : {},
         var.additional_capabilities != null ? {
           additionalCapabilities = {
-            ultraSSDEnabled = var.additional_capabilities.ultra_ssd_enabled
+            ultraSSDEnabled    = var.additional_capabilities.ultra_ssd_enabled
+            hibernationEnabled = var.additional_capabilities.hibernation_enabled
           }
         } : {},
         var.automatic_instance_repair != null ? {
@@ -553,6 +556,13 @@ resource "azapi_resource" "virtual_machine_scale_set" {
     zones_removal_trigger          = local.zones_replacement_trigger
     single_placement_group_trigger = local.single_placement_group_trigger
   }
+  # Force recreation when hibernation is toggled. Azure only accepts
+  # additionalCapabilities.hibernationEnabled at creation time, so an in-place update
+  # would be rejected by the API. This compares the body at the given JMESPath between
+  # state and plan, rather than adding a key to replace_triggers_external_values, because
+  # that value is compared as a whole object and gaining a key would force replacement of
+  # every existing scale set on upgrade.
+  replace_triggers_refs = ["properties.additionalCapabilities.hibernationEnabled"]
   # Sensitive body for write-only properties
   sensitive_body = {
     properties = {
