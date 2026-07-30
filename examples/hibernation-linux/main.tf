@@ -117,15 +117,31 @@ module "terraform_azurerm_avm_res_compute_virtualmachinescaleset" {
     }
   )]
   enable_telemetry = var.enable_telemetry
-  # Configures the guest OS to suspend to disk. Enabling the capability on the scale set only makes
-  # hibernation available - without this the instances still cannot be hibernated.
-  extension = [{
-    name                               = "LinuxHibernateExtension"
-    publisher                          = "Microsoft.CPlat.Core"
-    type                               = "LinuxHibernateExtension"
-    type_handler_version               = "1.0"
-    auto_upgrade_minor_version_enabled = true
-  }]
+  # `LinuxHibernateExtension` configures the guest OS to suspend to disk. Enabling the capability on
+  # the scale set only makes hibernation available - without this the instances still cannot be
+  # hibernated.
+  #
+  # The health extension is required because the module enables `automatic_instance_repair` by
+  # default. It probes SSH over TCP rather than an application port, because this example runs no
+  # workload for an HTTP probe to reach.
+  extension = [
+    {
+      name                               = "LinuxHibernateExtension"
+      publisher                          = "Microsoft.CPlat.Core"
+      type                               = "LinuxHibernateExtension"
+      type_handler_version               = "1.0"
+      auto_upgrade_minor_version_enabled = true
+    },
+    {
+      name                               = "HealthExtension"
+      publisher                          = "Microsoft.ManagedServices"
+      type                               = "ApplicationHealthLinux"
+      type_handler_version               = "1.0"
+      auto_upgrade_minor_version_enabled = true
+      failure_suppression_enabled        = false
+      settings                           = "{\"protocol\":\"tcp\",\"port\":22}"
+    }
+  ]
   instances = 1
   network_interface = [{
     name                      = "VMSS-NIC"
@@ -149,9 +165,6 @@ module "terraform_azurerm_avm_res_compute_virtualmachinescaleset" {
       admin_username                  = "azureuser"
       admin_ssh_key_id                = toset([tls_private_key.example_ssh.id])
       disable_password_authentication = true
-      # `AutomaticByPlatform` would require an application health extension, which this scenario
-      # does not deploy.
-      patch_mode = "ImageDefault"
     }
   }
   sku_name = module.get_valid_sku_for_deployment_region.sku

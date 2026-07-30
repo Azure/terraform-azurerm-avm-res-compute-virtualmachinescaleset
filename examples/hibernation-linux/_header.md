@@ -17,6 +17,7 @@ The example also deploys:
 
 - a virtual network with a subnet
 - a NAT gateway and public IP, giving the instances the outbound access the extension needs
-- an SSH key and an ephemeral admin password
+- an SSH key for the admin user
+- an application health extension, which the module requires because it enables `automatic_instance_repair` by default. It probes SSH over TCP, as this example runs no workload for an HTTP probe to reach.
 
 A `postcondition` on the scale set read-back asserts `properties.additionalCapabilities.hibernationEnabled` is `true`, so the deployment fails if Azure ever drops the property instead of silently reporting success.
