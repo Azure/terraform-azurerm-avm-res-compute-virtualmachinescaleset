@@ -44,10 +44,17 @@ locals {
       (capability.name == "PremiumIO" && capability.value == "True")
     ]) == 3
   ]
+  #hibernation is only supported on a subset of sizes (the v5 D/E families with <= 64 GB RAM), and
+  #Microsoft.Compute/skus reports this per size as the HibernationSupported capability, so filter on
+  #the capability rather than hardcoding a family list that goes stale as Azure adds sizes.
+  hibernation_skus = var.hibernation_supported ? [
+    for sku in local.eligible_skus : sku
+    if anytrue([for c in sku.capabilities : c.name == "HibernationSupported" && c.value == "True"])
+  ] : local.eligible_skus
   #prefer 2-vCPU sizes; only fall back to 4-vCPU sizes when the region has no 2-vCPU eligible sku.
   #this keeps the selected size small and avoids the flaky empty-list case for random_integer.
-  skus_2vcpu  = [for sku in local.eligible_skus : sku if anytrue([for c in sku.capabilities : c.name == "vCPUs" && c.value == "2"])]
-  skus_4vcpu  = [for sku in local.eligible_skus : sku if anytrue([for c in sku.capabilities : c.name == "vCPUs" && c.value == "4"])]
+  skus_2vcpu  = [for sku in local.hibernation_skus : sku if anytrue([for c in sku.capabilities : c.name == "vCPUs" && c.value == "2"])]
+  skus_4vcpu  = [for sku in local.hibernation_skus : sku if anytrue([for c in sku.capabilities : c.name == "vCPUs" && c.value == "4"])]
   deploy_skus = length(local.skus_2vcpu) > 0 ? local.skus_2vcpu : local.skus_4vcpu
 }
 
@@ -60,7 +67,7 @@ resource "random_integer" "deploy_sku" {
     #"no_current_valid_skus" sentinel that only surfaces later as an opaque 400 InvalidParameter on the vmss PUT.
     precondition {
       condition     = length(local.deploy_skus) > 0
-      error_message = "sku_selector found no deployable VM size in region '${var.deployment_region}'. Candidate counts by stage - location_valid_vms: ${length(local.location_valid_vms)}, scsi_bootable_vms: ${length(local.scsi_bootable_vms)}, eligible_skus: ${length(local.eligible_skus)}, 2-vCPU: ${length(local.skus_2vcpu)}, 4-vCPU: ${length(local.skus_4vcpu)}. Required capabilities: Gen2 (V2), 2 or 4 vCPUs, x64, PremiumIO, SCSI-boot. Pick another region or relax the sku_selector filters."
+      error_message = "sku_selector found no deployable VM size in region '${var.deployment_region}'. Candidate counts by stage - location_valid_vms: ${length(local.location_valid_vms)}, scsi_bootable_vms: ${length(local.scsi_bootable_vms)}, eligible_skus: ${length(local.eligible_skus)}, hibernation_skus: ${length(local.hibernation_skus)}, 2-vCPU: ${length(local.skus_2vcpu)}, 4-vCPU: ${length(local.skus_4vcpu)}. Required capabilities: Gen2 (V2), 2 or 4 vCPUs, x64, PremiumIO, SCSI-boot${var.hibernation_supported ? ", HibernationSupported" : ""}. Pick another region or relax the sku_selector filters."
     }
   }
 }

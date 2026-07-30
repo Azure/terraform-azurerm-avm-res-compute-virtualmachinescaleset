@@ -78,12 +78,14 @@ The following input variables are optional (have default values):
 ### <a name="input_additional_capabilities"></a> [additional\_capabilities](#input\_additional\_capabilities)
 
 Description: - `ultra_ssd_enabled` - (Optional) Should the capacity to enable Data Disks of the `UltraSSD_LRS` storage account type be supported on this Orchestrated Virtual Machine Scale Set? Defaults to `false`. Changing this forces a new resource to be created.
+- `hibernation_enabled` - (Optional) Should hibernation be enabled on this Orchestrated Virtual Machine Scale Set? Defaults to `false`. Hibernation can only be configured when the scale set is created, so changing this forces a new resource to be created. Hibernation is only supported on specific VM sizes and operating systems, and cannot be combined with an ephemeral OS disk. See <https://learn.microsoft.com/azure/virtual-machines/hibernate-resume> for the current restrictions.
 
 Type:
 
 ```hcl
 object({
-    ultra_ssd_enabled = optional(bool)
+    ultra_ssd_enabled   = optional(bool)
+    hibernation_enabled = optional(bool)
   })
 ```
 
