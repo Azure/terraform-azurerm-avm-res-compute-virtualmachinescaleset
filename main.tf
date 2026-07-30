@@ -3,31 +3,21 @@
 # single_placement_group changes from false to true, as Azure does not allow
 # either to be updated in place. Both are wired up through
 # replace_triggers_external_values on the scale set resource.
+#
+# This block deliberately carries no lifecycle pre/postconditions. Terraform
+# widens a data source's deferral check from its explicit `depends_on` to its
+# entire transitive dependency closure as soon as the block declares any custom
+# condition. That would defer this read to apply whenever anything upstream of
+# `parent_id` has a pending change, making every value derived from it unknown
+# and forcing a destructive replacement of the scale set. The assertions that
+# used to live here are preconditions on azapi_resource.virtual_machine_scale_set
+# instead, where they carry the same weight without affecting the read.
 data "azapi_resource" "existing_vmss" {
   name                   = var.name
   parent_id              = var.parent_id
   type                   = "Microsoft.Compute/virtualMachineScaleSets@2024-11-01"
   ignore_not_found       = true
   response_export_values = ["*"]
-
-  lifecycle {
-    postcondition {
-      condition = !(
-        self.exists &&
-        try(self.output.sku, null) != null &&
-        try(self.output.properties.virtualMachineProfile, null) == null
-      )
-      error_message = "Existing VMSS must have `properties.virtualMachineProfile` defined for non-legacy scale sets."
-    }
-    postcondition {
-      condition = !(
-        self.exists &&
-        try(self.output.sku, null) != null &&
-        try(self.output.properties.virtualMachineProfile.storageProfile, null) == null
-      )
-      error_message = "Existing VMSS must have `properties.virtualMachineProfile.storageProfile` defined for non-legacy scale sets."
-    }
-  }
 }
 
 moved {
@@ -633,6 +623,26 @@ resource "azapi_resource" "virtual_machine_scale_set" {
       body.zones,
     ]
 
+    # Relocated from data.azapi_resource.existing_vmss. Declaring these on the
+    # data source would force its read to be deferred to apply whenever any
+    # transitive dependency has a pending change; conditions on a managed
+    # resource carry no such penalty.
+    precondition {
+      condition = !(
+        data.azapi_resource.existing_vmss.exists &&
+        try(data.azapi_resource.existing_vmss.output.sku, null) != null &&
+        try(data.azapi_resource.existing_vmss.output.properties.virtualMachineProfile, null) == null
+      )
+      error_message = "Existing VMSS must have `properties.virtualMachineProfile` defined for non-legacy scale sets."
+    }
+    precondition {
+      condition = !(
+        data.azapi_resource.existing_vmss.exists &&
+        try(data.azapi_resource.existing_vmss.output.sku, null) != null &&
+        try(data.azapi_resource.existing_vmss.output.properties.virtualMachineProfile.storageProfile, null) == null
+      )
+      error_message = "Existing VMSS must have `properties.virtualMachineProfile.storageProfile` defined for non-legacy scale sets."
+    }
     precondition {
       condition     = var.zone_balance != true || (var.zones != null && length(var.zones) > 0)
       error_message = "`zone_balance` can only be set to `true` when availability zones are specified."
