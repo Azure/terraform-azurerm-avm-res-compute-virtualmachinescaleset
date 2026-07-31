@@ -1,9 +1,9 @@
 ### this segment of code gets valid vm skus for deployment in the current subscription
-data "azurerm_subscription" "current" {}
+data "azapi_client_config" "current" {}
 
 #get the full sku list (azapi doesn't currently have a good way to filter the api call)
 data "azapi_resource_list" "example" {
-  parent_id              = data.azurerm_subscription.current.id
+  parent_id              = data.azapi_client_config.current.subscription_resource_id
   type                   = "Microsoft.Compute/skus?$filter=location%20eq%20%27${var.deployment_region}%27@2021-07-01"
   response_export_values = ["*"]
 }
