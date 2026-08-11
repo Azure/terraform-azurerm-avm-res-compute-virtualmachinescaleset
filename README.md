@@ -733,6 +733,55 @@ Type: `string`
 
 Default: `null`
 
+### <a name="input_proxy_agent_settings"></a> [proxy\_agent\_settings](#input\_proxy\_agent\_settings)
+
+Description: (Optional) Metadata Security Protocol (MSP) settings for the Guest Proxy Agent. MSP restricts in-guest access to Azure Instance Metadata Service (IMDS) and WireServer. The selected image must be [compatible with MSP](https://learn.microsoft.com/azure/virtual-machines/metadata-security-protocol/overview#compatibility).
+
+- `enabled` - (Optional) Enables MSP. Defaults to `true` when this object is supplied.
+- `key_incarnation_id` - (Optional) Non-negative integer used to reset the key that secures guest-to-host communication. Increase this value only for recovery or troubleshooting.
+- `add_proxy_agent_extension` - (Optional) Installs or removes the Proxy Agent extension implicitly. This setting is only valid for Linux and defaults to `true`. When omitted for Windows, the property is not sent because Azure installs the Windows extension automatically.
+- `imds` - (Optional) Configuration for the Azure Instance Metadata Service endpoint.
+  - `mode` - (Optional) Inline protection mode. Valid values are `Audit`, `Enforce`, and `Disabled`.
+  - `in_vm_access_control_profile_reference_id` - (Optional) Full resource ID of a Compute Gallery InVMAccessControlProfile version. Cannot be combined with `mode`.
+- `wire_server` - (Optional) Configuration for the WireServer endpoint.
+  - `mode` - (Optional) Inline protection mode. Valid values are `Audit`, `Enforce`, and `Disabled`.
+  - `in_vm_access_control_profile_reference_id` - (Optional) Full resource ID of a Compute Gallery InVMAccessControlProfile version. Cannot be combined with `mode`.
+
+Microsoft recommends starting with both endpoints in `Audit` mode, reviewing the guest audit logs, and then moving to `Enforce`. See <https://learn.microsoft.com/azure/virtual-machines/metadata-security-protocol/configuration>.
+
+Example:
+```hcl
+proxy_agent_settings = {
+  enabled = true
+  imds = {
+    mode = "Audit"
+  }
+  wire_server = {
+    mode = "Audit"
+  }
+}
+```
+
+Type:
+
+```hcl
+object({
+    enabled                   = optional(bool, true)
+    key_incarnation_id        = optional(number)
+    add_proxy_agent_extension = optional(bool)
+    imds = optional(object({
+      mode                                      = optional(string)
+      in_vm_access_control_profile_reference_id = optional(string)
+    }))
+    wire_server = optional(object({
+      mode                                      = optional(string)
+      in_vm_access_control_profile_reference_id = optional(string)
+    }))
+  })
+```
+
+Default: `null`
+
 ### <a name="input_role_assignments"></a> [role\_assignments](#input\_role\_assignments)
 
 Description:   A map of role assignments to create on the <RESOURCE>. The map key is deliberately arbitrary to avoid issues where map keys maybe unknown at plan time.

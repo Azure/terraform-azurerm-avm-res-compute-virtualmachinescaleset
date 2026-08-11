@@ -808,6 +808,91 @@ variable "proximity_placement_group_id" {
   description = "(Optional) The ID of the Proximity Placement Group which the Orchestrated Virtual Machine should be assigned to. Changing this forces a new resource to be created."
 }
 
+variable "proxy_agent_settings" {
+  type = object({
+    enabled                   = optional(bool, true)
+    key_incarnation_id        = optional(number)
+    add_proxy_agent_extension = optional(bool)
+    imds = optional(object({
+      mode                                      = optional(string)
+      in_vm_access_control_profile_reference_id = optional(string)
+    }))
+    wire_server = optional(object({
+      mode                                      = optional(string)
+      in_vm_access_control_profile_reference_id = optional(string)
+    }))
+  })
+  default     = null
+  description = <<-EOT
+(Optional) Metadata Security Protocol (MSP) settings for the Guest Proxy Agent. MSP restricts in-guest access to Azure Instance Metadata Service (IMDS) and WireServer. The selected image must be [compatible with MSP](https://learn.microsoft.com/azure/virtual-machines/metadata-security-protocol/overview#compatibility).
+
+- `enabled` - (Optional) Enables MSP. Defaults to `true` when this object is supplied.
+- `key_incarnation_id` - (Optional) Non-negative integer used to reset the key that secures guest-to-host communication. Increase this value only for recovery or troubleshooting.
+- `add_proxy_agent_extension` - (Optional) Installs or removes the Proxy Agent extension implicitly. This setting is only valid for Linux and defaults to `true`. When omitted for Windows, the property is not sent because Azure installs the Windows extension automatically.
+- `imds` - (Optional) Configuration for the Azure Instance Metadata Service endpoint.
+  - `mode` - (Optional) Inline protection mode. Valid values are `Audit`, `Enforce`, and `Disabled`.
+  - `in_vm_access_control_profile_reference_id` - (Optional) Full resource ID of a Compute Gallery InVMAccessControlProfile version. Cannot be combined with `mode`.
+- `wire_server` - (Optional) Configuration for the WireServer endpoint.
+  - `mode` - (Optional) Inline protection mode. Valid values are `Audit`, `Enforce`, and `Disabled`.
+  - `in_vm_access_control_profile_reference_id` - (Optional) Full resource ID of a Compute Gallery InVMAccessControlProfile version. Cannot be combined with `mode`.
+
+Microsoft recommends starting with both endpoints in `Audit` mode, reviewing the guest audit logs, and then moving to `Enforce`. See <https://learn.microsoft.com/azure/virtual-machines/metadata-security-protocol/configuration>.
+
+Example:
+```hcl
+proxy_agent_settings = {
+  enabled = true
+  imds = {
+    mode = "Audit"
+  }
+  wire_server = {
+    mode = "Audit"
+  }
+}
+```
+EOT
+
+  validation {
+    condition = var.proxy_agent_settings == null || var.proxy_agent_settings.key_incarnation_id == null || (
+      var.proxy_agent_settings.key_incarnation_id >= 0 &&
+      floor(var.proxy_agent_settings.key_incarnation_id) == var.proxy_agent_settings.key_incarnation_id
+    )
+    error_message = "`proxy_agent_settings.key_incarnation_id` must be a non-negative integer."
+  }
+  validation {
+    condition = var.proxy_agent_settings == null || alltrue([
+      for endpoint in [var.proxy_agent_settings.imds, var.proxy_agent_settings.wire_server] :
+      endpoint == null || endpoint.mode == null || contains(["Audit", "Enforce", "Disabled"], endpoint.mode)
+    ])
+    error_message = "The proxy agent endpoint `mode` must be one of `Audit`, `Enforce`, or `Disabled`."
+  }
+  validation {
+    condition = var.proxy_agent_settings == null || alltrue([
+      for endpoint in [var.proxy_agent_settings.imds, var.proxy_agent_settings.wire_server] :
+      endpoint == null || endpoint.mode == null || endpoint.in_vm_access_control_profile_reference_id == null
+    ])
+    error_message = "A proxy agent endpoint cannot set both `mode` and `in_vm_access_control_profile_reference_id`."
+  }
+  validation {
+    condition = var.proxy_agent_settings == null || alltrue([
+      for endpoint in [var.proxy_agent_settings.imds, var.proxy_agent_settings.wire_server] :
+      endpoint == null || endpoint.in_vm_access_control_profile_reference_id == null || can(regex(
+        "(?i)^/subscriptions/[^/]+/resourceGroups/[^/]+/providers/Microsoft\\.Compute/galleries/[^/]+/inVMAccessControlProfiles/[^/]+/versions/[^/]+$",
+        endpoint.in_vm_access_control_profile_reference_id
+      ))
+    ])
+    error_message = "A proxy agent access-control profile reference must be a valid Microsoft.Compute/galleries/inVMAccessControlProfiles/versions resource ID."
+  }
+  validation {
+    condition = (
+      var.proxy_agent_settings == null ||
+      var.proxy_agent_settings.add_proxy_agent_extension != true ||
+      try(var.os_profile.linux_configuration, null) != null
+    )
+    error_message = "`proxy_agent_settings.add_proxy_agent_extension = true` is only valid for a Linux VMSS."
+  }
+}
+
 variable "role_assignments" {
   type = map(object({
     role_definition_id_or_name             = string
