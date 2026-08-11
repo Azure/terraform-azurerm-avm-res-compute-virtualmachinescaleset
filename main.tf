@@ -141,7 +141,7 @@ resource "azapi_resource" "virtual_machine_scale_set" {
                     var.proxy_agent_settings.imds != null && (
                       var.proxy_agent_settings.imds.mode != null ||
                       var.proxy_agent_settings.imds.in_vm_access_control_profile_reference_id != null
-                    ) ? {
+                      ) ? {
                       imds = merge(
                         var.proxy_agent_settings.imds.mode != null ? {
                           mode = var.proxy_agent_settings.imds.mode
@@ -154,7 +154,7 @@ resource "azapi_resource" "virtual_machine_scale_set" {
                     var.proxy_agent_settings.wire_server != null && (
                       var.proxy_agent_settings.wire_server.mode != null ||
                       var.proxy_agent_settings.wire_server.in_vm_access_control_profile_reference_id != null
-                    ) ? {
+                      ) ? {
                       wireServer = merge(
                         var.proxy_agent_settings.wire_server.mode != null ? {
                           mode = var.proxy_agent_settings.wire_server.mode
