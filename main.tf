@@ -119,10 +119,54 @@ resource "azapi_resource" "virtual_machine_scale_set" {
                 }
               }
             } : {},
-            var.encryption_at_host_enabled != null ? {
-              securityProfile = {
-                encryptionAtHost = var.encryption_at_host_enabled
-              }
+            var.encryption_at_host_enabled != null || var.proxy_agent_settings != null ? {
+              securityProfile = merge(
+                var.encryption_at_host_enabled != null ? {
+                  encryptionAtHost = var.encryption_at_host_enabled
+                } : {},
+                var.proxy_agent_settings != null ? {
+                  proxyAgentSettings = merge(
+                    {
+                      enabled = var.proxy_agent_settings.enabled
+                    },
+                    var.proxy_agent_settings.key_incarnation_id != null ? {
+                      keyIncarnationId = var.proxy_agent_settings.key_incarnation_id
+                    } : {},
+                    local.is_linux ? {
+                      addProxyAgentExtension = coalesce(
+                        var.proxy_agent_settings.add_proxy_agent_extension,
+                        true
+                      )
+                    } : {},
+                    var.proxy_agent_settings.imds != null && (
+                      var.proxy_agent_settings.imds.mode != null ||
+                      var.proxy_agent_settings.imds.in_vm_access_control_profile_reference_id != null
+                      ) ? {
+                      imds = merge(
+                        var.proxy_agent_settings.imds.mode != null ? {
+                          mode = var.proxy_agent_settings.imds.mode
+                        } : {},
+                        var.proxy_agent_settings.imds.in_vm_access_control_profile_reference_id != null ? {
+                          inVMAccessControlProfileReferenceId = var.proxy_agent_settings.imds.in_vm_access_control_profile_reference_id
+                        } : {}
+                      )
+                    } : {},
+                    var.proxy_agent_settings.wire_server != null && (
+                      var.proxy_agent_settings.wire_server.mode != null ||
+                      var.proxy_agent_settings.wire_server.in_vm_access_control_profile_reference_id != null
+                      ) ? {
+                      wireServer = merge(
+                        var.proxy_agent_settings.wire_server.mode != null ? {
+                          mode = var.proxy_agent_settings.wire_server.mode
+                        } : {},
+                        var.proxy_agent_settings.wire_server.in_vm_access_control_profile_reference_id != null ? {
+                          inVMAccessControlProfileReferenceId = var.proxy_agent_settings.wire_server.in_vm_access_control_profile_reference_id
+                        } : {}
+                      )
+                    } : {}
+                  )
+                } : {}
+              )
             } : {},
             var.eviction_policy != null ? {
               evictionPolicy = var.eviction_policy
