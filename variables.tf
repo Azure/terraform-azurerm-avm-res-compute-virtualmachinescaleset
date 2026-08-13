@@ -429,12 +429,12 @@ variable "max_bid_price" {
 variable "network_api_version" {
   type        = string
   default     = "2020-11-01"
-  description = "(Optional) Specifies the Microsoft.Network API version used when creating networking resources in the Network Interface Configurations for Virtual Machine Scale Set. Possible values are `2020-11-01` and `2022-11-01`. Defaults to `2020-11-01`."
+  description = "(Optional) Specifies the Microsoft.Network API version used when creating networking resources in the Network Interface Configurations for Virtual Machine Scale Set. Must be a Microsoft.Network API version in `YYYY-MM-DD` form, optionally suffixed with `-preview`. Defaults to `2020-11-01`.\n\n> Note: Newer features require a newer API version. For example, the `StandardV2` Public IP SKU requires `2023-06-01` or later."
   nullable    = false
 
   validation {
-    condition     = contains(["2020-11-01", "2022-11-01"], var.network_api_version)
-    error_message = "Possible values are `2020-11-01` and `2022-11-01`"
+    condition     = can(regex("^\\d{4}-\\d{2}-\\d{2}(-preview)?$", var.network_api_version))
+    error_message = "`network_api_version` must be a Microsoft.Network API version in `YYYY-MM-DD` form, optionally suffixed with `-preview` (for example `2023-06-01`)."
   }
 }
 
@@ -460,6 +460,7 @@ variable "network_interface" {
         name                    = string
         public_ip_prefix_id     = optional(string)
         sku_name                = optional(string)
+        sku_tier                = optional(string)
         version                 = optional(string)
         ip_tag = optional(set(object({
           tag  = string
@@ -502,7 +503,13 @@ variable "network_interface" {
  - `idle_timeout_in_minutes` - (Optional) The Idle Timeout in Minutes for the Public IP Address. Possible values are in the range `4` to `32`.
  - `name` - (Required) The Name of the Public IP Address Configuration.
  - `public_ip_prefix_id` - (Optional) The ID of the Public IP Address Prefix from where Public IP Addresses should be allocated. Changing this forces a new resource to be created.
- - `sku_name` - (Optional) Specifies what Public IP Address SKU the Public IP Address should be provisioned as. Possible vaules include `Basic_Regional`, `Basic_Global`, `Standard_Regional` or `Standard_Global`. For more information about Public IP Address SKU's and their capabilities, please see the [product documentation](https://docs.microsoft.com/azure/virtual-network/ip-services/public-ip-addresses#sku). Changing this forces a new resource to be created.
+ - `sku_name` - (Optional) Specifies the Public IP Address SKU name the Public IP Address should be provisioned as. Possible values include `Basic`, `Standard` and `StandardV2`. For more information about Public IP Address SKU's and their capabilities, please see the [product documentation](https://docs.microsoft.com/azure/virtual-network/ip-services/public-ip-addresses#sku). Changing this forces a new resource to be created.
+
+ > Note: The combined `<name>_<tier>` format used by the legacy `azurerm` provider (for example `Standard_Regional`) is not valid here. Specify the SKU name in `sku_name` and the tier in `sku_tier` instead.
+
+ > Note: `StandardV2` requires `network_api_version` to be set to `2023-06-01` or later.
+
+ - `sku_tier` - (Optional) Specifies the Public IP Address SKU tier the Public IP Address should be provisioned as. Possible values are `Regional` and `Global`. Changing this forces a new resource to be created.
  - `version` - (Optional) The Internet Protocol Version which should be used for this public IP address. Possible values are `IPv4` and `IPv6`. Defaults to `IPv4`. Changing this forces a new resource to be created.
 
  ---
@@ -525,7 +532,7 @@ EOT
       for ni in var.network_interface : alltrue([
         for ic in ni.ip_configuration : ic.public_ip_address == null ? true : alltrue([
           for pip in ic.public_ip_address : alltrue([
-            pip.domain_name_label == null ? true : length(regexall("^[a-z0-9-]+$", var.network_interface.ip_configuration.public_ip_address.domain_name_label)) > 0
+            pip.domain_name_label == null ? true : length(regexall("^[a-z0-9-]+$", pip.domain_name_label)) > 0
           ])
         ])
       ])
@@ -537,12 +544,45 @@ EOT
       for ni in var.network_interface : alltrue([
         for ic in ni.ip_configuration : ic.public_ip_address == null ? true : alltrue([
           for pip in ic.public_ip_address : alltrue([
-            pip.idle_timeout_in_minutes == null ? true : pip.idle_timeout_in_minutes >= 4 && var.network_interface.ip_configuration.public_ip_address.idle_timeout_in_minutes <= 32
+            pip.idle_timeout_in_minutes == null ? true : pip.idle_timeout_in_minutes >= 4 && pip.idle_timeout_in_minutes <= 32
           ])
         ])
       ])
     ])
     error_message = "Valid 'idle_timeout_in_minutes'  values must be between 4 and 32"
+  }
+  validation {
+    condition = var.network_interface == null ? true : alltrue([
+      for ni in var.network_interface : alltrue([
+        for ic in ni.ip_configuration : ic.public_ip_address == null ? true : alltrue([
+          for pip in ic.public_ip_address :
+          pip.sku_name == null ? true : !strcontains(pip.sku_name, "_")
+        ])
+      ])
+    ])
+    error_message = "The 'public_ip_address' 'sku_name' must not use the combined '<name>_<tier>' format (for example 'Standard_Regional') that was specific to the legacy azurerm provider. Set 'sku_name' to the SKU name only (for example 'Standard' or 'StandardV2') and use 'sku_tier' for 'Regional' or 'Global'."
+  }
+  validation {
+    condition = var.network_interface == null ? true : alltrue([
+      for ni in var.network_interface : alltrue([
+        for ic in ni.ip_configuration : ic.public_ip_address == null ? true : alltrue([
+          for pip in ic.public_ip_address :
+          pip.sku_tier == null ? true : contains(["Regional", "Global"], pip.sku_tier)
+        ])
+      ])
+    ])
+    error_message = "The 'public_ip_address' 'sku_tier' must be one of: 'Regional' or 'Global'."
+  }
+  validation {
+    condition = var.network_interface == null ? true : alltrue([
+      for ni in var.network_interface : alltrue([
+        for ic in ni.ip_configuration : ic.public_ip_address == null ? true : alltrue([
+          for pip in ic.public_ip_address :
+          pip.sku_name != "StandardV2" ? true : try(tonumber(replace(substr(var.network_api_version, 0, 10), "-", "")), 0) >= 20230601
+        ])
+      ])
+    ])
+    error_message = "The 'StandardV2' Public IP Address 'sku_name' requires 'network_api_version' to be '2023-06-01' or later."
   }
 }
 
