@@ -430,7 +430,9 @@ Default: `-1`
 
 ### <a name="input_network_api_version"></a> [network\_api\_version](#input\_network\_api\_version)
 
-Description: (Optional) Specifies the Microsoft.Network API version used when creating networking resources in the Network Interface Configurations for Virtual Machine Scale Set. Possible values are `2020-11-01` and `2022-11-01`. Defaults to `2020-11-01`.
+Description: (Optional) Specifies the Microsoft.Network API version used when creating networking resources in the Network Interface Configurations for Virtual Machine Scale Set. Must be a Microsoft.Network API version in `YYYY-MM-DD` form, optionally suffixed with `-preview`. Defaults to `2020-11-01`.
+
+> Note: Newer features require a newer API version. For example, the `StandardV2` Public IP SKU requires `2023-06-01` or later.
 
 Type: `string`
 
@@ -470,7 +472,13 @@ Description:  - `dns_servers` - (Optional) A set of IP Addresses of DNS Servers 
  - `idle_timeout_in_minutes` - (Optional) The Idle Timeout in Minutes for the Public IP Address. Possible values are in the range `4` to `32`.
  - `name` - (Required) The Name of the Public IP Address Configuration.
  - `public_ip_prefix_id` - (Optional) The ID of the Public IP Address Prefix from where Public IP Addresses should be allocated. Changing this forces a new resource to be created.
- - `sku_name` - (Optional) Specifies what Public IP Address SKU the Public IP Address should be provisioned as. Possible vaules include `Basic_Regional`, `Basic_Global`, `Standard_Regional` or `Standard_Global`. For more information about Public IP Address SKU's and their capabilities, please see the [product documentation](https://docs.microsoft.com/azure/virtual-network/ip-services/public-ip-addresses#sku). Changing this forces a new resource to be created.
+ - `sku_name` - (Optional) Specifies the Public IP Address SKU name the Public IP Address should be provisioned as. Possible values include `Basic`, `Standard` and `StandardV2`. For more information about Public IP Address SKU's and their capabilities, please see the [product documentation](https://docs.microsoft.com/azure/virtual-network/ip-services/public-ip-addresses#sku). Changing this forces a new resource to be created.
+
+ > Note: The combined `<name>_<tier>` format used by the legacy `azurerm` provider (for example `Standard_Regional`) is not valid here. Specify the SKU name in `sku_name` and the tier in `sku_tier` instead.
+
+ > Note: `StandardV2` requires `network_api_version` to be set to `2023-06-01` or later.
+
+ - `sku_tier` - (Optional) Specifies the Public IP Address SKU tier the Public IP Address should be provisioned as. Possible values are `Regional` and `Global`. Changing this forces a new resource to be created.
  - `version` - (Optional) The Internet Protocol Version which should be used for this public IP address. Possible values are `IPv4` and `IPv6`. Defaults to `IPv4`. Changing this forces a new resource to be created.
 
  ---
@@ -502,6 +510,7 @@ set(object({
         name                    = string
         public_ip_prefix_id     = optional(string)
         sku_name                = optional(string)
+        sku_tier                = optional(string)
         version                 = optional(string)
         ip_tag = optional(set(object({
           tag  = string

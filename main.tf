@@ -379,38 +379,43 @@ resource "azapi_resource" "virtual_machine_scale_set" {
                                 } : {},
                                 ip_config.public_ip_address != null && length(ip_config.public_ip_address) > 0 ? {
                                   publicIPAddressConfiguration = {
-                                    name = ip_config.public_ip_address[0].name
+                                    name = one(ip_config.public_ip_address).name
                                     properties = merge(
                                       {
                                       },
-                                      ip_config.public_ip_address[0].domain_name_label != null ? {
+                                      one(ip_config.public_ip_address).domain_name_label != null ? {
                                         dnsSettings = {
-                                          domainNameLabel = ip_config.public_ip_address[0].domain_name_label
+                                          domainNameLabel = one(ip_config.public_ip_address).domain_name_label
                                         }
                                       } : {},
-                                      ip_config.public_ip_address[0].idle_timeout_in_minutes != null ? {
-                                        idleTimeoutInMinutes = ip_config.public_ip_address[0].idle_timeout_in_minutes
+                                      one(ip_config.public_ip_address).idle_timeout_in_minutes != null ? {
+                                        idleTimeoutInMinutes = one(ip_config.public_ip_address).idle_timeout_in_minutes
                                       } : {},
-                                      ip_config.public_ip_address[0].ip_tag != null && length(ip_config.public_ip_address[0].ip_tag) > 0 ? {
+                                      one(ip_config.public_ip_address).ip_tag != null && length(one(ip_config.public_ip_address).ip_tag) > 0 ? {
                                         ipTags = [
-                                          for tag in ip_config.public_ip_address[0].ip_tag : {
+                                          for tag in one(ip_config.public_ip_address).ip_tag : {
                                             ipTagType = tag.type
                                             tag       = tag.tag
                                           }
                                         ]
                                       } : {},
-                                      ip_config.public_ip_address[0].public_ip_prefix_id != null ? {
+                                      one(ip_config.public_ip_address).public_ip_prefix_id != null ? {
                                         publicIPPrefix = {
-                                          id = ip_config.public_ip_address[0].public_ip_prefix_id
+                                          id = one(ip_config.public_ip_address).public_ip_prefix_id
                                         }
                                       } : {},
-                                      ip_config.public_ip_address[0].version != null ? {
-                                        publicIPAddressVersion = ip_config.public_ip_address[0].version
+                                      one(ip_config.public_ip_address).version != null ? {
+                                        publicIPAddressVersion = one(ip_config.public_ip_address).version
                                       } : {}
                                     )
-                                    sku = ip_config.public_ip_address[0].sku_name != null ? {
-                                      name = ip_config.public_ip_address[0].sku_name
-                                    } : null
+                                    sku = (one(ip_config.public_ip_address).sku_name != null || one(ip_config.public_ip_address).sku_tier != null) ? merge(
+                                      one(ip_config.public_ip_address).sku_name != null ? {
+                                        name = one(ip_config.public_ip_address).sku_name
+                                      } : {},
+                                      one(ip_config.public_ip_address).sku_tier != null ? {
+                                        tier = one(ip_config.public_ip_address).sku_tier
+                                      } : {}
+                                    ) : null
                                   }
                                 } : {}
                               )
