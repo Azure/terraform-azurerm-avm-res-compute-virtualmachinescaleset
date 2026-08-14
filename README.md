@@ -15,7 +15,7 @@ The following requirements are needed by this module:
 
 - <a name="requirement_terraform"></a> [terraform](#requirement\_terraform) (>= 1.9, < 2.0)
 
-- <a name="requirement_azapi"></a> [azapi](#requirement\_azapi) (~> 2.4)
+- <a name="requirement_azapi"></a> [azapi](#requirement\_azapi) (~> 2.12)
 
 - <a name="requirement_modtm"></a> [modtm](#requirement\_modtm) (~> 0.3)
 
@@ -368,6 +368,34 @@ Description: (Optional) Specifies the time alloted for all extensions to start. 
 Type: `string`
 
 Default: `"PT1H30M"`
+
+### <a name="input_ignore_body_changes"></a> [ignore\_body\_changes](#input\_ignore\_body\_changes)
+
+Description: (Optional) Paths in each resource's `body` whose changes the `azapi` provider ignores after creation, letting an out-of-band controller own those properties without producing perpetual `terraform plan` drift. Prefer Terraform's `lifecycle.ignore_changes` when the paths are static; use this variable when the paths must be derived from variables or other non-static values.
+
+Keys follow the same naming rule as an AzAPI `resource_types` map (the snake\_case ARM resource type with the `Microsoft.` prefix dropped), scoped per resource:
+
+- `compute_virtual_machine_scale_sets` - Ignored body paths for the scale set managed by this module.
+- `authorization_locks` - Ignored body paths for the management lock created when `lock` is set.
+- `authorization_role_assignments` - Ignored body paths applied to every role assignment created from `role_assignments`.
+
+Paths use dot notation, for example `properties.virtualMachineProfile.priority` or the top-level `tags`. Individual list items cannot be targeted; ignore the whole list property instead. While a path is ignored, configuration changes at that path are **not** sent to Azure until the path is removed from the list.
+
+Ignore the whole property that an out-of-band controller owns rather than a nested key beneath it. Paths are matched against the properties present in your configuration, so a key that exists only in Azure is never compared and naming it has no effect.
+
+Supplying a **non-empty** value requires Terraform 1.11 or later, because `ignore_body_changes` is a write-only argument held in provider-private state; changes take effect only after an `apply`. Leaving every list empty (the default) emits no argument, so the module remains usable on earlier Terraform versions.
+
+Type:
+
+```hcl
+object({
+    compute_virtual_machine_scale_sets = optional(list(string), [])
+    authorization_locks                = optional(list(string), [])
+    authorization_role_assignments     = optional(list(string), [])
+  })
+```
+
+Default: `{}`
 
 ### <a name="input_instances"></a> [instances](#input\_instances)
 
