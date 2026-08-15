@@ -584,8 +584,11 @@ resource "azapi_resource" "virtual_machine_scale_set" {
       }
     } : {}
   )
-  create_headers       = var.enable_telemetry ? { "User-Agent" : local.avm_azapi_header } : null
-  delete_headers       = var.enable_telemetry ? { "User-Agent" : local.avm_azapi_header } : null
+  create_headers = var.enable_telemetry ? { "User-Agent" : local.avm_azapi_header } : null
+  delete_headers = var.enable_telemetry ? { "User-Agent" : local.avm_azapi_header } : null
+  # ignore_body_changes is a write-only argument; collapse an empty list to null so it is
+  # absent unless the consumer opts in, keeping the module usable before Terraform 1.11.
+  ignore_body_changes  = length(var.ignore_body_changes.compute_virtual_machine_scale_sets) > 0 ? var.ignore_body_changes.compute_virtual_machine_scale_sets : null
   ignore_null_property = true
   read_headers         = var.enable_telemetry ? { "User-Agent" : local.avm_azapi_header } : null
   # Force recreation when zones are removed
@@ -643,11 +646,8 @@ resource "azapi_resource" "virtual_machine_scale_set" {
       "properties.virtualMachineProfile.extensionProfile.extensions[?name=='${ext_name}'].properties.protectedSettings" => version
     } : {}
   )
-  tags = var.tags
-  # ignore_body_changes is a write-only argument; collapse an empty list to null so it is
-  # absent unless the consumer opts in, keeping the module usable before Terraform 1.11.
-  ignore_body_changes = length(var.ignore_body_changes.compute_virtual_machine_scale_sets) > 0 ? var.ignore_body_changes.compute_virtual_machine_scale_sets : null
-  update_headers      = var.enable_telemetry ? { "User-Agent" : local.avm_azapi_header } : null
+  tags           = var.tags
+  update_headers = var.enable_telemetry ? { "User-Agent" : local.avm_azapi_header } : null
 
   # Managed identity configuration - must be at resource level, not in body
   dynamic "identity" {
