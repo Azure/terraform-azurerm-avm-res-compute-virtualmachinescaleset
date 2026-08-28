@@ -584,8 +584,11 @@ resource "azapi_resource" "virtual_machine_scale_set" {
       }
     } : {}
   )
-  create_headers       = var.enable_telemetry ? { "User-Agent" : local.avm_azapi_header } : null
-  delete_headers       = var.enable_telemetry ? { "User-Agent" : local.avm_azapi_header } : null
+  create_headers = var.enable_telemetry ? { "User-Agent" : local.avm_azapi_header } : null
+  delete_headers = var.enable_telemetry ? { "User-Agent" : local.avm_azapi_header } : null
+  # ignore_body_changes is a write-only argument; collapse an empty list to null so it is
+  # absent unless the consumer opts in, keeping the module usable before Terraform 1.11.
+  ignore_body_changes  = length(var.ignore_body_changes.compute_virtual_machine_scale_sets) > 0 ? var.ignore_body_changes.compute_virtual_machine_scale_sets : null
   ignore_null_property = true
   read_headers         = var.enable_telemetry ? { "User-Agent" : local.avm_azapi_header } : null
   # Force recreation when zones are removed
@@ -932,14 +935,15 @@ moved {
 resource "azapi_resource" "lock" {
   count = var.lock != null ? 1 : 0
 
-  name           = module.avm_utl_interfaces.lock_azapi.name != null ? module.avm_utl_interfaces.lock_azapi.name : "lock-${azapi_resource.virtual_machine_scale_set.name}"
-  parent_id      = azapi_resource.virtual_machine_scale_set.id
-  type           = module.avm_utl_interfaces.lock_azapi.type
-  body           = module.avm_utl_interfaces.lock_azapi.body
-  create_headers = var.enable_telemetry ? { "User-Agent" : local.avm_azapi_header } : null
-  delete_headers = var.enable_telemetry ? { "User-Agent" : local.avm_azapi_header } : null
-  read_headers   = var.enable_telemetry ? { "User-Agent" : local.avm_azapi_header } : null
-  update_headers = var.enable_telemetry ? { "User-Agent" : local.avm_azapi_header } : null
+  name                = module.avm_utl_interfaces.lock_azapi.name != null ? module.avm_utl_interfaces.lock_azapi.name : "lock-${azapi_resource.virtual_machine_scale_set.name}"
+  parent_id           = azapi_resource.virtual_machine_scale_set.id
+  type                = module.avm_utl_interfaces.lock_azapi.type
+  body                = module.avm_utl_interfaces.lock_azapi.body
+  create_headers      = var.enable_telemetry ? { "User-Agent" : local.avm_azapi_header } : null
+  delete_headers      = var.enable_telemetry ? { "User-Agent" : local.avm_azapi_header } : null
+  ignore_body_changes = length(var.ignore_body_changes.authorization_locks) > 0 ? var.ignore_body_changes.authorization_locks : null
+  read_headers        = var.enable_telemetry ? { "User-Agent" : local.avm_azapi_header } : null
+  update_headers      = var.enable_telemetry ? { "User-Agent" : local.avm_azapi_header } : null
 
   depends_on = [azapi_resource.role_assignments]
 }
@@ -968,6 +972,7 @@ resource "azapi_resource" "role_assignments" {
   }
   create_headers       = var.enable_telemetry ? { "User-Agent" : local.avm_azapi_header } : null
   delete_headers       = var.enable_telemetry ? { "User-Agent" : local.avm_azapi_header } : null
+  ignore_body_changes  = length(var.ignore_body_changes.authorization_role_assignments) > 0 ? var.ignore_body_changes.authorization_role_assignments : null
   ignore_null_property = true
   read_headers         = var.enable_telemetry ? { "User-Agent" : local.avm_azapi_header } : null
   retry = {
