@@ -150,6 +150,23 @@ locals {
   })) : null
 }
 
+# Constrained maximum capacity preservation
+# Azure only accepts constrainedMaximumCapacity when it is true; the property must be
+# omitted entirely otherwise. Reading it back from an existing scale set and echoing the
+# false (or absent) value into the request body makes the API reject the write with
+# "InvalidParameter: Parameter 'constrainedMaximumCapacity' is not allowed".
+locals {
+  # Emit true only when the deployed scale set already has the property enabled, so the
+  # value set out-of-band is preserved. Anything else resolves to null, which
+  # ignore_null_property drops from the request body.
+  constrained_maximum_capacity = local.existing_constrained_maximum_capacity == true ? true : null
+  # Get existing constrainedMaximumCapacity value from the deployed resource
+  existing_constrained_maximum_capacity = data.azapi_resource.existing_vmss.exists ? try(
+    data.azapi_resource.existing_vmss.output.properties.constrainedMaximumCapacity,
+    null
+  ) : null
+}
+
 # License type normalization
 # The azurerm provider converts empty string to "None" during updates
 # This mimics that behavior to prevent drift
