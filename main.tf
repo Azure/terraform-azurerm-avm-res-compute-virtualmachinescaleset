@@ -42,7 +42,7 @@ resource "azapi_resource" "virtual_machine_scale_set" {
           highSpeedInterconnectPlacement = "None"
           orchestrationMode              = "Flexible"
           singlePlacementGroup           = false
-          constrainedMaximumCapacity     = data.azapi_resource.existing_vmss.exists ? data.azapi_resource.existing_vmss.output.properties.constrainedMaximumCapacity : null
+          constrainedMaximumCapacity     = local.constrained_maximum_capacity
         },
         {
           platformFaultDomainCount = var.platform_fault_domain_count
