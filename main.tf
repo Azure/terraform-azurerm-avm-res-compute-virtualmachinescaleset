@@ -584,10 +584,7 @@ resource "azapi_resource" "virtual_machine_scale_set" {
       }
     } : {}
   )
-  create_headers       = var.enable_telemetry ? { "User-Agent" : local.avm_azapi_header } : null
-  delete_headers       = var.enable_telemetry ? { "User-Agent" : local.avm_azapi_header } : null
   ignore_null_property = true
-  read_headers         = var.enable_telemetry ? { "User-Agent" : local.avm_azapi_header } : null
   # Force recreation when zones are removed
   # Adding zones is allowed (update in-place), but removing zones requires recreation
   # This mimics azurerm provider behavior
@@ -643,8 +640,7 @@ resource "azapi_resource" "virtual_machine_scale_set" {
       "properties.virtualMachineProfile.extensionProfile.extensions[?name=='${ext_name}'].properties.protectedSettings" => version
     } : {}
   )
-  tags           = var.tags
-  update_headers = var.enable_telemetry ? { "User-Agent" : local.avm_azapi_header } : null
+  tags = var.tags
 
   # Managed identity configuration - must be at resource level, not in body
   dynamic "identity" {
@@ -905,8 +901,6 @@ resource "azapi_update_resource" "this" {
     } : {}
     # Add more property updates here as needed using additional merge() blocks
   )
-  read_headers   = var.enable_telemetry ? { "User-Agent" : local.avm_azapi_header } : null
-  update_headers = var.enable_telemetry ? { "User-Agent" : local.avm_azapi_header } : null
 
   # Trigger update when update_tracker is replaced
   lifecycle {
@@ -932,14 +926,10 @@ moved {
 resource "azapi_resource" "lock" {
   count = var.lock != null ? 1 : 0
 
-  name           = module.avm_utl_interfaces.lock_azapi.name != null ? module.avm_utl_interfaces.lock_azapi.name : "lock-${azapi_resource.virtual_machine_scale_set.name}"
-  parent_id      = azapi_resource.virtual_machine_scale_set.id
-  type           = module.avm_utl_interfaces.lock_azapi.type
-  body           = module.avm_utl_interfaces.lock_azapi.body
-  create_headers = var.enable_telemetry ? { "User-Agent" : local.avm_azapi_header } : null
-  delete_headers = var.enable_telemetry ? { "User-Agent" : local.avm_azapi_header } : null
-  read_headers   = var.enable_telemetry ? { "User-Agent" : local.avm_azapi_header } : null
-  update_headers = var.enable_telemetry ? { "User-Agent" : local.avm_azapi_header } : null
+  name      = module.avm_utl_interfaces.lock_azapi.name != null ? module.avm_utl_interfaces.lock_azapi.name : "lock-${azapi_resource.virtual_machine_scale_set.name}"
+  parent_id = azapi_resource.virtual_machine_scale_set.id
+  type      = module.avm_utl_interfaces.lock_azapi.type
+  body      = module.avm_utl_interfaces.lock_azapi.body
 
   depends_on = [azapi_resource.role_assignments]
 }
@@ -966,14 +956,10 @@ resource "azapi_resource" "role_assignments" {
       principalType                      = module.avm_utl_interfaces.role_assignments_azapi[each.key].body.properties.principalType
     }
   }
-  create_headers       = var.enable_telemetry ? { "User-Agent" : local.avm_azapi_header } : null
-  delete_headers       = var.enable_telemetry ? { "User-Agent" : local.avm_azapi_header } : null
   ignore_null_property = true
-  read_headers         = var.enable_telemetry ? { "User-Agent" : local.avm_azapi_header } : null
   retry = {
     error_message_regex = [
       ".*Please remove the lock and try again.*",
     ]
   }
-  update_headers = var.enable_telemetry ? { "User-Agent" : local.avm_azapi_header } : null
 }
