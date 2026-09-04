@@ -43,10 +43,10 @@ resource "azurerm_virtual_network" "this" {
 }
 
 resource "azurerm_subnet" "subnet" {
-  address_prefixes     = ["10.0.1.0/24"]
   name                 = module.naming.subnet.name_unique
   resource_group_name  = azurerm_resource_group.this.name
   virtual_network_name = azurerm_virtual_network.this.name
+  address_prefixes     = ["10.0.1.0/24"]
 }
 
 # network security group for the nic with a rule to allow http traffic
@@ -153,9 +153,6 @@ module "terraform_azurerm_avm_res_compute_virtualmachinescaleset" {
   extension_protected_setting = {
     VMAccess = jsonencode({ Password = module.avm_ptn_ephemeral_credential.password_result })
   }
-  extension_protected_setting_version = {
-    VMAccess = module.avm_ptn_ephemeral_credential.value_wo_version
-  }
   location = azurerm_resource_group.this.location
   # source             = "Azure/avm-res-compute-virtualmachinescaleset/azurerm"
   name                   = module.naming.virtual_machine_scale_set.name_unique
@@ -217,6 +214,9 @@ module "terraform_azurerm_avm_res_compute_virtualmachinescaleset" {
       failure_suppression_enabled        = false
       settings                           = "{\"protocol\":\"tcp\",\"port\":5985}"
   }]
+  extension_protected_setting_version = {
+    VMAccess = module.avm_ptn_ephemeral_credential.value_wo_version
+  }
   instances = 2
   network_interface = [{
     name                      = "VMSS-NIC"

@@ -42,10 +42,10 @@ resource "azurerm_virtual_network" "this" {
 }
 
 resource "azurerm_subnet" "subnet" {
-  address_prefixes     = ["10.0.1.0/24"]
   name                 = module.naming.subnet.name_unique
   resource_group_name  = azurerm_resource_group.this.name
   virtual_network_name = azurerm_virtual_network.this.name
+  address_prefixes     = ["10.0.1.0/24"]
 }
 
 # The instances only need outbound access, so the group keeps its default rules and adds none.
@@ -189,12 +189,11 @@ data "azapi_resource" "hibernation_readback" {
   type                   = "Microsoft.Compute/virtualMachineScaleSets@2025-04-01"
   response_export_values = ["properties.additionalCapabilities"]
 
-  depends_on = [module.terraform_azurerm_avm_res_compute_virtualmachinescaleset]
-
   lifecycle {
     postcondition {
       condition     = try(self.output.properties.additionalCapabilities.hibernationEnabled, false) == true
       error_message = "Azure did not report `properties.additionalCapabilities.hibernationEnabled` as `true` on the deployed scale set, so hibernation is not enabled despite the deployment succeeding."
     }
   }
+  depends_on = [module.terraform_azurerm_avm_res_compute_virtualmachinescaleset]
 }
