@@ -1,0 +1,11 @@
+{
+  "$schema": "https://raw.githubusercontent.com/Azure/azure-verified-modules-tools/main/src/Avm.Authoring/Resources/Schemas/v1/avm-module-metadata.schema.json",
+  "moduleDisplayName": "Virtual Machine Scale Set",
+  "moduleDescription": "AVM Resource Module for Virtual Machine Scale Set",
+  "canonicalType": "Microsoft.Compute/virtualMachineScaleSets",
+  "owners": [
+    "terrymandin",
+    "marcelkmfst"
+  ],
+  "telemetryIdPrefix": "46d3xtrf.res.17eef25"
+}
