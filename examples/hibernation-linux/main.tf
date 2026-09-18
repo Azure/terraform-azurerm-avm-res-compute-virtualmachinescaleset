@@ -9,7 +9,7 @@ module "regions" {
   version = "0.3.0"
 
   availability_zones_filter = true
-  enable_telemetry          = false
+  enable_telemetry          = var.enable_telemetry
 }
 
 resource "random_integer" "region_index" {
@@ -117,7 +117,7 @@ module "terraform_azurerm_avm_res_compute_virtualmachinescaleset" {
       username   = "azureuser"
     }
   )]
-  enable_telemetry = false
+  enable_telemetry = var.enable_telemetry
   # `LinuxHibernateExtension` configures the guest OS to suspend to disk. Enabling the capability on
   # the scale set only makes hibernation available - without this the instances still cannot be
   # hibernated.

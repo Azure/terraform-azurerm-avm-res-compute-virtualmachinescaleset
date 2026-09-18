@@ -9,7 +9,7 @@ module "regions" {
   version = "0.3.0"
 
   availability_zones_filter = true
-  enable_telemetry          = false
+  enable_telemetry          = var.enable_telemetry
 }
 
 resource "random_integer" "region_index" {
@@ -125,7 +125,7 @@ module "avm_ptn_ephemeral_credential" {
   source  = "Azure/avm-ptn-ephemeral-credential/azure"
   version = "0.1.0"
 
-  enable_telemetry = false
+  enable_telemetry = var.enable_telemetry
   password = {
     length      = 20
     special     = true
@@ -166,7 +166,7 @@ module "terraform_azurerm_avm_res_compute_virtualmachinescaleset" {
     storage_account_type      = "StandardSSD_LRS"
     write_accelerator_enabled = false
   }]
-  enable_telemetry = false
+  enable_telemetry = var.enable_telemetry
   extension = [
     {
       name                               = "CustomScriptExtension"
