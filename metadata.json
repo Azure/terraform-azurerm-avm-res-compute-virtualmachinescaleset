@@ -7,5 +7,8 @@
     "terrymandin",
     "marcelkmfst"
   ],
-  "telemetryIdPrefix": "46d3xtrf.res.17eef25"
+  "telemetryIdPrefix": "46d3xtrf.res.17eef25",
+  "alternativeNames": [
+    "VMSS"
+  ]
 }
