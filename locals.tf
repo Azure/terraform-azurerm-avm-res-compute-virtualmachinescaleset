@@ -99,57 +99,6 @@ locals {
   ) : true
 }
 
-# Zones drift detection
-# Detects when zones are removed from configuration, which requires resource recreation
-# This mimics the azurerm provider behavior that prevents zone removal
-locals {
-  # Get desired zones from configuration (empty list if not specified)
-  desired_zones = var.zones != null ? tolist(var.zones) : []
-  # Get existing zones from the deployed resource (empty list if resource doesn't exist)
-  existing_zones = data.azapi_resource.existing_vmss.exists ? try(
-    data.azapi_resource.existing_vmss.output.zones,
-    []
-  ) : []
-  # Replacement trigger: changes when zones are removed to force resource recreation
-  # This ensures the resource is recreated when zones are removed, matching azurerm provider behavior
-  # Use a hash of the removed zones to create a stable trigger that only changes when zones are actually removed
-  removed_zones_list = [
-    for zone in local.existing_zones : zone
-    if !contains(local.desired_zones, zone)
-  ]
-  # Check if any existing zone has been removed
-  # Returns true if any zone that exists in Azure is missing from the desired configuration
-  zones_removed = length(local.existing_zones) > 0 && length([
-    for zone in local.existing_zones : zone
-    if !contains(local.desired_zones, zone)
-  ]) > 0
-  zones_replacement_trigger = local.zones_removed ? sha256(jsonencode(sort(local.removed_zones_list))) : null
-}
-
-# Single placement group change detection
-# Detects when single_placement_group is being changed from false to true
-# This change is not allowed by Azure and requires resource recreation
-locals {
-  # Get existing single_placement_group value from the deployed resource
-  existing_single_placement_group = data.azapi_resource.existing_vmss.exists ? try(
-    data.azapi_resource.existing_vmss.output.properties.singlePlacementGroup,
-    false
-  ) : false
-  # Detect if attempting to change from false to true (not allowed, requires recreation)
-  single_placement_group_invalid_change = (
-    data.azapi_resource.existing_vmss.exists &&
-    local.existing_single_placement_group == false &&
-    var.single_placement_group == true
-  )
-  # Replacement trigger: forces recreation when attempting invalid change
-  # Use a hash of the state to create a stable trigger that only changes when the invalid change is detected
-  # This prevents infinite loops by ensuring the hash stays consistent after recreation
-  single_placement_group_trigger = local.single_placement_group_invalid_change ? sha256(jsonencode({
-    existing = local.existing_single_placement_group
-    desired  = var.single_placement_group
-  })) : null
-}
-
 # Constrained maximum capacity preservation
 # Azure only accepts constrainedMaximumCapacity when it is true; the property must be
 # omitted entirely otherwise. Reading it back from an existing scale set and echoing the
