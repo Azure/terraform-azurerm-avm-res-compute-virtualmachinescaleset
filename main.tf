@@ -1,8 +1,7 @@
-# Data source to read existing VMSS for drift detection
-# This is used to force recreation when zones are removed, or when
-# single_placement_group changes from false to true, as Azure does not allow
-# either to be updated in place. Both are wired up through
-# replace_triggers_external_values on the scale set resource.
+# Data source to read the existing VMSS so update requests stay valid: it preserves
+# constrainedMaximumCapacity and normalizes license_type. Nothing derived from it may
+# feed a replacement trigger. A `depends_on` on the calling module block always defers
+# this read to apply, so any value derived from it can be unknown during plan.
 #
 # This block deliberately carries no lifecycle pre/postconditions. Terraform
 # widens a data source's deferral check from its explicit `depends_on` to its
@@ -585,12 +584,18 @@ resource "azapi_resource" "virtual_machine_scale_set" {
     } : {}
   )
   ignore_null_property = true
-  # Force recreation when zones are removed
-  # Adding zones is allowed (update in-place), but removing zones requires recreation
-  # This mimics azurerm provider behavior
+  # Both keys are pinned to null. They used to carry drift-detection hashes derived from
+  # data.azapi_resource.existing_vmss, but a `depends_on` on the calling module block defers
+  # that read to apply, which made the hashes unknown and forced azapi to replace the scale
+  # set on every plan with an unrelated upstream change (#205, #227). Removing a zone or
+  # flipping single_placement_group from false to true is rejected by the Compute API in
+  # place, so it now surfaces as an API error; recreate deliberately with
+  # `terraform apply -replace`. The keys are kept, typed as strings, because this value is
+  # compared as a whole object, so any change to its shape or type would replace every
+  # existing scale set.
   replace_triggers_external_values = {
-    zones_removal_trigger          = local.zones_replacement_trigger
-    single_placement_group_trigger = local.single_placement_group_trigger
+    zones_removal_trigger          = tostring(null)
+    single_placement_group_trigger = tostring(null)
   }
   # Force recreation when hibernation is toggled. Azure only accepts
   # additionalCapabilities.hibernationEnabled at creation time, so an in-place update
