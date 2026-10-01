@@ -1,8 +1,7 @@
-# Data source to read existing VMSS for drift detection
-# This is used to force recreation when zones are removed, or when
-# single_placement_group changes from false to true, as Azure does not allow
-# either to be updated in place. Both are wired up through
-# replace_triggers_external_values on the scale set resource.
+# Data source to read the existing VMSS so update requests stay valid: it preserves
+# constrainedMaximumCapacity and normalizes license_type. Nothing derived from it may
+# feed a replacement trigger. A `depends_on` on the calling module block always defers
+# this read to apply, so any value derived from it can be unknown during plan.
 #
 # This block deliberately carries no lifecycle pre/postconditions. Terraform
 # widens a data source's deferral check from its explicit `depends_on` to its
@@ -42,7 +41,7 @@ resource "azapi_resource" "virtual_machine_scale_set" {
           highSpeedInterconnectPlacement = "None"
           orchestrationMode              = "Flexible"
           singlePlacementGroup           = false
-          constrainedMaximumCapacity     = data.azapi_resource.existing_vmss.exists ? data.azapi_resource.existing_vmss.output.properties.constrainedMaximumCapacity : null
+          constrainedMaximumCapacity     = local.constrained_maximum_capacity
         },
         {
           platformFaultDomainCount = var.platform_fault_domain_count
@@ -584,19 +583,22 @@ resource "azapi_resource" "virtual_machine_scale_set" {
       }
     } : {}
   )
-  create_headers = var.enable_telemetry ? { "User-Agent" : local.avm_azapi_header } : null
-  delete_headers = var.enable_telemetry ? { "User-Agent" : local.avm_azapi_header } : null
   # ignore_body_changes is a write-only argument; collapse an empty list to null so it is
   # absent unless the consumer opts in, keeping the module usable before Terraform 1.11.
   ignore_body_changes  = length(var.ignore_body_changes.compute_virtual_machine_scale_sets) > 0 ? var.ignore_body_changes.compute_virtual_machine_scale_sets : null
   ignore_null_property = true
-  read_headers         = var.enable_telemetry ? { "User-Agent" : local.avm_azapi_header } : null
-  # Force recreation when zones are removed
-  # Adding zones is allowed (update in-place), but removing zones requires recreation
-  # This mimics azurerm provider behavior
+  # Both keys are pinned to null. They used to carry drift-detection hashes derived from
+  # data.azapi_resource.existing_vmss, but a `depends_on` on the calling module block defers
+  # that read to apply, which made the hashes unknown and forced azapi to replace the scale
+  # set on every plan with an unrelated upstream change (#205, #227). Removing a zone or
+  # flipping single_placement_group from false to true is rejected by the Compute API in
+  # place, so it now surfaces as an API error; recreate deliberately with
+  # `terraform apply -replace`. The keys are kept, typed as strings, because this value is
+  # compared as a whole object, so any change to its shape or type would replace every
+  # existing scale set.
   replace_triggers_external_values = {
-    zones_removal_trigger          = local.zones_replacement_trigger
-    single_placement_group_trigger = local.single_placement_group_trigger
+    zones_removal_trigger          = tostring(null)
+    single_placement_group_trigger = tostring(null)
   }
   # Force recreation when hibernation is toggled. Azure only accepts
   # additionalCapabilities.hibernationEnabled at creation time, so an in-place update
@@ -646,8 +648,7 @@ resource "azapi_resource" "virtual_machine_scale_set" {
       "properties.virtualMachineProfile.extensionProfile.extensions[?name=='${ext_name}'].properties.protectedSettings" => version
     } : {}
   )
-  tags           = var.tags
-  update_headers = var.enable_telemetry ? { "User-Agent" : local.avm_azapi_header } : null
+  tags = var.tags
 
   # Managed identity configuration - must be at resource level, not in body
   dynamic "identity" {
@@ -908,8 +909,6 @@ resource "azapi_update_resource" "this" {
     } : {}
     # Add more property updates here as needed using additional merge() blocks
   )
-  read_headers   = var.enable_telemetry ? { "User-Agent" : local.avm_azapi_header } : null
-  update_headers = var.enable_telemetry ? { "User-Agent" : local.avm_azapi_header } : null
 
   # Trigger update when update_tracker is replaced
   lifecycle {
@@ -939,11 +938,7 @@ resource "azapi_resource" "lock" {
   parent_id           = azapi_resource.virtual_machine_scale_set.id
   type                = module.avm_utl_interfaces.lock_azapi.type
   body                = module.avm_utl_interfaces.lock_azapi.body
-  create_headers      = var.enable_telemetry ? { "User-Agent" : local.avm_azapi_header } : null
-  delete_headers      = var.enable_telemetry ? { "User-Agent" : local.avm_azapi_header } : null
   ignore_body_changes = length(var.ignore_body_changes.authorization_locks) > 0 ? var.ignore_body_changes.authorization_locks : null
-  read_headers        = var.enable_telemetry ? { "User-Agent" : local.avm_azapi_header } : null
-  update_headers      = var.enable_telemetry ? { "User-Agent" : local.avm_azapi_header } : null
 
   depends_on = [azapi_resource.role_assignments]
 }
@@ -970,15 +965,11 @@ resource "azapi_resource" "role_assignments" {
       principalType                      = module.avm_utl_interfaces.role_assignments_azapi[each.key].body.properties.principalType
     }
   }
-  create_headers       = var.enable_telemetry ? { "User-Agent" : local.avm_azapi_header } : null
-  delete_headers       = var.enable_telemetry ? { "User-Agent" : local.avm_azapi_header } : null
   ignore_body_changes  = length(var.ignore_body_changes.authorization_role_assignments) > 0 ? var.ignore_body_changes.authorization_role_assignments : null
   ignore_null_property = true
-  read_headers         = var.enable_telemetry ? { "User-Agent" : local.avm_azapi_header } : null
   retry = {
     error_message_regex = [
       ".*Please remove the lock and try again.*",
     ]
   }
-  update_headers = var.enable_telemetry ? { "User-Agent" : local.avm_azapi_header } : null
 }

@@ -26,6 +26,7 @@ module "regions" {
   version = "0.3.0"
 
   availability_zones_filter = true
+  enable_telemetry          = var.enable_telemetry
 }
 
 resource "random_integer" "region_index" {
@@ -60,10 +61,10 @@ resource "azurerm_virtual_network" "this" {
 }
 
 resource "azurerm_subnet" "subnet" {
-  address_prefixes     = ["10.0.1.0/24"]
   name                 = module.naming.subnet.name_unique
   resource_group_name  = azurerm_resource_group.this.name
   virtual_network_name = azurerm_virtual_network.this.name
+  address_prefixes     = ["10.0.1.0/24"]
 }
 
 # network security group for the nic with a rule to allow http traffic
@@ -151,12 +152,11 @@ resource "random_string" "id" {
 data "azurerm_client_config" "current" {}
 
 resource "azurerm_key_vault" "example" {
-  location                   = azurerm_resource_group.this.location
-  name                       = "ephemeralavm${random_string.id.result}"
-  resource_group_name        = azurerm_resource_group.this.name
-  sku_name                   = "premium"
-  tenant_id                  = data.azurerm_client_config.current.tenant_id
-  soft_delete_retention_days = 7
+  location            = azurerm_resource_group.this.location
+  name                = "ephemeralavm${random_string.id.result}"
+  resource_group_name = azurerm_resource_group.this.name
+  sku_name            = "premium"
+  tenant_id           = data.azurerm_client_config.current.tenant_id
 
   access_policy {
     key_permissions = [
@@ -183,6 +183,7 @@ resource "azurerm_key_vault" "example" {
     ]
     tenant_id = data.azurerm_client_config.current.tenant_id
   }
+  soft_delete_retention_days = 7
 }
 
 module "avm_ptn_ephemeral_credential" {
@@ -273,9 +274,6 @@ module "terraform_azurerm_avm_res_compute_virtualmachinescaleset" {
 
   depends_on = [azurerm_subnet_nat_gateway_association.this]
 }
-
-
-
 ```
 
 <!-- markdownlint-disable MD033 -->
@@ -330,7 +328,7 @@ If it is set to false, then no telemetry will be collected.
 
 Type: `bool`
 
-Default: `false`
+Default: `true`
 
 ## Outputs
 
