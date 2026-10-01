@@ -583,6 +583,9 @@ resource "azapi_resource" "virtual_machine_scale_set" {
       }
     } : {}
   )
+  # ignore_body_changes is a write-only argument; collapse an empty list to null so it is
+  # absent unless the consumer opts in, keeping the module usable before Terraform 1.11.
+  ignore_body_changes  = length(var.ignore_body_changes.compute_virtual_machine_scale_sets) > 0 ? var.ignore_body_changes.compute_virtual_machine_scale_sets : null
   ignore_null_property = true
   # Both keys are pinned to null. They used to carry drift-detection hashes derived from
   # data.azapi_resource.existing_vmss, but a `depends_on` on the calling module block defers
@@ -931,10 +934,11 @@ moved {
 resource "azapi_resource" "lock" {
   count = var.lock != null ? 1 : 0
 
-  name      = module.avm_utl_interfaces.lock_azapi.name != null ? module.avm_utl_interfaces.lock_azapi.name : "lock-${azapi_resource.virtual_machine_scale_set.name}"
-  parent_id = azapi_resource.virtual_machine_scale_set.id
-  type      = module.avm_utl_interfaces.lock_azapi.type
-  body      = module.avm_utl_interfaces.lock_azapi.body
+  name                = module.avm_utl_interfaces.lock_azapi.name != null ? module.avm_utl_interfaces.lock_azapi.name : "lock-${azapi_resource.virtual_machine_scale_set.name}"
+  parent_id           = azapi_resource.virtual_machine_scale_set.id
+  type                = module.avm_utl_interfaces.lock_azapi.type
+  body                = module.avm_utl_interfaces.lock_azapi.body
+  ignore_body_changes = length(var.ignore_body_changes.authorization_locks) > 0 ? var.ignore_body_changes.authorization_locks : null
 
   depends_on = [azapi_resource.role_assignments]
 }
@@ -961,6 +965,7 @@ resource "azapi_resource" "role_assignments" {
       principalType                      = module.avm_utl_interfaces.role_assignments_azapi[each.key].body.properties.principalType
     }
   }
+  ignore_body_changes  = length(var.ignore_body_changes.authorization_role_assignments) > 0 ? var.ignore_body_changes.authorization_role_assignments : null
   ignore_null_property = true
   retry = {
     error_message_regex = [
