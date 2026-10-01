@@ -9,6 +9,7 @@ module "regions" {
   version = "0.3.0"
 
   availability_zones_filter = true
+  enable_telemetry          = var.enable_telemetry
 }
 
 resource "random_integer" "region_index" {
@@ -29,7 +30,7 @@ module "get_valid_sku_for_deployment_region" {
 
 # This is required for resource modules
 resource "azurerm_resource_group" "this" {
-  location = "southeastasia"
+  location = module.regions.regions[random_integer.region_index.result].name
   name     = module.naming.resource_group.name_unique
   tags     = local.tags
 }
@@ -43,10 +44,10 @@ resource "azurerm_virtual_network" "this" {
 }
 
 resource "azurerm_subnet" "subnet" {
-  address_prefixes     = ["10.0.1.0/24"]
   name                 = module.naming.subnet.name_unique
   resource_group_name  = azurerm_resource_group.this.name
   virtual_network_name = azurerm_virtual_network.this.name
+  address_prefixes     = ["10.0.1.0/24"]
 }
 
 # network security group for the nic with a rule to allow http traffic
@@ -194,7 +195,7 @@ module "terraform_azurerm_avm_res_compute_virtualmachinescaleset" {
       admin_ssh_key                   = toset([tls_private_key.example_ssh.id])
     }
   }
-  sku_name = "Standard_B1ms"
+  sku_name = module.get_valid_sku_for_deployment_region.sku
   source_image_reference = {
     publisher = "Canonical"
     offer     = "0001-com-ubuntu-server-jammy"
@@ -213,6 +214,3 @@ module "terraform_azurerm_avm_res_compute_virtualmachinescaleset" {
   #}
   depends_on = [azurerm_subnet_nat_gateway_association.this]
 }
-
-
-

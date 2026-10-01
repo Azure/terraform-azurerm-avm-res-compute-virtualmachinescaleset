@@ -3,6 +3,69 @@ locals {
   managed_identities = module.managed_identities.managed_identities_azapi
 }
 
+# Extension objects shared by `body` and `sensitive_body` (issue #159).
+# azapi merges sensitive_body over body using RFC 7396 JSON Merge Patch, which
+# REPLACES arrays wholesale instead of deep-merging by element. The extensions
+# array therefore has to be built once and mirrored in full into sensitive_body;
+# otherwise the protected-settings array in sensitive_body overwrites the
+# fully-specified array from body and the extensions are never provisioned.
+locals {
+  # Full, non-sensitive extension objects (used directly in `body`). The
+  # null-guard is on the INPUT to the for-expression (not `? [...] : []`) so a
+  # heterogeneous tuple never has to unify with an empty tuple.
+  extension_objects = [
+    for ext in(var.extension == null ? [] : var.extension) : {
+      name = ext.name
+      properties = merge(
+        {
+          publisher          = ext.publisher
+          type               = ext.type
+          typeHandlerVersion = ext.type_handler_version
+        },
+        ext.auto_upgrade_minor_version_enabled != null ? {
+          autoUpgradeMinorVersion = ext.auto_upgrade_minor_version_enabled
+        } : {},
+        ext.failure_suppression_enabled != null ? {
+          suppressFailures = ext.failure_suppression_enabled
+        } : {},
+        ext.force_extension_execution_on_change != null ? {
+          forceUpdateTag = ext.force_extension_execution_on_change != null ? ext.force_extension_execution_on_change : ""
+        } : {},
+        ext.settings != null && ext.settings != "" ? {
+          settings = jsondecode(ext.settings)
+        } : {},
+        ext.extensions_to_provision_after_vm_creation != null ? {
+          provisionAfterExtensions = ext.extensions_to_provision_after_vm_creation
+        } : {},
+        ext.protected_settings_from_key_vault != null ? {
+          protectedSettingsFromKeyVault = {
+            secretUrl = ext.protected_settings_from_key_vault.secret_url
+            sourceVault = {
+              id = ext.protected_settings_from_key_vault.source_vault_id
+            }
+          }
+        } : {}
+      )
+    }
+  ]
+
+  # Same objects PLUS protectedSettings where provided (used in `sensitive_body`
+  # so the RFC 7396 array replacement keeps every non-sensitive property). No
+  # outer conditional (tuple element types would mismatch); the per-element
+  # merge adds protectedSettings only when present.
+  extension_objects_with_protected_settings = [
+    for ext in local.extension_objects : {
+      name = ext.name
+      properties = merge(
+        ext.properties,
+        try(lookup(var.extension_protected_setting, ext.name, ""), "") != "" ? {
+          protectedSettings = jsondecode(lookup(var.extension_protected_setting, ext.name, ""))
+        } : {}
+      )
+    }
+  ]
+}
+
 # SSH key lookup map for Linux configuration
 locals {
   ssh_keys_map = var.admin_ssh_keys != null ? {
@@ -36,55 +99,21 @@ locals {
   ) : true
 }
 
-# Zones drift detection
-# Detects when zones are removed from configuration, which requires resource recreation
-# This mimics the azurerm provider behavior that prevents zone removal
+# Constrained maximum capacity preservation
+# Azure only accepts constrainedMaximumCapacity when it is true; the property must be
+# omitted entirely otherwise. Reading it back from an existing scale set and echoing the
+# false (or absent) value into the request body makes the API reject the write with
+# "InvalidParameter: Parameter 'constrainedMaximumCapacity' is not allowed".
 locals {
-  # Get desired zones from configuration (empty list if not specified)
-  desired_zones = var.zones != null ? tolist(var.zones) : []
-  # Get existing zones from the deployed resource (empty list if resource doesn't exist)
-  existing_zones = data.azapi_resource.existing_vmss.exists ? try(
-    data.azapi_resource.existing_vmss.output.zones,
-    []
-  ) : []
-  # Replacement trigger: changes when zones are removed to force resource recreation
-  # This ensures the resource is recreated when zones are removed, matching azurerm provider behavior
-  # Use a hash of the removed zones to create a stable trigger that only changes when zones are actually removed
-  removed_zones_list = [
-    for zone in local.existing_zones : zone
-    if !contains(local.desired_zones, zone)
-  ]
-  # Check if any existing zone has been removed
-  # Returns true if any zone that exists in Azure is missing from the desired configuration
-  zones_removed = length(local.existing_zones) > 0 && length([
-    for zone in local.existing_zones : zone
-    if !contains(local.desired_zones, zone)
-  ]) > 0
-  zones_replacement_trigger = local.zones_removed ? sha256(jsonencode(sort(local.removed_zones_list))) : null
-}
-
-# Single placement group change detection
-# Detects when single_placement_group is being changed from false to true
-# This change is not allowed by Azure and requires resource recreation
-locals {
-  # Get existing single_placement_group value from the deployed resource
-  existing_single_placement_group = data.azapi_resource.existing_vmss.exists ? try(
-    data.azapi_resource.existing_vmss.output.properties.singlePlacementGroup,
-    false
-  ) : false
-  # Detect if attempting to change from false to true (not allowed, requires recreation)
-  single_placement_group_invalid_change = (
-    data.azapi_resource.existing_vmss.exists &&
-    local.existing_single_placement_group == false &&
-    var.single_placement_group == true
-  )
-  # Replacement trigger: forces recreation when attempting invalid change
-  # Use a hash of the state to create a stable trigger that only changes when the invalid change is detected
-  # This prevents infinite loops by ensuring the hash stays consistent after recreation
-  single_placement_group_trigger = local.single_placement_group_invalid_change ? sha256(jsonencode({
-    existing = local.existing_single_placement_group
-    desired  = var.single_placement_group
-  })) : null
+  # Emit true only when the deployed scale set already has the property enabled, so the
+  # value set out-of-band is preserved. Anything else resolves to null, which
+  # ignore_null_property drops from the request body.
+  constrained_maximum_capacity = local.existing_constrained_maximum_capacity == true ? true : null
+  # Get existing constrainedMaximumCapacity value from the deployed resource
+  existing_constrained_maximum_capacity = data.azapi_resource.existing_vmss.exists ? try(
+    data.azapi_resource.existing_vmss.output.properties.constrainedMaximumCapacity,
+    null
+  ) : null
 }
 
 # License type normalization

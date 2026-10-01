@@ -1,31 +1,22 @@
-# Data source to read existing VMSS for drift detection
-# This is used to detect when zones are removed (requires recreation) or
-# single_placement_group changes from false to true (not allowed - throws error)
+# Data source to read the existing VMSS so update requests stay valid: it preserves
+# constrainedMaximumCapacity and normalizes license_type. Nothing derived from it may
+# feed a replacement trigger. A `depends_on` on the calling module block always defers
+# this read to apply, so any value derived from it can be unknown during plan.
+#
+# This block deliberately carries no lifecycle pre/postconditions. Terraform
+# widens a data source's deferral check from its explicit `depends_on` to its
+# entire transitive dependency closure as soon as the block declares any custom
+# condition. That would defer this read to apply whenever anything upstream of
+# `parent_id` has a pending change, making every value derived from it unknown
+# and forcing a destructive replacement of the scale set. The assertions that
+# used to live here are preconditions on azapi_resource.virtual_machine_scale_set
+# instead, where they carry the same weight without affecting the read.
 data "azapi_resource" "existing_vmss" {
   name                   = var.name
   parent_id              = var.parent_id
   type                   = "Microsoft.Compute/virtualMachineScaleSets@2024-11-01"
   ignore_not_found       = true
   response_export_values = ["*"]
-
-  lifecycle {
-    postcondition {
-      condition = !(
-        self.exists &&
-        try(self.output.sku, null) != null &&
-        try(self.output.properties.virtualMachineProfile, null) == null
-      )
-      error_message = "Existing VMSS must have `properties.virtualMachineProfile` defined for non-legacy scale sets."
-    }
-    postcondition {
-      condition = !(
-        self.exists &&
-        try(self.output.sku, null) != null &&
-        try(self.output.properties.virtualMachineProfile.storageProfile, null) == null
-      )
-      error_message = "Existing VMSS must have `properties.virtualMachineProfile.storageProfile` defined for non-legacy scale sets."
-    }
-  }
 }
 
 moved {
@@ -50,7 +41,7 @@ resource "azapi_resource" "virtual_machine_scale_set" {
           highSpeedInterconnectPlacement = "None"
           orchestrationMode              = "Flexible"
           singlePlacementGroup           = false
-          constrainedMaximumCapacity     = data.azapi_resource.existing_vmss.exists ? data.azapi_resource.existing_vmss.output.properties.constrainedMaximumCapacity : null
+          constrainedMaximumCapacity     = local.constrained_maximum_capacity
         },
         {
           platformFaultDomainCount = var.platform_fault_domain_count
@@ -94,7 +85,8 @@ resource "azapi_resource" "virtual_machine_scale_set" {
         } : {},
         var.additional_capabilities != null ? {
           additionalCapabilities = {
-            ultraSSDEnabled = var.additional_capabilities.ultra_ssd_enabled
+            ultraSSDEnabled    = var.additional_capabilities.ultra_ssd_enabled
+            hibernationEnabled = var.additional_capabilities.hibernation_enabled
           }
         } : {},
         var.automatic_instance_repair != null ? {
@@ -126,10 +118,54 @@ resource "azapi_resource" "virtual_machine_scale_set" {
                 }
               }
             } : {},
-            var.encryption_at_host_enabled != null ? {
-              securityProfile = {
-                encryptionAtHost = var.encryption_at_host_enabled
-              }
+            var.encryption_at_host_enabled != null || var.proxy_agent_settings != null ? {
+              securityProfile = merge(
+                var.encryption_at_host_enabled != null ? {
+                  encryptionAtHost = var.encryption_at_host_enabled
+                } : {},
+                var.proxy_agent_settings != null ? {
+                  proxyAgentSettings = merge(
+                    {
+                      enabled = var.proxy_agent_settings.enabled
+                    },
+                    var.proxy_agent_settings.key_incarnation_id != null ? {
+                      keyIncarnationId = var.proxy_agent_settings.key_incarnation_id
+                    } : {},
+                    local.is_linux ? {
+                      addProxyAgentExtension = coalesce(
+                        var.proxy_agent_settings.add_proxy_agent_extension,
+                        true
+                      )
+                    } : {},
+                    var.proxy_agent_settings.imds != null && (
+                      var.proxy_agent_settings.imds.mode != null ||
+                      var.proxy_agent_settings.imds.in_vm_access_control_profile_reference_id != null
+                      ) ? {
+                      imds = merge(
+                        var.proxy_agent_settings.imds.mode != null ? {
+                          mode = var.proxy_agent_settings.imds.mode
+                        } : {},
+                        var.proxy_agent_settings.imds.in_vm_access_control_profile_reference_id != null ? {
+                          inVMAccessControlProfileReferenceId = var.proxy_agent_settings.imds.in_vm_access_control_profile_reference_id
+                        } : {}
+                      )
+                    } : {},
+                    var.proxy_agent_settings.wire_server != null && (
+                      var.proxy_agent_settings.wire_server.mode != null ||
+                      var.proxy_agent_settings.wire_server.in_vm_access_control_profile_reference_id != null
+                      ) ? {
+                      wireServer = merge(
+                        var.proxy_agent_settings.wire_server.mode != null ? {
+                          mode = var.proxy_agent_settings.wire_server.mode
+                        } : {},
+                        var.proxy_agent_settings.wire_server.in_vm_access_control_profile_reference_id != null ? {
+                          inVMAccessControlProfileReferenceId = var.proxy_agent_settings.wire_server.in_vm_access_control_profile_reference_id
+                        } : {}
+                      )
+                    } : {}
+                  )
+                } : {}
+              )
             } : {},
             var.eviction_policy != null ? {
               evictionPolicy = var.eviction_policy
@@ -140,41 +176,7 @@ resource "azapi_resource" "virtual_machine_scale_set" {
                   extensionsTimeBudget = var.extensions_time_budget
                 } : {},
                 try(length(var.extension) > 0, false) ? {
-                  extensions = [
-                    for ext in var.extension : {
-                      name = ext.name
-                      properties = merge(
-                        {
-                          publisher          = ext.publisher
-                          type               = ext.type
-                          typeHandlerVersion = ext.type_handler_version
-                        },
-                        ext.auto_upgrade_minor_version_enabled != null ? {
-                          autoUpgradeMinorVersion = ext.auto_upgrade_minor_version_enabled
-                        } : {},
-                        ext.failure_suppression_enabled != null ? {
-                          suppressFailures = ext.failure_suppression_enabled
-                        } : {},
-                        ext.force_extension_execution_on_change != null ? {
-                          forceUpdateTag = ext.force_extension_execution_on_change != null ? ext.force_extension_execution_on_change : ""
-                        } : {},
-                        ext.settings != null && ext.settings != "" ? {
-                          settings = jsondecode(ext.settings)
-                        } : {},
-                        ext.extensions_to_provision_after_vm_creation != null ? {
-                          provisionAfterExtensions = ext.extensions_to_provision_after_vm_creation
-                        } : {},
-                        ext.protected_settings_from_key_vault != null ? {
-                          protectedSettingsFromKeyVault = {
-                            secretUrl = ext.protected_settings_from_key_vault.secret_url
-                            sourceVault = {
-                              id = ext.protected_settings_from_key_vault.source_vault_id
-                            }
-                          }
-                        } : {}
-                      )
-                    }
-                  ]
+                  extensions = local.extension_objects
                 } : {}
               )
             } : {},
@@ -376,38 +378,43 @@ resource "azapi_resource" "virtual_machine_scale_set" {
                                 } : {},
                                 ip_config.public_ip_address != null && length(ip_config.public_ip_address) > 0 ? {
                                   publicIPAddressConfiguration = {
-                                    name = ip_config.public_ip_address[0].name
+                                    name = one(ip_config.public_ip_address).name
                                     properties = merge(
                                       {
                                       },
-                                      ip_config.public_ip_address[0].domain_name_label != null ? {
+                                      one(ip_config.public_ip_address).domain_name_label != null ? {
                                         dnsSettings = {
-                                          domainNameLabel = ip_config.public_ip_address[0].domain_name_label
+                                          domainNameLabel = one(ip_config.public_ip_address).domain_name_label
                                         }
                                       } : {},
-                                      ip_config.public_ip_address[0].idle_timeout_in_minutes != null ? {
-                                        idleTimeoutInMinutes = ip_config.public_ip_address[0].idle_timeout_in_minutes
+                                      one(ip_config.public_ip_address).idle_timeout_in_minutes != null ? {
+                                        idleTimeoutInMinutes = one(ip_config.public_ip_address).idle_timeout_in_minutes
                                       } : {},
-                                      ip_config.public_ip_address[0].ip_tag != null && length(ip_config.public_ip_address[0].ip_tag) > 0 ? {
+                                      one(ip_config.public_ip_address).ip_tag != null && length(one(ip_config.public_ip_address).ip_tag) > 0 ? {
                                         ipTags = [
-                                          for tag in ip_config.public_ip_address[0].ip_tag : {
+                                          for tag in one(ip_config.public_ip_address).ip_tag : {
                                             ipTagType = tag.type
                                             tag       = tag.tag
                                           }
                                         ]
                                       } : {},
-                                      ip_config.public_ip_address[0].public_ip_prefix_id != null ? {
+                                      one(ip_config.public_ip_address).public_ip_prefix_id != null ? {
                                         publicIPPrefix = {
-                                          id = ip_config.public_ip_address[0].public_ip_prefix_id
+                                          id = one(ip_config.public_ip_address).public_ip_prefix_id
                                         }
                                       } : {},
-                                      ip_config.public_ip_address[0].version != null ? {
-                                        publicIPAddressVersion = ip_config.public_ip_address[0].version
+                                      one(ip_config.public_ip_address).version != null ? {
+                                        publicIPAddressVersion = one(ip_config.public_ip_address).version
                                       } : {}
                                     )
-                                    sku = ip_config.public_ip_address[0].sku_name != null ? {
-                                      name = ip_config.public_ip_address[0].sku_name
-                                    } : null
+                                    sku = (one(ip_config.public_ip_address).sku_name != null || one(ip_config.public_ip_address).sku_tier != null) ? merge(
+                                      one(ip_config.public_ip_address).sku_name != null ? {
+                                        name = one(ip_config.public_ip_address).sku_name
+                                      } : {},
+                                      one(ip_config.public_ip_address).sku_tier != null ? {
+                                        tier = one(ip_config.public_ip_address).sku_tier
+                                      } : {}
+                                    ) : null
                                   }
                                 } : {}
                               )
@@ -576,17 +583,27 @@ resource "azapi_resource" "virtual_machine_scale_set" {
       }
     } : {}
   )
-  create_headers       = var.enable_telemetry ? { "User-Agent" : local.avm_azapi_header } : null
-  delete_headers       = var.enable_telemetry ? { "User-Agent" : local.avm_azapi_header } : null
   ignore_null_property = true
-  read_headers         = var.enable_telemetry ? { "User-Agent" : local.avm_azapi_header } : null
-  # Force recreation when zones are removed
-  # Adding zones is allowed (update in-place), but removing zones requires recreation
-  # This mimics azurerm provider behavior
+  # Both keys are pinned to null. They used to carry drift-detection hashes derived from
+  # data.azapi_resource.existing_vmss, but a `depends_on` on the calling module block defers
+  # that read to apply, which made the hashes unknown and forced azapi to replace the scale
+  # set on every plan with an unrelated upstream change (#205, #227). Removing a zone or
+  # flipping single_placement_group from false to true is rejected by the Compute API in
+  # place, so it now surfaces as an API error; recreate deliberately with
+  # `terraform apply -replace`. The keys are kept, typed as strings, because this value is
+  # compared as a whole object, so any change to its shape or type would replace every
+  # existing scale set.
   replace_triggers_external_values = {
-    zones_removal_trigger          = local.zones_replacement_trigger
-    single_placement_group_trigger = local.single_placement_group_trigger
+    zones_removal_trigger          = tostring(null)
+    single_placement_group_trigger = tostring(null)
   }
+  # Force recreation when hibernation is toggled. Azure only accepts
+  # additionalCapabilities.hibernationEnabled at creation time, so an in-place update
+  # would be rejected by the API. This compares the body at the given JMESPath between
+  # state and plan, rather than adding a key to replace_triggers_external_values, because
+  # that value is compared as a whole object and gaining a key would force replacement of
+  # every existing scale set on upgrade.
+  replace_triggers_refs = ["properties.additionalCapabilities.hibernationEnabled"]
   # Sensitive body for write-only properties
   sensitive_body = {
     properties = {
@@ -606,14 +623,7 @@ resource "azapi_resource" "virtual_machine_scale_set" {
         } : {},
         try(length(var.extension_protected_setting) > 0, false) && try(length(var.extension) > 0, false) ? {
           extensionProfile = {
-            extensions = [
-              for ext in var.extension : {
-                name = ext.name
-                properties = lookup(var.extension_protected_setting, ext.name, "") != "" ? {
-                  protectedSettings = jsondecode(lookup(var.extension_protected_setting, ext.name, ""))
-                } : {}
-              }
-            ]
+            extensions = local.extension_objects_with_protected_settings
           }
         } : {}
       )
@@ -635,8 +645,7 @@ resource "azapi_resource" "virtual_machine_scale_set" {
       "properties.virtualMachineProfile.extensionProfile.extensions[?name=='${ext_name}'].properties.protectedSettings" => version
     } : {}
   )
-  tags           = var.tags
-  update_headers = var.enable_telemetry ? { "User-Agent" : local.avm_azapi_header } : null
+  tags = var.tags
 
   # Managed identity configuration - must be at resource level, not in body
   dynamic "identity" {
@@ -647,6 +656,7 @@ resource "azapi_resource" "virtual_machine_scale_set" {
       identity_ids = identity.value.identity_ids
     }
   }
+
   dynamic "timeouts" {
     for_each = var.timeouts == null ? [] : [var.timeouts]
 
@@ -663,6 +673,26 @@ resource "azapi_resource" "virtual_machine_scale_set" {
       body.zones,
     ]
 
+    # Relocated from data.azapi_resource.existing_vmss. Declaring these on the
+    # data source would force its read to be deferred to apply whenever any
+    # transitive dependency has a pending change; conditions on a managed
+    # resource carry no such penalty.
+    precondition {
+      condition = !(
+        data.azapi_resource.existing_vmss.exists &&
+        try(data.azapi_resource.existing_vmss.output.sku, null) != null &&
+        try(data.azapi_resource.existing_vmss.output.properties.virtualMachineProfile, null) == null
+      )
+      error_message = "Existing VMSS must have `properties.virtualMachineProfile` defined for non-legacy scale sets."
+    }
+    precondition {
+      condition = !(
+        data.azapi_resource.existing_vmss.exists &&
+        try(data.azapi_resource.existing_vmss.output.sku, null) != null &&
+        try(data.azapi_resource.existing_vmss.output.properties.virtualMachineProfile.storageProfile, null) == null
+      )
+      error_message = "Existing VMSS must have `properties.virtualMachineProfile.storageProfile` defined for non-legacy scale sets."
+    }
     precondition {
       condition     = var.zone_balance != true || (var.zones != null && length(var.zones) > 0)
       error_message = "`zone_balance` can only be set to `true` when availability zones are specified."
@@ -841,6 +871,11 @@ resource "azapi_resource" "virtual_machine_scale_set" {
       )
       error_message = "`priority_mix` can only be specified when `priority` is set to `Spot`."
     }
+    # Orchestrated VMSS only supports UserAssigned identity (not SystemAssigned)
+    precondition {
+      condition     = !var.managed_identities.system_assigned
+      error_message = "Orchestrated Virtual Machine Scale Sets do not support system-assigned managed identities. Only user-assigned managed identities are supported. Please set 'system_assigned' to false or omit it."
+    }
   }
 }
 
@@ -871,12 +906,6 @@ resource "azapi_update_resource" "this" {
     } : {}
     # Add more property updates here as needed using additional merge() blocks
   )
-  read_headers   = var.enable_telemetry ? { "User-Agent" : local.avm_azapi_header } : null
-  update_headers = var.enable_telemetry ? { "User-Agent" : local.avm_azapi_header } : null
-
-  depends_on = [
-    azapi_resource.virtual_machine_scale_set,
-  ]
 
   # Trigger update when update_tracker is replaced
   lifecycle {
@@ -887,6 +916,9 @@ resource "azapi_update_resource" "this" {
       terraform_data.update_tracker
     ]
   }
+  depends_on = [
+    azapi_resource.virtual_machine_scale_set,
+  ]
 }
 
 # AVM Required Code
@@ -899,14 +931,10 @@ moved {
 resource "azapi_resource" "lock" {
   count = var.lock != null ? 1 : 0
 
-  name           = module.avm_utl_interfaces.lock_azapi.name != null ? module.avm_utl_interfaces.lock_azapi.name : "lock-${azapi_resource.virtual_machine_scale_set.name}"
-  parent_id      = azapi_resource.virtual_machine_scale_set.id
-  type           = module.avm_utl_interfaces.lock_azapi.type
-  body           = module.avm_utl_interfaces.lock_azapi.body
-  create_headers = var.enable_telemetry ? { "User-Agent" : local.avm_azapi_header } : null
-  delete_headers = var.enable_telemetry ? { "User-Agent" : local.avm_azapi_header } : null
-  read_headers   = var.enable_telemetry ? { "User-Agent" : local.avm_azapi_header } : null
-  update_headers = var.enable_telemetry ? { "User-Agent" : local.avm_azapi_header } : null
+  name      = module.avm_utl_interfaces.lock_azapi.name != null ? module.avm_utl_interfaces.lock_azapi.name : "lock-${azapi_resource.virtual_machine_scale_set.name}"
+  parent_id = azapi_resource.virtual_machine_scale_set.id
+  type      = module.avm_utl_interfaces.lock_azapi.type
+  body      = module.avm_utl_interfaces.lock_azapi.body
 
   depends_on = [azapi_resource.role_assignments]
 }
@@ -933,14 +961,10 @@ resource "azapi_resource" "role_assignments" {
       principalType                      = module.avm_utl_interfaces.role_assignments_azapi[each.key].body.properties.principalType
     }
   }
-  create_headers       = var.enable_telemetry ? { "User-Agent" : local.avm_azapi_header } : null
-  delete_headers       = var.enable_telemetry ? { "User-Agent" : local.avm_azapi_header } : null
   ignore_null_property = true
-  read_headers         = var.enable_telemetry ? { "User-Agent" : local.avm_azapi_header } : null
   retry = {
     error_message_regex = [
       ".*Please remove the lock and try again.*",
     ]
   }
-  update_headers = var.enable_telemetry ? { "User-Agent" : local.avm_azapi_header } : null
 }

@@ -1,7 +1,7 @@
 variable "extension_protected_setting" {
   type        = map(string)
-  ephemeral   = true
   description = "(Optional) A JSON String which specifies Sensitive Settings (such as Passwords) for the Extension."
+  ephemeral   = true
 }
 
 variable "location" {
@@ -29,8 +29,8 @@ variable "parent_id" {
 
 variable "user_data_base64" {
   type        = string
-  ephemeral   = true
   description = "(Optional) The Base64-Encoded User Data which should be used for this Virtual Machine Scale Set."
+  ephemeral   = true
 
   validation {
     condition     = var.user_data_base64 == null || can(base64decode(var.user_data_base64))
@@ -40,19 +40,26 @@ variable "user_data_base64" {
 
 variable "additional_capabilities" {
   type = object({
-    ultra_ssd_enabled = optional(bool)
+    ultra_ssd_enabled   = optional(bool)
+    hibernation_enabled = optional(bool)
   })
   default     = null
   description = <<-EOT
  - `ultra_ssd_enabled` - (Optional) Should the capacity to enable Data Disks of the `UltraSSD_LRS` storage account type be supported on this Orchestrated Virtual Machine Scale Set? Defaults to `false`. Changing this forces a new resource to be created.
+ - `hibernation_enabled` - (Optional) Should hibernation be enabled on this Orchestrated Virtual Machine Scale Set? Defaults to `false`. Hibernation can only be configured when the scale set is created, so changing this forces a new resource to be created. Hibernation is only supported on specific VM sizes and operating systems, and cannot be combined with an ephemeral OS disk. See <https://learn.microsoft.com/azure/virtual-machines/hibernate-resume> for the current restrictions.
 EOT
+
+  validation {
+    condition     = try(var.additional_capabilities.hibernation_enabled, null) != true || try(var.os_disk.diff_disk_settings, null) == null
+    error_message = "`hibernation_enabled` cannot be used with an ephemeral OS disk. Remove `os_disk.diff_disk_settings` or disable hibernation."
+  }
 }
 
 variable "admin_password" {
   type        = string
-  ephemeral   = true
   default     = null
   description = "(Optional) Sets the VM password"
+  ephemeral   = true
 }
 
 variable "admin_password_version" {
@@ -133,9 +140,9 @@ EOT
 
 variable "custom_data" {
   type        = string
-  ephemeral   = true
   default     = null
   description = "(Optional) The Base64-Encoded Custom Data which should be used for this Virtual Machine Scale Set. This value will be passed through sensitive_body and not stored in state file."
+  ephemeral   = true
 }
 
 variable "custom_data_version" {
@@ -422,12 +429,12 @@ variable "max_bid_price" {
 variable "network_api_version" {
   type        = string
   default     = "2020-11-01"
-  description = "(Optional) Specifies the Microsoft.Network API version used when creating networking resources in the Network Interface Configurations for Virtual Machine Scale Set. Possible values are `2020-11-01` and `2022-11-01`. Defaults to `2020-11-01`."
+  description = "(Optional) Specifies the Microsoft.Network API version used when creating networking resources in the Network Interface Configurations for Virtual Machine Scale Set. Must be a Microsoft.Network API version in `YYYY-MM-DD` form, optionally suffixed with `-preview`. Defaults to `2020-11-01`.\n\n> Note: Newer features require a newer API version. For example, the `StandardV2` Public IP SKU requires `2023-06-01` or later."
   nullable    = false
 
   validation {
-    condition     = contains(["2020-11-01", "2022-11-01"], var.network_api_version)
-    error_message = "Possible values are `2020-11-01` and `2022-11-01`"
+    condition     = can(regex("^\\d{4}-\\d{2}-\\d{2}(-preview)?$", var.network_api_version))
+    error_message = "`network_api_version` must be a Microsoft.Network API version in `YYYY-MM-DD` form, optionally suffixed with `-preview` (for example `2023-06-01`)."
   }
 }
 
@@ -453,6 +460,7 @@ variable "network_interface" {
         name                    = string
         public_ip_prefix_id     = optional(string)
         sku_name                = optional(string)
+        sku_tier                = optional(string)
         version                 = optional(string)
         ip_tag = optional(set(object({
           tag  = string
@@ -495,7 +503,13 @@ variable "network_interface" {
  - `idle_timeout_in_minutes` - (Optional) The Idle Timeout in Minutes for the Public IP Address. Possible values are in the range `4` to `32`.
  - `name` - (Required) The Name of the Public IP Address Configuration.
  - `public_ip_prefix_id` - (Optional) The ID of the Public IP Address Prefix from where Public IP Addresses should be allocated. Changing this forces a new resource to be created.
- - `sku_name` - (Optional) Specifies what Public IP Address SKU the Public IP Address should be provisioned as. Possible vaules include `Basic_Regional`, `Basic_Global`, `Standard_Regional` or `Standard_Global`. For more information about Public IP Address SKU's and their capabilities, please see the [product documentation](https://docs.microsoft.com/azure/virtual-network/ip-services/public-ip-addresses#sku). Changing this forces a new resource to be created.
+ - `sku_name` - (Optional) Specifies the Public IP Address SKU name the Public IP Address should be provisioned as. Possible values include `Basic`, `Standard` and `StandardV2`. For more information about Public IP Address SKU's and their capabilities, please see the [product documentation](https://docs.microsoft.com/azure/virtual-network/ip-services/public-ip-addresses#sku). Changing this forces a new resource to be created.
+
+ > Note: The combined `<name>_<tier>` format used by the legacy `azurerm` provider (for example `Standard_Regional`) is not valid here. Specify the SKU name in `sku_name` and the tier in `sku_tier` instead.
+
+ > Note: `StandardV2` requires `network_api_version` to be set to `2023-06-01` or later.
+
+ - `sku_tier` - (Optional) Specifies the Public IP Address SKU tier the Public IP Address should be provisioned as. Possible values are `Regional` and `Global`. Changing this forces a new resource to be created.
  - `version` - (Optional) The Internet Protocol Version which should be used for this public IP address. Possible values are `IPv4` and `IPv6`. Defaults to `IPv4`. Changing this forces a new resource to be created.
 
  ---
@@ -518,7 +532,7 @@ EOT
       for ni in var.network_interface : alltrue([
         for ic in ni.ip_configuration : ic.public_ip_address == null ? true : alltrue([
           for pip in ic.public_ip_address : alltrue([
-            pip.domain_name_label == null ? true : length(regexall("^[a-z0-9-]+$", var.network_interface.ip_configuration.public_ip_address.domain_name_label)) > 0
+            pip.domain_name_label == null ? true : length(regexall("^[a-z0-9-]+$", pip.domain_name_label)) > 0
           ])
         ])
       ])
@@ -530,12 +544,45 @@ EOT
       for ni in var.network_interface : alltrue([
         for ic in ni.ip_configuration : ic.public_ip_address == null ? true : alltrue([
           for pip in ic.public_ip_address : alltrue([
-            pip.idle_timeout_in_minutes == null ? true : pip.idle_timeout_in_minutes >= 4 && var.network_interface.ip_configuration.public_ip_address.idle_timeout_in_minutes <= 32
+            pip.idle_timeout_in_minutes == null ? true : pip.idle_timeout_in_minutes >= 4 && pip.idle_timeout_in_minutes <= 32
           ])
         ])
       ])
     ])
     error_message = "Valid 'idle_timeout_in_minutes'  values must be between 4 and 32"
+  }
+  validation {
+    condition = var.network_interface == null ? true : alltrue([
+      for ni in var.network_interface : alltrue([
+        for ic in ni.ip_configuration : ic.public_ip_address == null ? true : alltrue([
+          for pip in ic.public_ip_address :
+          pip.sku_name == null ? true : !strcontains(pip.sku_name, "_")
+        ])
+      ])
+    ])
+    error_message = "The 'public_ip_address' 'sku_name' must not use the combined '<name>_<tier>' format (for example 'Standard_Regional') that was specific to the legacy azurerm provider. Set 'sku_name' to the SKU name only (for example 'Standard' or 'StandardV2') and use 'sku_tier' for 'Regional' or 'Global'."
+  }
+  validation {
+    condition = var.network_interface == null ? true : alltrue([
+      for ni in var.network_interface : alltrue([
+        for ic in ni.ip_configuration : ic.public_ip_address == null ? true : alltrue([
+          for pip in ic.public_ip_address :
+          pip.sku_tier == null ? true : contains(["Regional", "Global"], pip.sku_tier)
+        ])
+      ])
+    ])
+    error_message = "The 'public_ip_address' 'sku_tier' must be one of: 'Regional' or 'Global'."
+  }
+  validation {
+    condition = var.network_interface == null ? true : alltrue([
+      for ni in var.network_interface : alltrue([
+        for ic in ni.ip_configuration : ic.public_ip_address == null ? true : alltrue([
+          for pip in ic.public_ip_address :
+          pip.sku_name != "StandardV2" ? true : try(tonumber(replace(substr(var.network_api_version, 0, 10), "-", "")), 0) >= 20230601
+        ])
+      ])
+    ])
+    error_message = "The 'StandardV2' Public IP Address 'sku_name' requires 'network_api_version' to be '2023-06-01' or later."
   }
 }
 
@@ -801,6 +848,91 @@ variable "proximity_placement_group_id" {
   description = "(Optional) The ID of the Proximity Placement Group which the Orchestrated Virtual Machine should be assigned to. Changing this forces a new resource to be created."
 }
 
+variable "proxy_agent_settings" {
+  type = object({
+    enabled                   = optional(bool, true)
+    key_incarnation_id        = optional(number)
+    add_proxy_agent_extension = optional(bool)
+    imds = optional(object({
+      mode                                      = optional(string)
+      in_vm_access_control_profile_reference_id = optional(string)
+    }))
+    wire_server = optional(object({
+      mode                                      = optional(string)
+      in_vm_access_control_profile_reference_id = optional(string)
+    }))
+  })
+  default     = null
+  description = <<-EOT
+(Optional) Metadata Security Protocol (MSP) settings for the Guest Proxy Agent. MSP restricts in-guest access to Azure Instance Metadata Service (IMDS) and WireServer. The selected image must be [compatible with MSP](https://learn.microsoft.com/azure/virtual-machines/metadata-security-protocol/overview#compatibility).
+
+- `enabled` - (Optional) Enables MSP. Defaults to `true` when this object is supplied.
+- `key_incarnation_id` - (Optional) Non-negative integer used to reset the key that secures guest-to-host communication. Increase this value only for recovery or troubleshooting.
+- `add_proxy_agent_extension` - (Optional) Installs or removes the Proxy Agent extension implicitly. This setting is only valid for Linux and defaults to `true`. When omitted for Windows, the property is not sent because Azure installs the Windows extension automatically.
+- `imds` - (Optional) Configuration for the Azure Instance Metadata Service endpoint.
+  - `mode` - (Optional) Inline protection mode. Valid values are `Audit`, `Enforce`, and `Disabled`.
+  - `in_vm_access_control_profile_reference_id` - (Optional) Full resource ID of a Compute Gallery InVMAccessControlProfile version. Cannot be combined with `mode`.
+- `wire_server` - (Optional) Configuration for the WireServer endpoint.
+  - `mode` - (Optional) Inline protection mode. Valid values are `Audit`, `Enforce`, and `Disabled`.
+  - `in_vm_access_control_profile_reference_id` - (Optional) Full resource ID of a Compute Gallery InVMAccessControlProfile version. Cannot be combined with `mode`.
+
+Microsoft recommends starting with both endpoints in `Audit` mode, reviewing the guest audit logs, and then moving to `Enforce`. See <https://learn.microsoft.com/azure/virtual-machines/metadata-security-protocol/configuration>.
+
+Example:
+```hcl
+proxy_agent_settings = {
+  enabled = true
+  imds = {
+    mode = "Audit"
+  }
+  wire_server = {
+    mode = "Audit"
+  }
+}
+```
+EOT
+
+  validation {
+    condition = var.proxy_agent_settings == null || var.proxy_agent_settings.key_incarnation_id == null || (
+      var.proxy_agent_settings.key_incarnation_id >= 0 &&
+      floor(var.proxy_agent_settings.key_incarnation_id) == var.proxy_agent_settings.key_incarnation_id
+    )
+    error_message = "`proxy_agent_settings.key_incarnation_id` must be a non-negative integer."
+  }
+  validation {
+    condition = var.proxy_agent_settings == null || alltrue([
+      for endpoint in [var.proxy_agent_settings.imds, var.proxy_agent_settings.wire_server] :
+      endpoint == null || endpoint.mode == null || contains(["Audit", "Enforce", "Disabled"], endpoint.mode)
+    ])
+    error_message = "The proxy agent endpoint `mode` must be one of `Audit`, `Enforce`, or `Disabled`."
+  }
+  validation {
+    condition = var.proxy_agent_settings == null || alltrue([
+      for endpoint in [var.proxy_agent_settings.imds, var.proxy_agent_settings.wire_server] :
+      endpoint == null || endpoint.mode == null || endpoint.in_vm_access_control_profile_reference_id == null
+    ])
+    error_message = "A proxy agent endpoint cannot set both `mode` and `in_vm_access_control_profile_reference_id`."
+  }
+  validation {
+    condition = var.proxy_agent_settings == null || alltrue([
+      for endpoint in [var.proxy_agent_settings.imds, var.proxy_agent_settings.wire_server] :
+      endpoint == null || endpoint.in_vm_access_control_profile_reference_id == null || can(regex(
+        "(?i)^/subscriptions/[^/]+/resourceGroups/[^/]+/providers/Microsoft\\.Compute/galleries/[^/]+/inVMAccessControlProfiles/[^/]+/versions/[^/]+$",
+        endpoint.in_vm_access_control_profile_reference_id
+      ))
+    ])
+    error_message = "A proxy agent access-control profile reference must be a valid Microsoft.Compute/galleries/inVMAccessControlProfiles/versions resource ID."
+  }
+  validation {
+    condition = (
+      var.proxy_agent_settings == null ||
+      var.proxy_agent_settings.add_proxy_agent_extension != true ||
+      try(var.os_profile.linux_configuration, null) != null
+    )
+    error_message = "`proxy_agent_settings.add_proxy_agent_extension = true` is only valid for a Linux VMSS."
+  }
+}
+
 variable "role_assignments" {
   type = map(object({
     role_definition_id_or_name             = string
@@ -834,7 +966,7 @@ variable "single_placement_group" {
   type        = bool
   default     = null
   description = <<-EOT
-(Optional) Should this Virtual Machine Scale Set be limited to a Single Placement Group, which means the number of instances will be capped at 100 Virtual Machines. Change this value will result in the Orchestrated Virtual Machine Scale Set being recreated.
+(Optional) Should this Virtual Machine Scale Set be limited to a Single Placement Group, which means the number of instances will be capped at 100 Virtual Machines. Changing this value from `false` to `true` is rejected by the Azure API; recreate the scale set deliberately with `terraform apply -replace` instead.
 > Note: `single_placement_group` behaves differently for Orchestrated Virtual Machine Scale Sets than it does for other Virtual Machine Scale Sets. If you do not define the `single_placement_group` field in your configuration file the service will determin what this value should be based off of the value contained within the `sku_name` field of your configuration file. You may set the `single_placement_group` field to `true`, however once you set it to `false` you will not be able to revert it back to `true`. If you wish to use Specialty Sku virtual machines (e.g. [M-Seiries](https://docs.microsoft.com/azure/virtual-machines/m-series) virtual machines) you will need to contact you Microsoft support professional and request to be added to the include list since this feature is currently in private preview until the end of September 2022. Once you have been added to the private preview include list you will need to run the following command to register your subscription with the feature: `az feature register --namespace Microsoft.Compute --name SpecialSkusForVmssFlex`. If you are not on the include list this command will error out with the following error message `(featureRegistrationUnsupported) The feature 'SpecialSkusForVmssFlex' does not support registration`.
 EOT
 }
@@ -967,8 +1099,8 @@ variable "zones" {
   type        = set(string)
   default     = ["1", "2", "3"]
   description = <<-EOT
-Specifies a list of Availability Zones in which this Orchestrated Virtual Machine should be located. Changing this forces a new Orchestrated Virtual Machine to be created.  Defaulted to 3 zones as per this reliability guidance: [Deploy Virtual Machine Scale Sets across availability zones with Virtual Machine Scale Sets Flex](https://learn.microsoft.com/en-us/azure/reliability/reliability-virtual-machine-scale-sets?tabs=graph-4%2Cgraph-1%2Cgraph-2%2Cgraph-3%2Cgraph-5%2Cgraph-6%2Cportal#-deploy-virtual-machine-scale-sets-across-availability-zones-with-virtual-machine-scale-sets-flex)
-Removing any zones from this list will result in the Orchestrated Virtual Machine Scale Set being recreated.
+Specifies a list of Availability Zones in which this Orchestrated Virtual Machine should be located. Defaulted to 3 zones as per this reliability guidance: [Deploy Virtual Machine Scale Sets across availability zones with Virtual Machine Scale Sets Flex](https://learn.microsoft.com/en-us/azure/reliability/reliability-virtual-machine-scale-sets?tabs=graph-4%2Cgraph-1%2Cgraph-2%2Cgraph-3%2Cgraph-5%2Cgraph-6%2Cportal#-deploy-virtual-machine-scale-sets-across-availability-zones-with-virtual-machine-scale-sets-flex)
+Zones can be added in place. Removing a zone is rejected by the Azure API; to remove one, recreate the scale set deliberately with `terraform apply -replace`.
 > Note: Due to a limitation of the Azure API at this time only one Availability Zone can be defined.
 EOT
 }

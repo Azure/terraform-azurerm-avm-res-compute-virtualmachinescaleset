@@ -15,7 +15,7 @@ The following requirements are needed by this module:
 
 - <a name="requirement_terraform"></a> [terraform](#requirement\_terraform) (>= 1.9, < 2.0)
 
-- <a name="requirement_azapi"></a> [azapi](#requirement\_azapi) (~> 2.4)
+- <a name="requirement_azapi"></a> [azapi](#requirement\_azapi) (~> 2.12)
 
 - <a name="requirement_modtm"></a> [modtm](#requirement\_modtm) (~> 0.3)
 
@@ -78,12 +78,14 @@ The following input variables are optional (have default values):
 ### <a name="input_additional_capabilities"></a> [additional\_capabilities](#input\_additional\_capabilities)
 
 Description: - `ultra_ssd_enabled` - (Optional) Should the capacity to enable Data Disks of the `UltraSSD_LRS` storage account type be supported on this Orchestrated Virtual Machine Scale Set? Defaults to `false`. Changing this forces a new resource to be created.
+- `hibernation_enabled` - (Optional) Should hibernation be enabled on this Orchestrated Virtual Machine Scale Set? Defaults to `false`. Hibernation can only be configured when the scale set is created, so changing this forces a new resource to be created. Hibernation is only supported on specific VM sizes and operating systems, and cannot be combined with an ephemeral OS disk. See <https://learn.microsoft.com/azure/virtual-machines/hibernate-resume> for the current restrictions.
 
 Type:
 
 ```hcl
 object({
-    ultra_ssd_enabled = optional(bool)
+    ultra_ssd_enabled   = optional(bool)
+    hibernation_enabled = optional(bool)
   })
 ```
 
@@ -428,7 +430,9 @@ Default: `-1`
 
 ### <a name="input_network_api_version"></a> [network\_api\_version](#input\_network\_api\_version)
 
-Description: (Optional) Specifies the Microsoft.Network API version used when creating networking resources in the Network Interface Configurations for Virtual Machine Scale Set. Possible values are `2020-11-01` and `2022-11-01`. Defaults to `2020-11-01`.
+Description: (Optional) Specifies the Microsoft.Network API version used when creating networking resources in the Network Interface Configurations for Virtual Machine Scale Set. Must be a Microsoft.Network API version in `YYYY-MM-DD` form, optionally suffixed with `-preview`. Defaults to `2020-11-01`.
+
+> Note: Newer features require a newer API version. For example, the `StandardV2` Public IP SKU requires `2023-06-01` or later.
 
 Type: `string`
 
@@ -468,7 +472,13 @@ Description:  - `dns_servers` - (Optional) A set of IP Addresses of DNS Servers 
  - `idle_timeout_in_minutes` - (Optional) The Idle Timeout in Minutes for the Public IP Address. Possible values are in the range `4` to `32`.
  - `name` - (Required) The Name of the Public IP Address Configuration.
  - `public_ip_prefix_id` - (Optional) The ID of the Public IP Address Prefix from where Public IP Addresses should be allocated. Changing this forces a new resource to be created.
- - `sku_name` - (Optional) Specifies what Public IP Address SKU the Public IP Address should be provisioned as. Possible vaules include `Basic_Regional`, `Basic_Global`, `Standard_Regional` or `Standard_Global`. For more information about Public IP Address SKU's and their capabilities, please see the [product documentation](https://docs.microsoft.com/azure/virtual-network/ip-services/public-ip-addresses#sku). Changing this forces a new resource to be created.
+ - `sku_name` - (Optional) Specifies the Public IP Address SKU name the Public IP Address should be provisioned as. Possible values include `Basic`, `Standard` and `StandardV2`. For more information about Public IP Address SKU's and their capabilities, please see the [product documentation](https://docs.microsoft.com/azure/virtual-network/ip-services/public-ip-addresses#sku). Changing this forces a new resource to be created.
+
+ > Note: The combined `<name>_<tier>` format used by the legacy `azurerm` provider (for example `Standard_Regional`) is not valid here. Specify the SKU name in `sku_name` and the tier in `sku_tier` instead.
+
+ > Note: `StandardV2` requires `network_api_version` to be set to `2023-06-01` or later.
+
+ - `sku_tier` - (Optional) Specifies the Public IP Address SKU tier the Public IP Address should be provisioned as. Possible values are `Regional` and `Global`. Changing this forces a new resource to be created.
  - `version` - (Optional) The Internet Protocol Version which should be used for this public IP address. Possible values are `IPv4` and `IPv6`. Defaults to `IPv4`. Changing this forces a new resource to be created.
 
  ---
@@ -500,6 +510,7 @@ set(object({
         name                    = string
         public_ip_prefix_id     = optional(string)
         sku_name                = optional(string)
+        sku_tier                = optional(string)
         version                 = optional(string)
         ip_tag = optional(set(object({
           tag  = string
@@ -731,6 +742,55 @@ Type: `string`
 
 Default: `null`
 
+### <a name="input_proxy_agent_settings"></a> [proxy\_agent\_settings](#input\_proxy\_agent\_settings)
+
+Description: (Optional) Metadata Security Protocol (MSP) settings for the Guest Proxy Agent. MSP restricts in-guest access to Azure Instance Metadata Service (IMDS) and WireServer. The selected image must be [compatible with MSP](https://learn.microsoft.com/azure/virtual-machines/metadata-security-protocol/overview#compatibility).
+
+- `enabled` - (Optional) Enables MSP. Defaults to `true` when this object is supplied.
+- `key_incarnation_id` - (Optional) Non-negative integer used to reset the key that secures guest-to-host communication. Increase this value only for recovery or troubleshooting.
+- `add_proxy_agent_extension` - (Optional) Installs or removes the Proxy Agent extension implicitly. This setting is only valid for Linux and defaults to `true`. When omitted for Windows, the property is not sent because Azure installs the Windows extension automatically.
+- `imds` - (Optional) Configuration for the Azure Instance Metadata Service endpoint.
+  - `mode` - (Optional) Inline protection mode. Valid values are `Audit`, `Enforce`, and `Disabled`.
+  - `in_vm_access_control_profile_reference_id` - (Optional) Full resource ID of a Compute Gallery InVMAccessControlProfile version. Cannot be combined with `mode`.
+- `wire_server` - (Optional) Configuration for the WireServer endpoint.
+  - `mode` - (Optional) Inline protection mode. Valid values are `Audit`, `Enforce`, and `Disabled`.
+  - `in_vm_access_control_profile_reference_id` - (Optional) Full resource ID of a Compute Gallery InVMAccessControlProfile version. Cannot be combined with `mode`.
+
+Microsoft recommends starting with both endpoints in `Audit` mode, reviewing the guest audit logs, and then moving to `Enforce`. See <https://learn.microsoft.com/azure/virtual-machines/metadata-security-protocol/configuration>.
+
+Example:
+```hcl
+proxy_agent_settings = {
+  enabled = true
+  imds = {
+    mode = "Audit"
+  }
+  wire_server = {
+    mode = "Audit"
+  }
+}
+```
+
+Type:
+
+```hcl
+object({
+    enabled                   = optional(bool, true)
+    key_incarnation_id        = optional(number)
+    add_proxy_agent_extension = optional(bool)
+    imds = optional(object({
+      mode                                      = optional(string)
+      in_vm_access_control_profile_reference_id = optional(string)
+    }))
+    wire_server = optional(object({
+      mode                                      = optional(string)
+      in_vm_access_control_profile_reference_id = optional(string)
+    }))
+  })
+```
+
+Default: `null`
+
 ### <a name="input_role_assignments"></a> [role\_assignments](#input\_role\_assignments)
 
 Description:   A map of role assignments to create on the <RESOURCE>. The map key is deliberately arbitrary to avoid issues where map keys maybe unknown at plan time.
@@ -765,7 +825,7 @@ Default: `{}`
 
 ### <a name="input_single_placement_group"></a> [single\_placement\_group](#input\_single\_placement\_group)
 
-Description: (Optional) Should this Virtual Machine Scale Set be limited to a Single Placement Group, which means the number of instances will be capped at 100 Virtual Machines. Change this value will result in the Orchestrated Virtual Machine Scale Set being recreated.
+Description: (Optional) Should this Virtual Machine Scale Set be limited to a Single Placement Group, which means the number of instances will be capped at 100 Virtual Machines. Changing this value from `false` to `true` is rejected by the Azure API; recreate the scale set deliberately with `terraform apply -replace` instead.
 > Note: `single_placement_group` behaves differently for Orchestrated Virtual Machine Scale Sets than it does for other Virtual Machine Scale Sets. If you do not define the `single_placement_group` field in your configuration file the service will determin what this value should be based off of the value contained within the `sku_name` field of your configuration file. You may set the `single_placement_group` field to `true`, however once you set it to `false` you will not be able to revert it back to `true`. If you wish to use Specialty Sku virtual machines (e.g. [M-Seiries](https://docs.microsoft.com/azure/virtual-machines/m-series) virtual machines) you will need to contact you Microsoft support professional and request to be added to the include list since this feature is currently in private preview until the end of September 2022. Once you have been added to the private preview include list you will need to run the following command to register your subscription with the feature: `az feature register --namespace Microsoft.Compute --name SpecialSkusForVmssFlex`. If you are not on the include list this command will error out with the following error message `(featureRegistrationUnsupported) The feature 'SpecialSkusForVmssFlex' does not support registration`.
 
 Type: `bool`
@@ -920,8 +980,8 @@ Default: `false`
 
 ### <a name="input_zones"></a> [zones](#input\_zones)
 
-Description: Specifies a list of Availability Zones in which this Orchestrated Virtual Machine should be located. Changing this forces a new Orchestrated Virtual Machine to be created.  Defaulted to 3 zones as per this reliability guidance: [Deploy Virtual Machine Scale Sets across availability zones with Virtual Machine Scale Sets Flex](https://learn.microsoft.com/en-us/azure/reliability/reliability-virtual-machine-scale-sets?tabs=graph-4%2Cgraph-1%2Cgraph-2%2Cgraph-3%2Cgraph-5%2Cgraph-6%2Cportal#-deploy-virtual-machine-scale-sets-across-availability-zones-with-virtual-machine-scale-sets-flex)  
-Removing any zones from this list will result in the Orchestrated Virtual Machine Scale Set being recreated.
+Description: Specifies a list of Availability Zones in which this Orchestrated Virtual Machine should be located. Defaulted to 3 zones as per this reliability guidance: [Deploy Virtual Machine Scale Sets across availability zones with Virtual Machine Scale Sets Flex](https://learn.microsoft.com/en-us/azure/reliability/reliability-virtual-machine-scale-sets?tabs=graph-4%2Cgraph-1%2Cgraph-2%2Cgraph-3%2Cgraph-5%2Cgraph-6%2Cportal#-deploy-virtual-machine-scale-sets-across-availability-zones-with-virtual-machine-scale-sets-flex)  
+Zones can be added in place. Removing a zone is rejected by the Azure API; to remove one, recreate the scale set deliberately with `terraform apply -replace`.
 > Note: Due to a limitation of the Azure API at this time only one Availability Zone can be defined.
 
 Type: `set(string)`
