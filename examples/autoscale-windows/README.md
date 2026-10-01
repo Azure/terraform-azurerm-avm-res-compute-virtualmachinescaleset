@@ -17,15 +17,15 @@ This example demonstrates a standard deployment with Windows VMs.  The deploymen
 # This ensures we have unique CAF compliant names for our resources.
 module "naming" {
   source  = "Azure/naming/azurerm"
-  version = "0.4.1"
+  version = "0.4.3"
 }
 
 module "regions" {
   source  = "Azure/avm-utl-regions/azurerm"
-  version = "0.3.0"
+  version = "0.12.0"
 
-  availability_zones_filter = true
   enable_telemetry          = var.enable_telemetry
+  availability_zones_filter = true
 }
 
 resource "random_integer" "region_index" {
@@ -139,7 +139,7 @@ resource "azurerm_subnet_nat_gateway_association" "this" {
 
 module "avm_ptn_ephemeral_credential" {
   source  = "Azure/avm-ptn-ephemeral-credential/azure"
-  version = "0.1.0"
+  version = "0.1.1"
 
   enable_telemetry = var.enable_telemetry
   password = {
@@ -317,7 +317,7 @@ The following Modules are called:
 
 Source: Azure/avm-ptn-ephemeral-credential/azure
 
-Version: 0.1.0
+Version: 0.1.1
 
 ### <a name="module_get_valid_sku_for_deployment_region"></a> [get\_valid\_sku\_for\_deployment\_region](#module\_get\_valid\_sku\_for\_deployment\_region)
 
@@ -329,13 +329,13 @@ Version:
 
 Source: Azure/naming/azurerm
 
-Version: 0.4.1
+Version: 0.4.3
 
 ### <a name="module_regions"></a> [regions](#module\_regions)
 
 Source: Azure/avm-utl-regions/azurerm
 
-Version: 0.3.0
+Version: 0.12.0
 
 ### <a name="module_terraform_azurerm_avm_res_compute_virtualmachinescaleset"></a> [terraform\_azurerm\_avm\_res\_compute\_virtualmachinescaleset](#module\_terraform\_azurerm\_avm\_res\_compute\_virtualmachinescaleset)
 
