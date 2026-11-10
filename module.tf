@@ -1,15 +1,17 @@
 module "managed_identities" {
   source  = "Azure/avm-utl-interfaces/azure"
-  version = "0.5.0"
+  version = "0.9.0"
 
+  location           = var.location
   enable_telemetry   = var.enable_telemetry
   managed_identities = var.managed_identities
 }
 
 module "avm_utl_interfaces" {
   source  = "Azure/avm-utl-interfaces/azure"
-  version = "0.5.0"
+  version = "0.9.0"
 
+  location         = var.location
   enable_telemetry = var.enable_telemetry
   lock = var.lock == null ? null : {
     kind = var.lock.kind
