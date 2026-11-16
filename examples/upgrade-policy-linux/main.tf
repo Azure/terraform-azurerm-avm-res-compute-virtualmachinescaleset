@@ -132,6 +132,7 @@ module "avm_ptn_ephemeral_credential" {
   version = "0.2.0"
 
   enable_telemetry = var.enable_telemetry
+  location         = var.location
   password = {
     length      = 20
     special     = true
