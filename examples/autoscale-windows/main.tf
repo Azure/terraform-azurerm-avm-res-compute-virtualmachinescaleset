@@ -1,12 +1,12 @@
 # This ensures we have unique CAF compliant names for our resources.
 module "naming" {
   source  = "Azure/avm-utl-naming/azure"
-  version = "0.2.0"
+  version = "0.3.0"
 }
 
 module "regions" {
   source  = "Azure/avm-utl-regions/azurerm"
-  version = "0.13.0"
+  version = "0.13.2"
 
   location               = var.location
   enable_telemetry       = var.enable_telemetry
@@ -124,9 +124,10 @@ resource "azurerm_subnet_nat_gateway_association" "this" {
 
 module "avm_ptn_ephemeral_credential" {
   source  = "Azure/avm-ptn-ephemeral-credential/azure"
-  version = "0.1.0"
+  version = "0.2.0"
 
   enable_telemetry = var.enable_telemetry
+  location         = var.location
   password = {
     length      = 20
     special     = true

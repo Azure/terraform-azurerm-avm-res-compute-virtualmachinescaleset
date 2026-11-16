@@ -115,9 +115,10 @@ resource "tls_private_key" "example_ssh" {
 
 module "avm_ptn_ephemeral_credential" {
   source  = "Azure/avm-ptn-ephemeral-credential/azure"
-  version = "0.1.0"
+  version = "0.2.0"
 
   enable_telemetry = var.enable_telemetry
+  location         = var.location
   password = {
     length      = 20
     special     = true
@@ -290,7 +291,7 @@ The following Modules are called:
 
 Source: Azure/avm-ptn-ephemeral-credential/azure
 
-Version: 0.1.0
+Version: 0.2.0
 
 ### <a name="module_get_valid_sku_for_deployment_region"></a> [get\_valid\_sku\_for\_deployment\_region](#module\_get\_valid\_sku\_for\_deployment\_region)
 
