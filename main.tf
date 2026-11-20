@@ -96,6 +96,9 @@ resource "azapi_resource" "virtual_machine_scale_set" {
             },
             var.automatic_instance_repair.grace_period != null ? {
               gracePeriod = var.automatic_instance_repair.grace_period
+            } : {},
+            var.automatic_instance_repair.repair_action != null ? {
+              repairAction = var.automatic_instance_repair.repair_action
             } : {}
           )
         } : {},

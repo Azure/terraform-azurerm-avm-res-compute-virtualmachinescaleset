@@ -140,13 +140,15 @@ Description: Description: Enabling automatic instance repair allows VMSS to auto
 
  - `enabled` - (Required) Should the automatic instance repair be enabled on this Orchestrated Virtual Machine Scale Set? Possible values are `true` and `false`.
  - `grace_period` - (Optional) Amount of time for which automatic repairs will be delayed. The grace period starts right after the VM is found unhealthy. Possible values are between `30` and `90` minutes. The time duration should be specified in `ISO 8601` format (e.g. `PT30M` to `PT90M`). Defaults to `PT30M`.
+ - `repair_action` - (Optional) The repair action applied to unhealthy instances. Possible values are `Replace`, `Restart` and `Reimage`. When omitted the Azure API default of `Replace` is used, which deletes the unhealthy instance and its disks; set `Restart` or `Reimage` to preserve instances with stateful disks.
 
 Type:
 
 ```hcl
 object({
-    enabled      = bool
-    grace_period = optional(string)
+    enabled       = bool
+    grace_period  = optional(string)
+    repair_action = optional(string)
   })
 ```
 
@@ -155,7 +157,8 @@ Default:
 ```json
 {
   "enabled": true,
-  "grace_period": "PT30M"
+  "grace_period": "PT30M",
+  "repair_action": null
 }
 ```
 
