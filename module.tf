@@ -1,6 +1,6 @@
 module "managed_identities" {
   source  = "Azure/avm-utl-interfaces/azure"
-  version = "0.10.0"
+  version = "0.10.1"
 
   enable_telemetry   = var.enable_telemetry
   location           = var.location
@@ -9,7 +9,7 @@ module "managed_identities" {
 
 module "avm_utl_interfaces" {
   source  = "Azure/avm-utl-interfaces/azure"
-  version = "0.10.0"
+  version = "0.10.1"
 
   enable_telemetry = var.enable_telemetry
   location         = var.location

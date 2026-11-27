@@ -22,7 +22,7 @@ module "naming" {
 
 module "regions" {
   source  = "Azure/avm-utl-regions/azurerm"
-  version = "0.13.2"
+  version = "0.15.0"
 
   location               = var.location
   enable_telemetry       = var.enable_telemetry
@@ -345,7 +345,7 @@ Version: 0.3.0
 
 Source: Azure/avm-utl-regions/azurerm
 
-Version: 0.13.2
+Version: 0.15.0
 
 ### <a name="module_terraform_azurerm_avm_res_compute_virtualmachinescaleset"></a> [terraform\_azurerm\_avm\_res\_compute\_virtualmachinescaleset](#module\_terraform\_azurerm\_avm\_res\_compute\_virtualmachinescaleset)
 
